@@ -12,10 +12,21 @@ public:
 
     using RoomEvent::RoomEvent;
 
+    [[deprecated("Use redactedEvents() instead")]]
     QString redactedEvent() const
     {
         return fullJson()["redacts"_L1].toString();
     }
+    QStringList redactedEvents() const
+    {
+        const auto evtIdJson = contentJson()["redacts"_L1];
+        if (evtIdJson.isArray())
+            return fromJson<QStringList>(evtIdJson); // MSC2244: a list of ids
+        if (evtIdJson.isString())
+            return { fromJson<QString>(evtIdJson) }; // MSC2174: id in content
+        return { fullJson()["redacts"_L1].toString() }; // legacy fallback
+    }
+
     QUO_CONTENT_GETTER(QString, reason)
 };
 } // namespace Quotient
