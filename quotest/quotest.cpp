@@ -256,18 +256,22 @@ TestManager::TestManager(int& argc, char** argv)
         logConnectionDetails(c);
 
         // Test Connection::assumeIdentity() while we can replace connection objects
-        auto* newC = new Connection(c->homeserver(), this);
-        newC->assumeIdentity(c->userId(), c->deviceId(), QString::fromLatin1(c->accessToken()));
+        auto homeserver = c->homeserver();
+        auto userId = c->userId();
+        auto deviceId = c->deviceId();
+        auto accessToken = c->accessToken();
+        delete c;
+        auto* newC = new Connection(homeserver, this);
+        newC->assumeIdentity(userId, deviceId, QString::fromLatin1(accessToken));
         // NB: this will need to change when we switch E2EE on in quotest because encryption
         //     data is initialised asynchronously
-        if (QUO_ALARM(newC->homeserver() != c->homeserver())
-            || QUO_ALARM(newC->userId() != c->userId()) || QUO_ALARM(!newC->isLoggedIn())) {
+        if (QUO_ALARM(newC->homeserver() != homeserver)
+            || QUO_ALARM(newC->userId() != userId) || QUO_ALARM(!newC->isLoggedIn())) {
             qCritical() << "Connection::assumeIdentity() is broken";
             exit(2);
             return;
         }
 
-        c->deleteLater();
         c = newC;
         setupAndRun(targetRoomAlias);
     });

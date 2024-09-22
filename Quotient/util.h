@@ -184,8 +184,10 @@ constexpr ImplPtr<ImplType, TypeToDelete> ZeroImpl()
     return { nullptr, [](TypeToDelete*) { /* nullptr doesn't need deletion */ } };
 }
 
+#if Quotient_VERSION_MAJOR == 0 && Quotient_VERSION_MINOR <= 10
 template <typename T>
-struct CStructDeleter {
+struct [[deprecated("Unused since 0.10; undeprecate if start to use it")]] CStructDeleter
+{
     size_t (*destructor)(T*);
 
     void operator()(T* toDelete)
@@ -195,12 +197,15 @@ struct CStructDeleter {
     }
 };
 
+QT_WARNING_PUSH
+QT_WARNING_DISABLE_DEPRECATED
 //! \brief An owning pointer to a C structure
 //!
 //! This is intented to ease lifecycle management of Olm structures.
 //! \sa makeCStruct
 template <typename T>
-using CStructPtr = std::unique_ptr<T, CStructDeleter<T>>;
+using CStructPtr [[deprecated("Unused since 0.10; undeprecate if it's used again")]] =
+    std::unique_ptr<T, CStructDeleter<T>>;
 
 //! \brief Create a C structure with pre-programmed deletion logic
 //!
@@ -213,11 +218,13 @@ using CStructPtr = std::unique_ptr<T, CStructDeleter<T>>;
 //! original C pointer returned by \p constructor; and then deletes the
 //! allocated array of bytes.
 template <typename T>
-inline auto makeCStruct(T* (*constructor)(void*), size_t (*sizeFn)(),
-                        auto destructor)
+[[deprecated("Unused since 0.10; undeprecate if it's used again")]]
+inline auto makeCStruct(T *(*constructor)(void *), size_t (*sizeFn)(), auto destructor)
 {
-    return CStructPtr<T>{ constructor(new std::byte[sizeFn()]), { destructor } };
+    return CStructPtr<T>{constructor(new std::byte[sizeFn()]), {destructor}};
 }
+QT_WARNING_POP
+#endif
 
 //! \brief Multiplex several functors in one
 //!
@@ -365,6 +372,18 @@ template <typename StructT>
 constexpr inline size_t mergeStruct(StructT& lhs, const StructT& rhs, const auto... fields)
 {
     return ((... + static_cast<size_t>(merge(lhs.*fields, rhs.*fields))));
+}
+
+//! \brief Get a size of a container coerced to size_t
+//!
+//! This is mainly aimed at Qt containers because they have signed size; but it can also be called
+//! on other containers or even C arrays, e.g. - to spare generic code from special-casing.
+//! For Qt containers, it's a safe cast since size_t can always accommodate the range between 0 and
+//! SIZE_MAX / 2 - 1 that they support; yet compilers complain...
+constexpr inline size_t unsignedSize(const auto& buffer)
+    requires (sizeof(std::size(buffer)) <= sizeof(size_t))
+{
+    return static_cast<size_t>(std::size(buffer));
 }
 
 // These are meant to eventually become separate classes derived from QString (or perhaps

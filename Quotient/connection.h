@@ -9,12 +9,11 @@
 #include "quotient_common.h"
 #include "ssosession.h"
 #include "util.h"
+#include "keyimport.h"
 
 #include "csapi/create_room.h"
 #include "csapi/login.h"
 #include "csapi/content-repo.h"
-
-#include "e2ee/qolmoutboundsession.h"
 
 #include "events/accountdataevents.h"
 #include "jobs/jobhandle.h"
@@ -51,11 +50,7 @@ class DownloadFileJob;
 class SendToDeviceJob;
 class SendMessageJob;
 class LeaveRoomJob;
-class Database;
 struct EncryptedFileMetadata;
-
-class QOlmAccount;
-class QOlmInboundGroupSession;
 
 using Invite3pid = CreateRoomJob::Invite3pid;
 
@@ -101,6 +96,26 @@ auto defaultUserFactory(Connection* c, const QString& id)
 using DirectChatsMap = QMultiHash<const User*, QString>;
 using IgnoredUsersList = IgnoredUsersEvent::value_type;
 
+//! \internal
+class Dispatcher : public QObject
+{
+    Q_OBJECT
+
+public:
+    static Dispatcher &instance()
+    {
+        static Dispatcher dispatcher;
+        return dispatcher;
+    }
+
+Q_SIGNALS:
+    void sessionChanged(const QString &outUserId, const QString &theirUserId,
+                        const QString &verificationId);
+
+private:
+    using QObject::QObject;
+};
+
 class QUOTIENT_API Connection : public QObject {
     Q_OBJECT
     QML_ELEMENT
@@ -132,6 +147,13 @@ public:
         PublishRoom,
         UnpublishRoom
     }; // FIXME: Should go inside CreateRoomJob
+
+    enum BackupResult {
+        Success,
+        InvalidPassphrase,
+        Error,
+    };
+    Q_ENUM(BackupResult)
 
     explicit Connection(QObject* parent = nullptr);
     explicit Connection(const QUrl& server, QObject* parent = nullptr);
@@ -324,28 +346,11 @@ public:
     //!
     //! \return true, if the last sync was successful, false otherwise.
     bool isOnline() const;
-    QOlmAccount* olmAccount() const;
-    Database* database() const;
 
-    std::unordered_map<QByteArray, QOlmInboundGroupSession> loadRoomMegolmSessions(
-        const Room* room) const;
-    void saveMegolmSession(const Room* room,
-                           const QOlmInboundGroupSession& session, const QByteArray &senderKey, const QByteArray& senderEdKey) const;
+    //! \brief Returns whether this event comes from a verified device
+    bool isVerifiedEvent(const QString& eventId, Room* room);
 
-    QString edKeyForUserDevice(const QString& userId,
-                               const QString& deviceId) const;
-    QString curveKeyForUserDevice(const QString& userId,
-                                const QString& device) const;
-    bool hasOlmSession(const QString& user, const QString& deviceId) const;
-
-    // This assumes that an olm session already exists. If it doesn't, no message is sent.
-    void sendToDevice(const QString& targetUserId, const QString& targetDeviceId,
-                      const Event& event, bool encrypted);
-
-    //! Returns true if this megolm session comes from a verified device
-    bool isVerifiedSession(const QByteArray& megolmSessionId) const;
-
-    //! Returns whether the device is verified
+    // //! Returns whether the device is verified
     bool isVerifiedDevice(const QString& userId, const QString& deviceId) const;
 
     //! \brief Returns whether the device is known and supports end-to-end encryption.
@@ -354,23 +359,12 @@ public:
     //! i.e., users that we don't share an encrypted room with
     bool isKnownE2eeCapableDevice(const QString& userId, const QString& deviceId) const;
 
-
-    void sendSessionKeyToDevices(const QString& roomId,
-                                 const QOlmOutboundGroupSession& outboundSession,
-                                 const QMultiHash<QString, QString>& devices);
-
     QJsonObject decryptNotification(const QJsonObject &notification);
     QStringList devicesForUser(const QString& userId) const;
-    Q_INVOKABLE bool isQueryingKeys() const;
 
-    QFuture<QByteArray> requestKeyFromDevices(event_type_t name);
 
-    QString masterKeyForUser(const QString& userId) const;
     Q_INVOKABLE bool isUserVerified(const QString& userId) const;
     Q_INVOKABLE bool allSessionsSelfVerified(const QString& userId) const;
-    bool hasConflictingDeviceIdsAndCrossSigningKeys(const QString& userId);
-
-    void reloadDevices();
 
     Q_INVOKABLE Quotient::SyncJob* syncJob() const;
     Q_INVOKABLE QString nextBatchToken() const;
@@ -752,9 +746,6 @@ public Q_SLOTS:
     //!         might be no Room object anymore.
     ForgetRoomJob* forgetRoom(const QString& id);
 
-    SendToDeviceJob* sendToDevices(const QString& eventType,
-                                   const UsersToDevicesToContent& contents);
-
     [[deprecated("This method is experimental and may be removed any time")]] //
     SendMessageJob* sendMessage(const QString& roomId, const RoomEvent& event);
 
@@ -764,11 +755,27 @@ public Q_SLOTS:
     Quotient::KeyVerificationSession* startKeyVerificationSession(const QString& userId,
                                                                   const QString& deviceId);
 
+    Quotient::KeyVerificationSession* requestUserVerification(Room* room);
+
     Q_INVOKABLE void startSelfVerification();
-    void encryptionUpdate(const Room* room, const QStringList& invitedIds = {});
 
     static Connection* makeMockConnection(const QString& mxId,
                                           bool enableEncryption = true);
+
+    //! \internal
+    void shareRoomKey(Room* room, std::function<void()> then);
+    QString encryptRoomEvent(Room* room, const QByteArray& content, const QString& type);
+    QString decryptRoomEvent(Room* room, const QByteArray& event);
+
+    //! \internal
+    void receiveVerificationEvent(const QByteArray& fullJson);
+
+    void importFromBackup();
+    Q_INVOKABLE void loadFromBackup(const QString& passphrase);
+    Q_INVOKABLE void requestSecretsFromDevices();
+
+    Q_INVOKABLE KeyImport::Error importKeys(const QString& passphrase, const QString& data);
+    Q_INVOKABLE QByteArray exportKeys(const QString& passphrase);
 
 Q_SIGNALS:
     //! \brief Initial server resolution has failed
@@ -922,20 +929,16 @@ Q_SIGNALS:
     void cacheStateChanged();
     void lazyLoadingChanged();
     void turnServersChanged(const QJsonObject& servers);
-    void devicesListLoaded();
 
     //! Encryption has been enabled or disabled
     void encryptionChanged(bool enabled);
     void directChatsEncryptionChanged(bool enabled);
 
+    //! Connect to this signal to get notified when a key verification session starts,
+    //! both for incoming and outgoing sessions
     void newKeyVerificationSession(Quotient::KeyVerificationSession* session);
-    void keyVerificationStateChanged(
-        const Quotient::KeyVerificationSession* session,
-        Quotient::KeyVerificationSession::State state);
-    void sessionVerified(const QString& userId, const QString& deviceId);
-    void finishedQueryingKeys();
-    void secretReceived(const QString& requestId, const QString& secret);
 
+    void sessionVerified(const QString& userId, const QString& deviceId);
     void userVerified(const QString& userId);
 
     //! The account does not yet have cross-signing keys. The client should ask the user
@@ -946,7 +949,19 @@ Q_SIGNALS:
     //! This does not mean that the server was reached, a sync was performed, or the state cache was loaded.
     void ready();
 
+    //! \brief Emitted after the crypto machine has processed the verification events for a sync.
+    //! Usually not relevant to clients.
+    void verificationEventProcessed();
+
+    void backupFinished(Connection::BackupResult status);
+
+    void finishedQueryingKeys();
+
+    //! \internal
+    void shareRoomKeyDone();
+
     friend class ::TestCrossSigning;
+    friend class KeyVerificationSession;
 protected:
     //! Access the underlying ConnectionData class
     const ConnectionData* connectionData() const;
@@ -975,7 +990,7 @@ protected:
     Room* provideRoom(const QString& id, std::optional<JoinState> joinState = {});
 
     //! Process sync data from a successful sync request
-    void onSyncSuccess(SyncData&& data, bool fromCache = false);
+    void processSyncData(SyncData&& data, bool fromCache = false);
 
 protected Q_SLOTS:
     void syncLoopIteration();
@@ -983,6 +998,8 @@ protected Q_SLOTS:
 private:
     class Private;
     ImplPtr<Private> d;
+
+    void onSyncSuccess(SyncJob *syncJob);
 
     static room_factory_t _roomFactory;
     static user_factory_t _userFactory;

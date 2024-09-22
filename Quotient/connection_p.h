@@ -7,10 +7,10 @@
 #include "avatar.h"
 #include "connection.h"
 #include "connectiondata.h"
-#include "connectionencryptiondata_p.h"
 #include "ranges_extras.h"
 #include "settings.h"
 #include "syncdata.h"
+#include "e2ee/e2ee_common.h"
 
 #include "csapi/account-data.h"
 #include "csapi/capabilities.h"
@@ -18,7 +18,10 @@
 #include "csapi/versions.h"
 #include "csapi/wellknown.h"
 
+#include "lib.rs.h"
+
 #include <QtCore/QCoreApplication>
+#include <QtCore/QQueue>
 
 namespace Quotient {
 
@@ -52,8 +55,14 @@ public:
     std::unordered_map<QString, EventPtr> accountData;
     QMetaObject::Connection syncLoopConnection {};
     int syncTimeout = -1;
+    std::optional<rust::Box<crypto::CryptoMachine>> cryptoMachine;
+    QQueue<std::pair<Room *, std::function<void()>>> keyShareQueue;
+    bool keyShareRunning = false;
 
     GetCapabilitiesJob::Capabilities capabilities{};
+
+    bool isInitializingBackup = false;
+    bool isUploadingKeysToBackup = false;
 
     QVector<GetLoginFlowsJob::LoginFlow> loginFlows;
 
@@ -61,12 +70,11 @@ public:
     bool useEncryption = encryptionDefault;
     static inline bool directChatEncryptionDefault = false;
     bool encryptDirectChats = directChatEncryptionDefault;
-    std::unique_ptr<_impl::ConnectionEncryptionData> encryptionData;
 
     JobHandle<GetWellknownJob> resolverJob{};
     JobHandle<GetLoginFlowsJob> loginFlowsJob{};
 
-    SyncJob* syncJob = nullptr;
+    JobHandle<SyncJob> syncJob{};
     bool lastSyncSuccessful = true;
     JobHandle<LogoutJob> logoutJob{};
 
@@ -81,6 +89,10 @@ public:
     {
         return rangeContains(loginFlows, flowType, &LoginFlow::type);
     }
+
+    bool isHandlingOutgoing = false;
+
+    unsigned int lastScheduledRequest = 0;
 
     //! \brief Check the homeserver and resolve it if needed, before connecting
     //!
@@ -132,5 +144,49 @@ public:
 
     void saveAccessTokenToKeychain() const;
     void dropAccessToken();
+    void processOutgoingRequests();
+
+    //! \brief Send an m.key.verification.accept event to the session
+    //! \param session The session to send the event to
+    void acceptKeyVerification(KeyVerificationSession* session);
+
+    //! \brief Send an m.key.verification.start event to the session
+    //! This does not start a new verification session
+    //! \param session The session to send the event to
+    void startKeyVerification(KeyVerificationSession* session);
+
+    //! \brief Send an m.key.verification.mac event to the session
+    //! This is sent after the user confirms that the sas emoji match
+    //! \param session The session to send the event to
+    void confirmKeyVerification(KeyVerificationSession* session);
+
+    void cancelKeyVerification(KeyVerificationSession* session);
+
+    void acceptSas(KeyVerificationSession* session);
+
+    //! \brief Query the state of a key verification session
+    //! \param session The session to query the state for
+    KeyVerificationSession::State keyVerificationSessionState(KeyVerificationSession* session);
+
+    //! \brief Query the state of a sas verification
+    //! \param session The session to query the state for
+    KeyVerificationSession::SasState sasState(KeyVerificationSession* session);
+
+    //! \brief Query the sas emoji of a session
+    //! If the session is not in a state to show emoji, the return value
+    //! \param session The session to query the emoji for
+    QList<std::pair<QString, QString>> keyVerificationSasEmoji(KeyVerificationSession* session);
+
+    void requestDeviceVerification(KeyVerificationSession* session);
+    void requestUserVerification(KeyVerificationSession* session);
+    void monitorVerification(KeyVerificationSession *session);
+    void monitorSas(KeyVerificationSession *session);
+
+    void initializeExistingBackup();
+
+    QFuture<void> setupPicklingKey();
+    void setupCryptoMachine(const QByteArray& picklingKey);
+    void runShareKey(Room* room, std::function<void()>);
+    void startKeyShare();
 };
 } // namespace Quotient

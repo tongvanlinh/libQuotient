@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: 2024 Tobias Fella <tobias.fella@kde.org>
+# SPDX-License-Identifier: LGPL-2.0-or-later
+
+[package]
+name = "matrix-rust-sdk-crypto-cpp"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+# TODO: Fix macos problem and update
+cxx = { version = "=1.0.138", default-features = true, features = [ "c++20" ] }
+# For android
+# cxx = { git = "https://github.com/TobiasFella/cxx", default-features = true, features = [ "c++20" ] }
+matrix-sdk-common = "0.16"
+matrix-sdk-crypto = "0.16"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tracing-subscriber = "0"
+log = "0"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+matrix-sdk-sqlite = { version = "0.16", default-features = false, features = [
+    "bundled",
+    "crypto-store",
+] }
+
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+matrix-sdk-sqlite = { version = "0.16", default-features = false, features = [
+    "crypto-store",
+] }
+
+
+[build-dependencies]
+# TODO: Fix macos problem and update
+cxx-build = "=1.0.138"
+# For android
+# cxx-build = { git = "https://github.com/TobiasFella/cxx" }
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1

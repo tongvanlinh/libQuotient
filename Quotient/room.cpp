@@ -12,7 +12,6 @@
 #include "avatar.h"
 #include "connection.h"
 #include "converters.h"
-#include "database.h"
 #include "eventstats.h"
 #include "keyverificationsession.h"
 #include "logging_categories_p.h"
@@ -40,8 +39,6 @@
 #include "csapi/tags.h"
 
 #include "e2ee/e2ee_common.h"
-#include "e2ee/qolmaccount.h"
-#include "e2ee/qolminboundsession.h"
 
 #include "events/callevents.h"
 #include "events/encryptionevent.h"
@@ -58,6 +55,7 @@
 #include "events/roomtombstoneevent.h"
 #include "events/simplestateevents.h"
 #include "events/typingevent.h"
+#include "events/keyverificationevent.h"
 #include "jobs/downloadfilejob.h"
 #include "jobs/mediathumbnailjob.h"
 
@@ -153,9 +151,6 @@ public:
     JobHandle<GetMembersByRoomJob> allMembersJob;
     //! Map from megolm sessionId to set of eventIds
     std::unordered_map<QString, QSet<QString>> undecryptedEvents;
-    //! Map from event id of the request event to the session object
-    QHash<QString, KeyVerificationSession *> keyVerificationSessions;
-    QPointer<KeyVerificationSession> pendingKeyVerificationSession;
 
     struct FileTransferPrivateInfo {
         FileTransferPrivateInfo() = default;
@@ -366,121 +361,6 @@ public:
         return creatorsHaveInfinitePower() ? std::numeric_limits<int>::max() : 100;
     }
 
-    std::unordered_map<QByteArray, QOlmInboundGroupSession> groupSessions;
-    std::optional<QOlmOutboundGroupSession> currentOutboundMegolmSession = {};
-
-    bool addInboundGroupSession(QByteArray sessionId, QByteArray sessionKey,
-                                const QString& senderId,
-                                const QByteArray& olmSessionId, const QByteArray& senderKey, const QByteArray& senderEdKey)
-    {
-        if (groupSessions.contains(sessionId)) {
-            qCWarning(E2EE) << "Inbound Megolm session" << sessionId << "already exists";
-            return false;
-        }
-
-        auto expectedMegolmSession = QOlmInboundGroupSession::create(sessionKey);
-        Q_ASSERT(expectedMegolmSession.has_value());
-        auto&& megolmSession = *expectedMegolmSession;
-        if (megolmSession.sessionId() != sessionId) {
-            qCWarning(E2EE) << "Session ID mismatch in m.room_key event";
-            return false;
-        }
-        megolmSession.setSenderId(senderId);
-        megolmSession.setOlmSessionId(olmSessionId);
-        qCWarning(E2EE) << "Adding inbound session" << sessionId;
-        connection->saveMegolmSession(q, megolmSession, senderKey, senderEdKey);
-        groupSessions.try_emplace(sessionId, std::move(megolmSession));
-        return true;
-    }
-
-    QString groupSessionDecryptMessage(const QByteArray& ciphertext,
-                                       const QByteArray& sessionId,
-                                       const QString& eventId,
-                                       const QDateTime& timestamp,
-                                       const QString& senderId)
-    {
-        auto groupSessionIt = groupSessions.find(sessionId);
-        if (groupSessionIt == groupSessions.end()) {
-            // qCWarning(E2EE) << "Unable to decrypt event" << eventId
-            //               << "The sender's device has not sent us the keys for "
-            //                  "this message";
-            // TODO: request the keys
-            return {};
-        }
-        auto& senderSession = groupSessionIt->second;
-        if (senderSession.senderId() != "BACKUP"_L1 && senderSession.senderId() != senderId) {
-            qCWarning(E2EE) << "Sender from event does not match sender from session";
-            return {};
-        }
-        auto decryptResult = senderSession.decrypt(ciphertext);
-        if(!decryptResult) {
-            qCWarning(E2EE) << "Unable to decrypt event" << eventId
-            << "with matching megolm session:" << decryptResult.error();
-            return {};
-        }
-        const auto& [content, index] = *decryptResult;
-        const auto& [recordEventId, ts] =
-            q->connection()->database()->groupSessionIndexRecord(
-                q->id(), QString::fromLatin1(senderSession.sessionId()), index);
-        if (recordEventId.isEmpty()) {
-            q->connection()->database()->addGroupSessionIndexRecord(
-                q->id(), QString::fromLatin1(senderSession.sessionId()), index, eventId,
-                timestamp.toMSecsSinceEpoch());
-        } else {
-            if ((eventId != recordEventId)
-                || (ts != timestamp.toMSecsSinceEpoch())) {
-                qCWarning(E2EE) << "Detected a replay attack on event" << eventId;
-                return {};
-            }
-        }
-        return QString::fromUtf8(content);
-    }
-
-    bool shouldRotateMegolmSession() const
-    {
-        const auto* encryptionConfig = currentState.get<EncryptionEvent>();
-        if (!encryptionConfig || !encryptionConfig->useEncryption())
-            return false;
-
-        const auto rotationInterval = encryptionConfig->rotationPeriodMs();
-        const auto rotationMessageCount = encryptionConfig->rotationPeriodMsgs();
-        return currentOutboundMegolmSession->messageCount()
-                   >= rotationMessageCount
-               || currentOutboundMegolmSession->creationTime().addMSecs(
-                      rotationInterval)
-                      < QDateTime::currentDateTime();
-    }
-
-    bool hasValidMegolmSession() const
-    {
-        return q->usesEncryption() && currentOutboundMegolmSession.has_value();
-    }
-
-    void createMegolmSession() {
-        qCDebug(E2EE) << "Creating new outbound megolm session for room "
-                      << q->objectName();
-        currentOutboundMegolmSession.emplace();
-        connection->database()->saveCurrentOutboundMegolmSession(
-            id, *currentOutboundMegolmSession);
-
-        addInboundGroupSession(currentOutboundMegolmSession->sessionId(),
-                               currentOutboundMegolmSession->sessionKey(),
-                               q->localMember().id(), QByteArrayLiteral("SELF"),
-                               connection->curveKeyForUserDevice(connection->userId(), connection->deviceId()).toLatin1(),
-                               connection->edKeyForUserDevice(connection->userId(), connection->deviceId()).toLatin1());
-    }
-
-    QMultiHash<QString, QString> getDevicesWithoutKey() const
-    {
-        QMultiHash<QString, QString> devices;
-        for (const auto& user : memberNameMap.values() + membersInvited)
-            for (const auto& deviceId : connection->devicesForUser(user))
-                devices.insert(user, deviceId);
-
-        return connection->database()->devicesWithoutKey(
-            id, devices, currentOutboundMegolmSession->sessionId());
-    }
-
 private:
     Room::Timeline::size_type mergePendingEvent(PendingEvents::iterator localEchoIt,
                                                 RoomEvents::iterator remoteEchoIt);
@@ -498,33 +378,6 @@ Room::Room(Connection* connection, QString id, JoinState initialJoinState)
     d->q = this;
     d->threads.setRoom(this);
     d->displayname = d->calculateDisplayname(); // Set initial "Empty room" name
-    if (connection->encryptionEnabled()) {
-        connect(this, &Room::encryption, this,
-                [this, connection] { connection->encryptionUpdate(this); });
-        connect(this, &Room::memberListChanged, this, [this, connection] {
-            if(usesEncryption()) {
-                connection->encryptionUpdate(this, d->membersInvited);
-            }
-        });
-        d->groupSessions = connection->loadRoomMegolmSessions(this);
-        d->currentOutboundMegolmSession =
-            connection->database()->loadCurrentOutboundMegolmSession(id);
-        if (d->currentOutboundMegolmSession
-            && d->shouldRotateMegolmSession()) {
-            d->currentOutboundMegolmSession.reset();
-        }
-        connect(this, &Room::memberLeft, this, [this] {
-            if (d->hasValidMegolmSession()) {
-                qCDebug(E2EE)
-                    << "Rotating the megolm session because a user left";
-                d->createMegolmSession();
-            }
-        });
-
-        connect(this, &Room::beforeDestruction, this, [id, connection] {
-            connection->database()->clearRoomData(id);
-        });
-    }
     qCDebug(STATE) << "New" << terse << initialJoinState << "Room:" << id;
 }
 
@@ -1669,12 +1522,9 @@ RoomEventPtr Room::decryptMessage(const EncryptedEvent& encryptedEvent)
                        << encryptedEvent.id() << "is not supported";
         return {};
     }
-    QString decrypted = d->groupSessionDecryptMessage(
-        encryptedEvent.ciphertext(), encryptedEvent.sessionId().toLatin1(),
-        encryptedEvent.id(), encryptedEvent.originTimestamp(),
-        encryptedEvent.senderId());
+
+    auto decrypted = connection()->decryptRoomEvent(this, QJsonDocument(encryptedEvent.fullJson()).toJson());
     if (decrypted.isEmpty()) {
-        // qCWarning(E2EE) << "Encrypted message is empty";
         return {};
     }
     auto decryptedEvent = encryptedEvent.createDecrypted(decrypted);
@@ -1684,41 +1534,6 @@ RoomEventPtr Room::decryptMessage(const EncryptedEvent& encryptedEvent)
     qWarning(E2EE) << "Decrypted event" << encryptedEvent.id()
                    << "not for this room; discarding";
     return {};
-}
-
-void Room::handleRoomKeyEvent(const RoomKeyEvent& roomKeyEvent,
-                              const QString& senderId,
-                              const QByteArray& olmSessionId,
-                              const QByteArray& senderKey,
-                              const QByteArray& senderEdKey)
-{
-    if (roomKeyEvent.algorithm() != MegolmV1AesSha2AlgoKey) {
-        qCWarning(E2EE) << "Ignoring unsupported algorithm"
-                        << roomKeyEvent.algorithm() << "in m.room_key event";
-    }
-    if (d->addInboundGroupSession(roomKeyEvent.sessionId().toLatin1(),
-                                  roomKeyEvent.sessionKey(), senderId,
-                                  olmSessionId, senderKey, senderEdKey)) {
-        qCWarning(E2EE) << "added new inboundGroupSession:"
-                        << d->groupSessions.size();
-        const auto undecryptedEvents =
-            d->undecryptedEvents[roomKeyEvent.sessionId()];
-        for (const auto& eventId : undecryptedEvents) {
-            const auto pIdx = d->eventsIndex.constFind(eventId);
-            if (pIdx == d->eventsIndex.cend())
-                continue;
-            auto& ti = d->timeline[Timeline::size_type(*pIdx - minTimelineIndex())];
-            if (auto encryptedEvent = ti.viewAs<EncryptedEvent>()) {
-                if (auto decrypted = decryptMessage(*encryptedEvent)) {
-                    auto&& oldEvent = eventCast<EncryptedEvent>(
-                        ti.replaceEvent(std::move(decrypted)));
-                    ti->setOriginalEvent(std::move(oldEvent));
-                    emit replacedEvent(ti.event(), ti->originalEvent());
-                    d->undecryptedEvents[roomKeyEvent.sessionId()] -= eventId;
-                }
-            }
-        }
-    }
 }
 
 int Room::joinedCount() const
@@ -2075,8 +1890,6 @@ const PendingEventItem& Room::Private::doSendEvent(PendingEvents::iterator event
     const auto& eventItem = *eventItemIter;
     const auto txnId = eventItem->transactionId();
     // TODO, #133: Enqueue the job rather than immediately trigger it.
-    const RoomEvent* _event = eventItemIter->event();
-    std::unique_ptr<EncryptedEvent> encryptedEvent;
 
     if (!q->successorId().isEmpty()) { // TODO: replace with a proper power levels check
         qCWarning(MAIN) << q << "has been upgraded, event won't be sent";
@@ -2093,62 +1906,88 @@ const PendingEventItem& Room::Private::doSendEvent(PendingEvents::iterator event
             onEventSendingFailure(eventItemIter);
             return eventItem;
         }
-        if (!hasValidMegolmSession() || shouldRotateMegolmSession()) {
-            createMegolmSession();
-        }
 
-        // Send the session to other people
-        connection->sendSessionKeyToDevices(id, *currentOutboundMegolmSession,
-                                            getDevicesWithoutKey());
+        auto type = eventItem->matrixType();
+        auto contentJson = eventItem->contentJson();
 
-        const auto encrypted = currentOutboundMegolmSession->encrypt(
-            QJsonDocument(eventItem->fullJson()).toJson());
-        currentOutboundMegolmSession->setMessageCount(
-            currentOutboundMegolmSession->messageCount() + 1);
-        connection->database()->saveCurrentOutboundMegolmSession(
-            id, *currentOutboundMegolmSession);
-        encryptedEvent = makeEvent<EncryptedEvent>(
-            encrypted, connection->olmAccount()->identityKeys().curve25519,
-            connection->deviceId(), QString::fromLatin1(currentOutboundMegolmSession->sessionId()));
-        encryptedEvent->setTransactionId(connection->generateTxnId());
-        encryptedEvent->setRoomId(id);
-        encryptedEvent->setSender(connection->userId());
-        encryptedEvent->applyRelationFrom(*eventItem);
-        // We show the unencrypted event locally while pending. The echo
-        // check will throw the encrypted version out
-        _event = encryptedEvent.get();
+        connection->shareRoomKey(q, [this, txnId, eventItemIter, type, contentJson, &eventItem]() {
+            const RoomEvent* _event = eventItemIter->event();
+            std::unique_ptr<EncryptedEvent> encryptedEvent;
+            auto content = QJsonDocument::fromJson(connection->encryptRoomEvent(q, QJsonDocument(contentJson).toJson(), type).toUtf8()).object();
+            encryptedEvent = makeEvent<EncryptedEvent>(content[u"ciphertext"_s].toString().toUtf8(), content[u"sender_key"_s].toString(), content[u"device_id"_s].toString(), content[u"session_id"_s].toString());
+            encryptedEvent->setTransactionId(connection->generateTxnId());
+            encryptedEvent->setRoomId(id);
+            encryptedEvent->setSender(connection->userId());
+            if (contentJson.contains(RelatesToKey)) {
+                encryptedEvent->applyRelationFrom(*eventItem);
+            }
+            // We show the unencrypted event locally while pending. The echo
+            // check will throw the encrypted version out
+            _event = encryptedEvent.get();
+            if (auto call = connection->callApi<SendMessageJob>(BackgroundRequest, id, _event->matrixType(),
+                                                                txnId, _event->contentJson())) {
+                // Below - find pending events by txnIds again because PendingEventItems may move around
+                // as unsyncedEvents vector grows.
+                Room::connect(call, &BaseJob::sentRequest, q, [this, txnId] {
+                    auto it = q->findPendingEvent(txnId);
+                    if (it == unsyncedEvents.end()) {
+                        qWarning(EVENTS) << "Pending event for transaction" << txnId
+                                        << "not found - got synced so soon?";
+                        return;
+                    }
+                    it->setDeparted();
+                    emit q->pendingEventChanged(int(it - unsyncedEvents.begin()));
+                });
+                call.onResult(q, [this, txnId, call] {
+                    auto it = q->findPendingEvent(txnId);
+                    if (!call->status().good()) {
+                        onEventSendingFailure(it, call);
+                        return;
+                    }
+                    if (it != unsyncedEvents.end())
+                        onEventReachedServer(it, call->eventId());
+                    else
+                        qDebug(EVENTS) << "Pending event for transaction" << txnId
+                                    << "already merged";
+
+                    emit q->messageSent(txnId, call->eventId());
+                });
+            } else
+                onEventSendingFailure(eventItemIter);
+        });
+    } else {
+        if (auto call = connection->callApi<SendMessageJob>(BackgroundRequest, id, eventItem->matrixType(),
+                                                            txnId, eventItem->contentJson())) {
+            // Below - find pending events by txnIds again because PendingEventItems may move around
+            // as unsyncedEvents vector grows.
+            Room::connect(call, &BaseJob::sentRequest, q, [this, txnId] {
+                auto it = q->findPendingEvent(txnId);
+                if (it == unsyncedEvents.end()) {
+                    qWarning(EVENTS) << "Pending event for transaction" << txnId
+                                    << "not found - got synced so soon?";
+                    return;
+                }
+                it->setDeparted();
+                emit q->pendingEventChanged(int(it - unsyncedEvents.begin()));
+            });
+            call.onResult(q, [this, txnId, call] {
+                auto it = q->findPendingEvent(txnId);
+                if (!call->status().good()) {
+                    onEventSendingFailure(it, call);
+                    return;
+                }
+                if (it != unsyncedEvents.end())
+                    onEventReachedServer(it, call->eventId());
+                else
+                    qDebug(EVENTS) << "Pending event for transaction" << txnId
+                                << "already merged";
+
+                emit q->messageSent(txnId, call->eventId());
+            });
+        } else
+            onEventSendingFailure(eventItemIter);
     }
 
-    if (auto call = connection->callApi<SendMessageJob>(BackgroundRequest, id, _event->matrixType(),
-                                                        txnId, _event->contentJson())) {
-        // Below - find pending events by txnIds again because PendingEventItems may move around
-        // as unsyncedEvents vector grows.
-        Room::connect(call, &BaseJob::sentRequest, q, [this, txnId] {
-            auto it = q->findPendingEvent(txnId);
-            if (it == unsyncedEvents.end()) {
-                qWarning(EVENTS) << "Pending event for transaction" << txnId
-                                 << "not found - got synced so soon?";
-                return;
-            }
-            it->setDeparted();
-            emit q->pendingEventChanged(int(it - unsyncedEvents.begin()));
-        });
-        call.onResult(q, [this, txnId, call] {
-            auto it = q->findPendingEvent(txnId);
-            if (!call->status().good()) {
-                onEventSendingFailure(it, call);
-                return;
-            }
-            if (it != unsyncedEvents.end())
-                onEventReachedServer(it, call->eventId());
-            else
-                qDebug(EVENTS) << "Pending event for transaction" << txnId
-                               << "already merged";
-
-            emit q->messageSent(txnId, call->eventId());
-        });
-    } else
-        onEventSendingFailure(eventItemIter);
     return eventItem;
 }
 
@@ -2871,40 +2710,28 @@ Room::Changes Room::Private::addNewMessageEvents(RoomEvents&& events)
                 emit q->callEvent(q, evt);
 
     for (auto it = from; it != syncEdge(); ++it) {
-        if (it->event()->senderId() == connection->userId()) {
-            if (const auto* evt = it->viewAs<RoomMessageEvent>()) {
-                if (evt->rawMsgtype() == "m.key.verification.request"_L1 && pendingKeyVerificationSession && evt->senderId() == q->localMember().id()) {
-                    keyVerificationSessions[evt->id()] = pendingKeyVerificationSession;
-                    connect(pendingKeyVerificationSession.get(), &QObject::destroyed, q, [this, evt] {
-                        keyVerificationSessions.remove(evt->id());
-                    });
-                    pendingKeyVerificationSession->setRequestEventId(evt->id());
-                    pendingKeyVerificationSession.clear();
-                }
-            }
-            continue;
-        }
         if (const auto* evt = it->viewAs<RoomMessageEvent>()) {
-            if (evt->rawMsgtype() == "m.key.verification.request"_L1) {
+            if (evt->rawMsgtype() == "m.key.verification.request"_L1 && evt->senderId() != q->connection()->userId()) {
                 if (evt->originTimestamp() > QDateTime::currentDateTime().addSecs(-60)) {
-                    auto session = new KeyVerificationSession(evt, q);
+                    auto json = evt->fullJson();
+                    if (!json.contains(u"room_id"_s)) {
+                        json[u"room_id"_s] = q->id();
+                    }
+                    q->connection()->receiveVerificationEvent(QJsonDocument(json).toJson(QJsonDocument::Compact));
+                    auto session = KeyVerificationSession::processIncomingUserVerification(q, evt->id());
                     emit connection->newKeyVerificationSession(session);
-                    keyVerificationSessions[evt->id()] = session;
-                    connect(session, &QObject::destroyed, q, [this, evt] {
-                        keyVerificationSessions.remove(evt->id());
-                    });
                 }
             }
         }
         if (auto event = it->viewAs<KeyVerificationEvent>()) {
-            const auto &baseEvent = event->contentJson()["m.relates_to"_L1]["event_id"_L1].toString();
-            if (event->matrixType() == "m.key.verification.done"_L1) {
+            if (event->senderId() == connection->userId()) {
                 continue;
             }
-            if (keyVerificationSessions.contains(baseEvent)) {
-                keyVerificationSessions[baseEvent]->handleEvent(*event);
-            } else
-                qCWarning(E2EE) << "Unknown verification session, id" << baseEvent;
+            auto json = event->fullJson();
+            if (!json.contains(u"room_id"_s)) {
+                json[u"room_id"_s] = q->id();
+            }
+            q->connection()->receiveVerificationEvent(QJsonDocument(json).toJson(QJsonDocument::Compact));
         }
     }
 
@@ -3536,64 +3363,37 @@ void Room::markAsDirectChat()
         qCritical(MAIN) << "Internal data corruption, the room includes two members with id" << ids.front();
 }
 
-void Room::addMegolmSessionFromBackup(const QByteArray& sessionId, const QByteArray& sessionKey, uint32_t index, const QByteArray& senderKey, const QByteArray& senderEdKey)
-{
-    const auto sessionIt = d->groupSessions.find(sessionId);
-    if (sessionIt != d->groupSessions.end() && sessionIt->second.firstKnownIndex() <= index)
-        return;
-
-    auto&& importResult = QOlmInboundGroupSession::importSession(sessionKey);
-    if (!importResult)
-        return;
-    // NB: after the next line, sessionIt can be invalid.
-    auto& session = d->groupSessions
-                        .insert_or_assign(sessionIt, sessionId,
-                                          std::move(importResult.value()))
-                        ->second;
-    session.setOlmSessionId(d->connection->isVerifiedSession(sessionId)
-                                ? QByteArrayLiteral("BACKUP_VERIFIED")
-                                : QByteArrayLiteral("BACKUP"));
-    session.setSenderId("BACKUP"_L1);
-    d->connection->saveMegolmSession(this, session, senderKey, senderEdKey);
-}
-
 void Room::startVerification()
 {
     if (joinedMembers().count() != 2) {
         return;
     }
-    d->pendingKeyVerificationSession = new KeyVerificationSession(this);
-    emit d->connection->newKeyVerificationSession(d->pendingKeyVerificationSession);
+    connection()->requestUserVerification(this);
 }
 
 QJsonArray Room::exportMegolmSessions()
 {
     QJsonArray sessions;
-    for (auto& [key, value] : d->groupSessions) {
-        auto session = value.exportSession(value.firstKnownIndex());
-        if (!session.has_value()) {
-            qCWarning(E2EE) << "Failed to export session" << session.error();
-            continue;
-        }
-
-        const auto senderClaimedKey = connection()->database()->edKeyForMegolmSession(QString::fromLatin1(value.sessionId()));
-        const auto senderKey = connection()->database()->senderKeyForMegolmSession(QString::fromLatin1(value.sessionId()));
-        const auto json = QJsonObject {
-            {"algorithm"_L1, "m.megolm.v1.aes-sha2"_L1},
-            {"forwarding_curve25519_key_chain"_L1, QJsonArray()},
-            {"room_id"_L1, id()},
-            {"sender_claimed_keys"_L1, QJsonObject{ {"ed25519"_L1, senderClaimedKey} }},
-            {"sender_key"_L1, senderKey},
-            {"session_id"_L1, QString::fromLatin1(value.sessionId())},
-            {"session_key"_L1, QString::fromLatin1(session.value())},
-        };
-        if (senderClaimedKey.isEmpty() || senderKey.isEmpty()) {
-            // These are edge-cases for some sessions that were added before libquotient started storing these fields.
-            // Some clients refuse to the entire file if this is missing for one key, so we shouldn't export the session in this case.
-            qCWarning(E2EE) << "Session" << value.sessionId() << "has unknown sender key.";
-            continue;
-        }
-        sessions.append(json);
-    }
     return sessions;
+}
+
+void Room::newMegolmSession(const QString& session)
+{
+    const auto undecryptedEvents =
+        d->undecryptedEvents[session];
+    for (const auto& eventId : undecryptedEvents) {
+        const auto pIdx = d->eventsIndex.constFind(eventId);
+        if (pIdx == d->eventsIndex.cend())
+            continue;
+        auto& ti = d->timeline[Timeline::size_type(*pIdx - minTimelineIndex())];
+        if (auto encryptedEvent = ti.viewAs<EncryptedEvent>()) {
+            if (auto decrypted = decryptMessage(*encryptedEvent)) {
+                auto&& oldEvent = eventCast<EncryptedEvent>(
+                    ti.replaceEvent(std::move(decrypted)));
+                ti->setOriginalEvent(std::move(oldEvent));
+                emit replacedEvent(ti.event(), ti->originalEvent());
+                d->undecryptedEvents[session] -= eventId;
+            }
+        }
+    }
 }

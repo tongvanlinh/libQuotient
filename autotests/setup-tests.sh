@@ -20,8 +20,6 @@ else
     rm -rf $DATA_PATH/*
 fi
 
-rm -rf ~/.local/share/testolmaccount
-
 echo "Generating the configuration"
 docker run -v $DATA_PATH:/data:z --rm \
     -e SYNAPSE_SERVER_NAME=localhost -e SYNAPSE_REPORT_STATS=no $SYNAPSE_IMAGE generate

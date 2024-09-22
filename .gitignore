@@ -34,3 +34,5 @@ html/
 latex/
 
 .qmlls.ini
+Quotient/crypto-sdk/target
+.kateproject.build

@@ -55,7 +55,7 @@ jobs:
       run: |
         sudo apt-get -qq update
         sudo apt-get -q install \
-            ninja-build clang$CLANG_VERSION qtkeychain-qt6-dev libsecret-1-dev libolm-dev gnome-keyring
+            ninja-build clang$CLANG_VERSION qtkeychain-qt6-dev libsecret-1-dev libolm-dev gnome-keyring rustc cargo
         gnome-keyring-daemon -d --unlock <<<'' # Create a login keyring with no password
 
     - name: Install Qt and necessary tools
@@ -122,6 +122,24 @@ jobs:
         cmake -E make_directory ${{ runner.workspace }}/build
         echo "BUILD_PATH=${{ runner.workspace }}/build/libQuotient" >>$GITHUB_ENV
 
+    - name: Install Rustup using win.rustup.rs
+      if: startsWith(matrix.os, 'windows')
+      run: |
+        # Disable the download progress bar which can cause perf issues
+        $ProgressPreference = "SilentlyContinue"
+        Invoke-WebRequest https://win.rustup.rs/ -OutFile rustup-init.exe
+        .\rustup-init.exe -y --default-host=x86_64-pc-windows-msvc
+        del rustup-init.exe
+        rustup target add x86_64-pc-windows-msvc
+      shell: powershell
+
+    - name: Install Rustup
+      if: startsWith(matrix.os, 'macos')
+      run: |
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rustup-init.sh
+        sh rustup-init.sh -y --default-toolchain none
+        rustup target add "x86_64-apple-darwin"
+
     - name: Setup MSVC
       uses: ilammy/msvc-dev-cmd@v1
       if: startsWith(matrix.os, 'windows')
@@ -133,21 +151,29 @@ jobs:
       if: matrix.static-analysis == 'sonar'
       uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v6
 
-    - name: Build and install QtKeychain
-      if: "!startsWith(matrix.os, 'ubuntu')"
+
+    - name: Build and install QtKeychain (mac)
+      if: startsWith(matrix.os, 'macos')
+      run: |
+        cd ..
+        git clone -b v0.13.0 https://github.com/frankosterfeld/qtkeychain.git
+        cmake -S qtkeychain -B qtkeychain/build -DBUILD_WITH_QT6=ON -DBUILD_TRANSLATIONS=OFF $CMAKE_ARGS
+        cmake --build qtkeychain/build --target install
+
+    - name: Build and install QtKeychain (not mac)
+      if: "!startsWith(matrix.os, 'macos')"
       run: |
         cd ..
         git clone -b 0.15.0 https://github.com/frankosterfeld/qtkeychain.git
         cmake -S qtkeychain -B qtkeychain/build -DBUILD_WITH_QT6=ON -DBUILD_TRANSLATIONS=OFF $CMAKE_ARGS
         cmake --build qtkeychain/build --target install
 
-    - name: Build and install Olm (non-Linux)
-      if: "!startsWith(matrix.os, 'ubuntu')"
+    - name: Build and install Corrosion
       run: |
         cd ..
-        git clone https://gitlab.matrix.org/matrix-org/olm.git
-        cmake -S olm -B olm/build $CMAKE_ARGS
-        cmake --build olm/build --target install
+        git clone -b v0.6.0 https://github.com/corrosion-rs/corrosion
+        cmake -S corrosion -B corrosion/build $CMAKE_ARGS
+        cmake --build corrosion/build --target install
 
     - name: Get CS API definitions; clone and build GTAD
       if: matrix.update-api
@@ -177,13 +203,12 @@ jobs:
       run: cmake --build $BUILD_PATH --target update-api
 
     - name: Build and install libQuotient
+      shell: pwsh # The Rust toolchain chooses the wrong linker on bash, for some reason
       run: |
-        if [[ '${{ matrix.static-analysis }}' == 'sonar' ]]; then
-            BUILD_WRAPPER="${{ steps.sonar.outputs.build-wrapper-binary }} --out-dir $SONAR_DIR"
-        fi
-        $BUILD_WRAPPER cmake --build $BUILD_PATH --target all
-        cmake --build $BUILD_PATH --target install
-        ls ~/.local$BIN_DIR/quotest
+        ${{ matrix.static-analysis == 'sonar'
+            && format('{0} --out-dir {1}', steps.sonar.outputs.build-wrapper-binary, env.SONAR_DIR)
+            || ''}} cmake --build $env:BUILD_PATH --target all
+        cmake --build $env:BUILD_PATH --target install
 
     - name: Run tests
       env:

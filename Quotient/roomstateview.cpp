@@ -23,13 +23,11 @@ QJsonObject RoomStateView::contentJson(const QString& evtType,
     return queryOr(evtType, stateKey, &Event::contentJson, QJsonObject());
 }
 
-const QVector<const StateEvent*> RoomStateView::eventsOfType(
-    const QString& evtType) const
+QVector<const StateEvent*> RoomStateView::eventsOfType(const QString& evtType) const
 {
-    auto vals = QVector<const StateEvent*>();
-    for (auto it = cbegin(); it != cend(); ++it)
-        if (it.key().first == evtType)
-            vals.append(it.value());
-
-    return vals;
+    using namespace std::ranges;
+    const auto& kvRange = asKeyValueRange();
+    return rangeTo<QVector>(views::filter(kvRange, [evtType](const auto& kv) {
+        return kv.first.first == evtType;
+    }) | views::values);
 }

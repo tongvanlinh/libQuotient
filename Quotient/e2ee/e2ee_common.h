@@ -6,12 +6,9 @@
 #pragma once
 
 #include "../converters.h"
-#include "../expected.h" // It's only here to not break client code still using Expected
 
 #include <QtCore/QMetaType>
 #include <QtCore/QStringBuilder>
-
-#include <olm/error.h>
 
 #include <array>
 #include <span>
@@ -39,42 +36,6 @@ constexpr std::array SupportedAlgorithms { OlmV1Curve25519AesSha2AlgoKey,
 inline bool isSupportedAlgorithm(const QString& algorithm)
 {
     return std::ranges::find(SupportedAlgorithms, algorithm) != SupportedAlgorithms.cend();
-}
-
-#define QOLM_INTERNAL_ERROR_X(Message_, LastError_) \
-    qFatal("%s, internal error: %s", QUO_CSTR(Message_), LastError_)
-
-#define QOLM_INTERNAL_ERROR(Message_) \
-    QOLM_INTERNAL_ERROR_X((Message_), lastError())
-
-#define QOLM_FAIL_OR_LOG_X(InternalCondition_, Message_, LastErrorText_)    \
-    do {                                                                    \
-        if (InternalCondition_)                                             \
-            QOLM_INTERNAL_ERROR_X((Message_), (LastErrorText_));   \
-        qWarning(E2EE).nospace() << (Message_) << ": " << (LastErrorText_); \
-    } while (false) /* End of macro */
-
-#define QOLM_FAIL_OR_LOG(InternalFailureValue_, Message_)                      \
-    QOLM_FAIL_OR_LOG_X(lastErrorCode() == (InternalFailureValue_), (Message_), lastError())
-
-template <typename T>
-using QOlmExpected = std::expected<T, OlmErrorCode>;
-
-//! \brief Initialise a buffer object for use with Olm calls
-//!
-//! Qt and Olm use different size types; this causes the warning noise
-QUOTIENT_API QByteArray byteArrayForOlm(size_t bufferSize);
-
-//! \brief Get a size of a container coerced to size_t
-//!
-//! This is mainly aimed at Qt containers because they have signed size; but it can also be called
-//! on other containers or even C arrays, e.g. - to spare generic code from special-casing.
-//! For Qt containers, it's a safe cast since size_t can always accommodate the range between 0 and
-//! SIZE_MAX / 2 - 1 that they support; yet compilers complain...
-inline size_t unsignedSize(const auto& buffer)
-    requires (sizeof(std::size(buffer)) <= sizeof(size_t))
-{
-    return static_cast<size_t>(std::size(buffer));
 }
 
 // Can't use std::byte normally recommended for the purpose because both Olm
@@ -121,20 +82,6 @@ template <size_t N = std::dynamic_extent>
 inline auto asCBytes(const auto& buf)
 {
     return _impl::spanFromBytes<byte_view_t<N>>(buf);
-}
-
-//! Obtain a std::span<byte_t, N> looking into the passed buffer
-template <size_t N = std::dynamic_extent>
-inline auto asWritableCBytes(auto& buf)
-{
-    return _impl::spanFromBytes<byte_span_t<N>>(buf);
-}
-
-inline auto viewAsByteArray(const auto& aRange) -> auto
-    requires (sizeof(*aRange.data()) == sizeof(char))
-{ // -> auto to activate SFINAE, it's always QByteArray when well-formed
-    return QByteArray::fromRawData(std::bit_cast<const char*>(std::data(aRange)),
-                                   static_cast<int>(std::size(aRange)));
 }
 
 //! Non-template base for owning byte span classes
@@ -241,17 +188,6 @@ public:
     }
 };
 
-inline auto getRandom(size_t bytes)
-{
-    return FixedBuffer<>{ bytes, FixedBufferBase::FillWithRandom };
-}
-
-template <size_t SizeN>
-inline auto getRandom()
-{
-    return FixedBuffer<SizeN>{ FixedBufferBase::FillWithRandom };
-}
-
 //! \brief Fill the buffer with the securely generated random bytes
 //!
 //! You should use this throughout Quotient where pseudo-random generators
@@ -281,24 +217,6 @@ public:
     static PicklingKey mock() { return PicklingKey(Uninitialized); }
 };
 
-struct IdentityKeys
-{
-    // Despite being Base64 payloads, these keys are stored in QStrings because
-    // in the vast majority of cases they are used to read from or write to
-    // QJsonObjects, and that effectively requires QStrings
-    QString curve25519;
-    QString ed25519;
-};
-
-//! Struct representing the one-time keys.
-struct UnsignedOneTimeKeys
-{
-    QHash<QString, QHash<QString, QString>> keys;
-
-    //! Get the HashMap containing the curve25519 one-time keys.
-    QHash<QString, QString> curve25519() const { return keys[Curve25519Key]; }
-};
-
 class QUOTIENT_API SignedOneTimeKey {
 public:
     explicit SignedOneTimeKey(const QString& unsignedKey, const QString& userId,
@@ -316,36 +234,9 @@ public:
         : payload(jo)
     {}
 
-    //! Unpadded Base64-encoded 32-byte Curve25519 public key
-    QByteArray key() const { return payload["key"_L1].toString().toLatin1(); }
-
-    //! \brief Signatures of the key object
-    //!
-    //! The signature is calculated using the process described at
-    //! https://spec.matrix.org/v1.3/appendices/#signing-json
-    auto signatures() const
-    {
-        return fromJson<QHash<QString, QHash<QString, QString>>>(
-            payload["signatures"_L1]);
-    }
-
-    QByteArray signature(QStringView userId, QStringView deviceId) const
-    {
-        return payload["signatures"_L1][userId]["ed25519:"_L1 % deviceId]
-            .toString()
-            .toLatin1();
-    }
 
     //! Whether the key is a fallback key
-    bool isFallback() const { return payload["fallback"_L1].toBool(); }
     auto toJson() const { return payload; }
-    auto toJsonForVerification() const
-    {
-        auto json = payload;
-        json.remove("signatures"_L1);
-        json.remove("unsigned"_L1);
-        return QJsonDocument(json).toJson(QJsonDocument::Compact);
-    }
 
 private:
     QJsonObject payload;
@@ -354,5 +245,3 @@ private:
 using OneTimeKeys = QHash<QString, std::variant<QString, SignedOneTimeKey>>;
 
 } // namespace Quotient
-
-Q_DECLARE_METATYPE(Quotient::SignedOneTimeKey)
