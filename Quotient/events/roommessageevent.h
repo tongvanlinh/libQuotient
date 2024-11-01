@@ -155,6 +155,10 @@ public:
     //!
     //! \note This will return the ID of the event if it is the thread root.
     //!
+    //! \note If the event is the thread root event and has not been updated with the server-side
+    //!       the function will return and empty string as we can tell if the message
+    //!       is threaded.
+    //!
     //! \return The event ID of the thread root if threaded, an empty string otherwise.
     QString threadRootEventId()const;
 
