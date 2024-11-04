@@ -140,10 +140,8 @@ private:
 
 namespace _impl {
     template <typename T>
-    concept Holds_NonConst_LValue_Ref = requires {
-        std::is_lvalue_reference_v<T>;
-        !std::is_const_v<std::remove_reference<T>>;
-    };
+    concept Holds_NonConst_LValue_Ref =
+        std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference<T>>;
 }
 
 //! \brief An adaptor for Qt (hash-)maps to make them iterable in STL style
