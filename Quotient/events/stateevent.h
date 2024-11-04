@@ -124,6 +124,7 @@ private:
 
 public:
     template <typename... ContentParamTs>
+        requires std::constructible_from<ContentT, ContentParamTs...>
     explicit KeylessStateEventBase(ContentParamTs&&... contentParams)
         : base_type(QString(), std::forward<ContentParamTs>(contentParams)...)
     {}
