@@ -50,19 +50,27 @@
 
 using namespace Quotient;
 
+namespace {
 // This is very much Qt-specific; STL iterators don't have key() and value()
-template <typename HashT, typename Pred>
-HashT remove_if(HashT& hashMap, Pred pred)
+template <typename HashT>
+HashT remove_if(HashT& hashMap,
+                std::invocable<typename HashT::key_type, typename HashT::value_type> auto pred)
 {
     HashT removals;
     for (auto it = hashMap.begin(); it != hashMap.end();) {
-        if (pred(it)) {
+        if (pred(it.key(), it.value())) {
             removals.insert(it.key(), it.value());
             it = hashMap.erase(it);
         } else
             ++it;
     }
     return removals;
+}
+
+inline void map_subtract(auto& lhs, const auto& rhs)
+{
+    remove_if(lhs, [&rhs](const auto& k, const auto& v) { return rhs.contains(k, v); });
+}
 }
 
 Connection::Connection(const QUrl& server, QObject* parent)
@@ -550,47 +558,36 @@ void Connection::Private::consumeAccountData(Events&& accountDataEvents)
             [this](const DirectChatEvent& dce) {
                 // https://github.com/quotient-im/libQuotient/wiki/Handling-direct-chat-events
                 const auto& usersToDCs = dce.usersToDirectChats();
-                DirectChatsMap remoteRemovals =
-                    remove_if(directChats, [&usersToDCs, this](auto it) {
-                        return !(
-                            usersToDCs.contains(it.key()->id(), it.value())
-                            || dcLocalAdditions.contains(it.key(), it.value()));
+                const DirectChatsMap remoteRemovals =
+                    remove_if(directChats, [&usersToDCs, this](const User* u, const QString& rId) {
+                        const auto removed = !(usersToDCs.contains(u->id(), rId)
+                                               || dcLocalAdditions.contains(u, rId));
+                        if (removed)
+                            qCDebug(MAIN) << rId << "is no more a direct chat with" << u->id();
+                        return removed;
                     });
-                remove_if(directChatMemberIds, [&remoteRemovals, this](auto it) {
-                    return remoteRemovals.contains(q->user(it.value()), it.key());
-                });
+                remove_if(directChatMemberIds,
+                          [&remoteRemovals, this](const QString& rId, const QString& mId) {
+                              return remoteRemovals.contains(q->user(mId), rId);
+                          });
                 // Remove from dcLocalRemovals what the server already has.
-                remove_if(dcLocalRemovals, [&remoteRemovals](auto it) {
-                    return remoteRemovals.contains(it.key(), it.value());
-                });
-                if (MAIN().isDebugEnabled())
-                    for (auto it = remoteRemovals.begin();
-                         it != remoteRemovals.end(); ++it) {
-                        qCDebug(MAIN)
-                            << it.value() << "is no more a direct chat with"
-                            << it.key()->id();
-                    }
+                map_subtract(dcLocalRemovals, remoteRemovals);
 
                 DirectChatsMap remoteAdditions;
-                for (auto it = usersToDCs.begin(); it != usersToDCs.end(); ++it) {
-                    if (auto* u = q->user(it.key())) {
-                        if (!directChats.contains(u, it.value())
-                            && !dcLocalRemovals.contains(u, it.value())) {
-                            Q_ASSERT(!directChatMemberIds.contains(it.value(), it.key()));
-                            remoteAdditions.insert(u, it.value());
-                            directChats.insert(u, it.value());
-                            directChatMemberIds.insert(it.value(), it.key());
-                            qCDebug(MAIN) << "Marked room" << it.value()
-                                          << "as a direct chat with" << u->id();
+                for (const auto& [uId, rId] : usersToDCs.asKeyValueRange()) {
+                    if (const auto* const u = q->user(uId)) {
+                        if (!directChats.contains(u, rId) && !dcLocalRemovals.contains(u, rId)) {
+                            Q_ASSERT(!directChatMemberIds.contains(rId, uId));
+                            remoteAdditions.insert(u, rId);
+                            directChats.insert(u, rId);
+                            directChatMemberIds.insert(rId, uId);
+                            qCDebug(MAIN) << "Marked room" << rId << "as a direct chat with" << uId;
                         }
                     } else
-                        qCWarning(MAIN)
-                            << "Couldn't get a user object for" << it.key();
+                        qCWarning(MAIN) << "Couldn't get a user object for" << uId;
                 }
                 // Remove from dcLocalAdditions what the server already has.
-                remove_if(dcLocalAdditions, [&remoteAdditions](auto it) {
-                    return remoteAdditions.contains(it.key(), it.value());
-                });
+                map_subtract(dcLocalAdditions, remoteAdditions);
                 if (!remoteAdditions.isEmpty() || !remoteRemovals.isEmpty())
                     emit q->directChatsListChanged(remoteAdditions,
                                                    remoteRemovals);
@@ -1248,8 +1245,7 @@ void Connection::removeFromDirectChats(const QString& roomId, const QString& use
         removals.insert(u, roomId);
         d->dcLocalRemovals.insert(u, roomId);
     } else {
-        removals = remove_if(d->directChats,
-                            [&roomId](auto it) { return it.value() == roomId; });
+        removals = remove_if(d->directChats, [&roomId](auto, auto rId) { return rId == roomId; });
         d->dcLocalRemovals += removals;
     }
     emit directChatsListChanged({}, removals);
