@@ -124,9 +124,9 @@ void ConnectionData::setBaseUrl(QUrl baseUrl)
     }
 }
 
-void ConnectionData::setAccessToken(QByteArray token)
+void ConnectionData::setAccessToken(QByteArray accessToken)
 {
-    d->accessToken = std::move(token);
+    d->accessToken = std::move(accessToken);
     NetworkAccessManager::setAccessToken(d->userId, d->accessToken);
 }
 

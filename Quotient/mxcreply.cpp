@@ -51,10 +51,10 @@ MxcReply::MxcReply()
         }, Qt::QueuedConnection);
 }
 
-qint64 MxcReply::readData(char *data, qint64 maxSize)
+qint64 MxcReply::readData(char *data, qint64 maxlen)
 {
     if(d != nullptr && d->m_device != nullptr) {
-        return d->m_device->read(data, maxSize);
+        return d->m_device->read(data, maxlen);
     }
     return -1;
 }
