@@ -677,6 +677,11 @@ TEST_IMPL(addAndRemoveTag)
         clog << "Tag adding failed" << endl;
         FAIL_TEST();
     }
+    const auto& tagsToRooms = connection()->tagsToRooms();
+    if (!tagsToRooms.contains(TestTag) || !tagsToRooms[TestTag].contains(targetRoom)) {
+        clog << "Tag adding succeeded but the connection doesn't know about it\n";
+        FAIL_TEST();
+    }
     clog << "Test tag set, removing it now" << endl;
     targetRoom->removeTag(TestTag);
     FINISH_TEST(spy.size() == 2 && !targetRoom->tags().contains(TestTag));

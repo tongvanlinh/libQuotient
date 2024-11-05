@@ -1128,16 +1128,14 @@ QVector<Room*> Connection::rooms(JoinStates joinStates) const
 int Connection::roomsCount(JoinStates joinStates) const
 {
     // Using int to maintain compatibility with QML
-    // (consider also that QHash<>::size() returns int anyway).
-    return int(std::count_if(d->roomMap.cbegin(), d->roomMap.cend(),
-                             [joinStates](Room* r) {
-                                 return joinStates.testFlag(r->joinState());
-                             }));
+    return static_cast<int>(std::ranges::count_if(d->roomMap, [joinStates](const Room* r) {
+        return joinStates.testFlag(r->joinState());
+    }));
 }
 
 bool Connection::hasAccountData(const QString& type) const
 {
-    return d->accountData.find(type) != d->accountData.cend();
+    return d->accountData.contains(type);
 }
 
 const EventPtr& Connection::accountData(const QString& type) const
@@ -1171,10 +1169,10 @@ QHash<QString, QVector<Room*>> Connection::tagsToRooms() const
         for (const auto& tagName : tagNames)
             result[tagName].push_back(r);
     }
-    for (auto it = result.begin(); it != result.end(); ++it)
-        std::sort(it->begin(), it->end(), [t = it.key()](Room* r1, Room* r2) {
-            return r1->tags().value(t) < r2->tags().value(t);
-        });
+    // TODO: use a structured binding once https://github.com/llvm/llvm-project/issues/115137 is done
+    for (auto&& p : result.asKeyValueRange()) {
+        std::ranges::sort(p.second, {}, [tag=p.first](const Room* r) { return r->tag(tag); });
+    }
     return result;
 }
 
