@@ -55,9 +55,9 @@ QImage Avatar::get(int dimension, get_callback_t callback) const
     return d->get({ dimension, dimension }, std::move(callback));
 }
 
-QImage Avatar::get(int w, int h, get_callback_t callback) const
+QImage Avatar::get(int width, int height, get_callback_t callback) const
 {
-    return d->get({ w, h }, std::move(callback));
+    return d->get({ width, height }, std::move(callback));
 }
 
 bool Avatar::upload(const QString& fileName, upload_callback_t callback) const
