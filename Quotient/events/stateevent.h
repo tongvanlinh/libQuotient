@@ -124,6 +124,10 @@ private:
 
 public:
     template <typename... ContentParamTs>
+        // Ideally, we want to check std::constructible_from<ContentT, ContentParamTs...> -
+        // unfortunately, Xcode 15.4 still thinks that, e.g., AliasEventContent is not constructible
+        // from QString and QStringList, so we have to make the check slightly indirect
+        requires std::constructible_from<base_type, QString, ContentParamTs...>
     explicit KeylessStateEventBase(ContentParamTs&&... contentParams)
         : base_type(QString(), std::forward<ContentParamTs>(contentParams)...)
     {}

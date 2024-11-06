@@ -151,7 +151,7 @@ struct QUOTIENT_API Thumbnail : public ImageInfo {
 //! The base for all file-based content classes
 class QUOTIENT_API FileContentBase : public Base {
 public:
-    FileContentBase(const QJsonObject& contentJson = {})
+    explicit FileContentBase(const QJsonObject& contentJson = {})
         : Base(contentJson), thumbnail(contentJson[InfoKey].toObject())
     {}
     virtual QUrl url() const = 0;

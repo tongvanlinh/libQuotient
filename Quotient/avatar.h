@@ -28,7 +28,7 @@ public:
 
 
     QImage get(int dimension, get_callback_t callback) const;
-    QImage get(int w, int h, get_callback_t callback) const;
+    QImage get(int width, int height, get_callback_t callback) const;
 
     [[deprecated("Use the QFuture-returning overload instead")]]
     bool upload(const QString& fileName, upload_callback_t callback) const;

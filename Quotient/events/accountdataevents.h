@@ -14,7 +14,7 @@ constexpr inline auto ServerNoticeTag = "m.server_notice"_L1;
 
 using TagRecord [[deprecated("Use Tag from csapi/definitions/tag.h instead")]] = Tag;
 
-inline std::partial_ordering operator<=>( //
+inline std::partial_ordering operator<=>(
     const Tag& lhs, const Tag& rhs) // clazy:exclude=function-args-by-value
 {
     // Per The Spec, rooms with no order should be after those with order,
@@ -22,6 +22,11 @@ inline std::partial_ordering operator<=>( //
     return (lhs.order && !rhs.order)   ? std::partial_ordering::less
            : (!lhs.order && rhs.order) ? std::partial_ordering::greater
                                        : *lhs.order <=> *rhs.order;
+}
+
+inline bool operator==(const Tag& lhs, const Tag& rhs) // clazy:exclude=function-args-by-value
+{
+    return std::is_eq(lhs <=> rhs);
 }
 
 using TagsMap = QHash<QString, Tag>;

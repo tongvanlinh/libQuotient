@@ -2454,12 +2454,9 @@ void Room::downloadFile(const QString& eventId, const QUrl& localFilename)
     Q_ASSERT_X(localFilename.isEmpty() || localFilename.isLocalFile(),
                __FUNCTION__, "localFilename should point at a local file");
     const auto* event = d->getEventWithFile(eventId);
-    if (!event) {
-        qCCritical(MAIN)
-            << eventId << "is not in the local timeline or has no file content";
-        Q_ASSERT(false);
+    if (QUO_ALARM_X(!event, eventId + " is not in the local timeline or has no file content"_L1))
         return;
-    }
+
     const auto fileInfo = event->get<EventContent::FileContentBase>()->commonInfo();
     if (!fileInfo.isValid()) {
         qCWarning(MAIN) << "Event" << eventId
@@ -2477,31 +2474,35 @@ void Room::downloadFile(const QString& eventId, const QUrl& localFilename)
         filePath = QDir::tempPath() % u'/' % filePath;
         qDebug(MAIN) << "File path:" << filePath;
     }
-    DownloadFileJob *job = nullptr;
-    if (auto* fileMetadata = std::get_if<EncryptedFileMetadata>(&fileInfo.source)) {
-        job = connection()->downloadFile(fileUrl, *fileMetadata, filePath);
-    } else {
-        job = connection()->downloadFile(fileUrl, filePath);
-    }
-    if (isJobPending(job)) {
-        // If there was a previous transfer (completed or failed), overwrite it.
-        d->fileTransfers[eventId] = { job, job->targetFileName() };
-        connect(job, &BaseJob::downloadProgress, this,
-                [this, eventId](qint64 received, qint64 total) {
-                    d->fileTransfers[eventId].update(received, total);
-                    emit fileTransferProgress(eventId, received, total);
-                });
-        connect(job, &BaseJob::success, this, [this, eventId, fileUrl, job] {
-            d->fileTransfers[eventId].status = FileTransferInfo::Completed;
-            emit fileTransferCompleted(
-                eventId, fileUrl, QUrl::fromLocalFile(job->targetFileName()));
-        });
-        connect(job, &BaseJob::failure, this,
-                std::bind(&Private::failedTransfer, d, eventId,
-                          job->errorString()));
-        emit newFileTransfer(eventId, localFilename);
-    } else
+    const auto job =
+        std::visit(Overloads{ [this, &fileUrl, &filePath](const EncryptedFileMetadata& fileMetadata) {
+                                 return connection()->downloadFile(fileUrl, fileMetadata, filePath);
+                             },
+                              [this, &fileUrl, &filePath](auto) {
+                                  return connection()->downloadFile(fileUrl, filePath);
+                              } },
+                   fileInfo.source);
+    if (!isJobPending(job)) {
         d->failedTransfer(eventId);
+        return;
+    }
+
+    // If there was a previous transfer (completed or failed), overwrite it.
+    d->fileTransfers[eventId] = { job, job->targetFileName() };
+    connect(job, &BaseJob::downloadProgress, this,
+            [this, eventId](qint64 received, qint64 total) {
+                d->fileTransfers[eventId].update(received, total);
+                emit fileTransferProgress(eventId, received, total);
+            });
+    connect(job, &BaseJob::success, this, [this, eventId, fileUrl, job] {
+        d->fileTransfers[eventId].status = FileTransferInfo::Completed;
+        emit fileTransferCompleted(
+            eventId, fileUrl, QUrl::fromLocalFile(job->targetFileName()));
+    });
+    connect(job, &BaseJob::failure, this,
+            std::bind(&Private::failedTransfer, d, eventId,
+                      job->errorString()));
+    emit newFileTransfer(eventId, localFilename);
 }
 
 void Room::cancelFileTransfer(const QString& id)

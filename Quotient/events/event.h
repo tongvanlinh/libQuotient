@@ -548,11 +548,8 @@ inline auto eventCast(event_ptr_tt<BaseEventT>&& eptr)
 
 namespace _impl {
     template <typename FnT, typename BaseT>
-    concept Invocable_With_Downcast = requires
-    {
-        requires EventClass<BaseT>;
-        std::is_base_of_v<BaseT, std::remove_cvref_t<fn_arg_t<FnT>>>;
-    };
+    concept Invocable_With_Downcast =
+        EventClass<BaseT> && std::derived_from<std::remove_cvref_t<fn_arg_t<FnT>>, BaseT>;
 }
 
 template <EventClass BaseT, typename TailT>
