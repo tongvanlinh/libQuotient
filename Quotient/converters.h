@@ -147,7 +147,6 @@ inline void fillFromJson(const QJsonValue& jv, T& pod)
 }
 
 namespace _impl {
-    QUOTIENT_API void warnUnknownEnumValue(const QString& stringValue, const char* enumTypeName);
     QUOTIENT_API void reportEnumOutOfBounds(uint32_t v, const char* enumTypeName);
 }
 
@@ -160,16 +159,13 @@ namespace _impl {
 //! matching respective enum values, 0-based.
 //! \sa enumToJsonString
 template <typename EnumT, typename EnumStringValuesT>
-inline EnumT enumFromJsonString(const QString& s, const EnumStringValuesT& enumValues,
-                                EnumT defaultValue)
+inline std::optional<EnumT> enumFromJsonString(const QString& s, const EnumStringValuesT& enumValues)
 {
     static_assert(std::is_unsigned_v<std::underlying_type_t<EnumT>>);
     if (const auto it = std::ranges::find(enumValues, s); it != cend(enumValues))
         return static_cast<EnumT>(it - cbegin(enumValues));
 
-    if (!s.isEmpty())
-        _impl::warnUnknownEnumValue(s, qt_getEnumName(EnumT()));
-    return defaultValue;
+    return std::nullopt;
 }
 
 //! \brief Facility enum-to-string converter
@@ -200,22 +196,18 @@ inline QString enumToJsonString(EnumT v, const EnumStringValuesT& enumValues)
 //! enumeration is assumed to be of a 'flag' kind - i.e. its values must be
 //! a power-of-two sequence starting from 1, without gaps, so exactly 1,2,4,8,16
 //! and so on.
-//! \note Unlike enumFromJsonString, the values start from 1 and not from 0,
-//!       with 0 being used for an invalid value by default.
+//! \note Unlike enumFromJsonString, the values start from 1 and not from 0.
 //! \note This function does not support flag combinations.
 //! \sa QUO_DECLARE_FLAGS, QUO_DECLARE_FLAGS_NS
 template <typename FlagT, typename FlagStringValuesT>
-inline FlagT flagFromJsonString(const QString& s, const FlagStringValuesT& flagValues,
-                                FlagT defaultValue = FlagT(0U))
+inline std::optional<FlagT> flagFromJsonString(const QString& s, const FlagStringValuesT& flagValues)
 {
     // Enums based on signed integers don't make much sense for flag types
     static_assert(std::is_unsigned_v<std::underlying_type_t<FlagT>>);
     if (const auto it = std::ranges::find(flagValues, s); it != cend(flagValues))
         return static_cast<FlagT>(1U << (it - cbegin(flagValues)));
 
-    if (!s.isEmpty())
-        _impl::warnUnknownEnumValue(s, qt_getEnumName(FlagT()));
-    return defaultValue;
+    return std::nullopt;
 }
 
 template <typename FlagT, typename FlagStringValuesT>

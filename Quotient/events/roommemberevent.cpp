@@ -12,7 +12,7 @@ struct JsonConverter<Membership> {
     static Membership load(const QJsonValue& jv)
     {
         if (const auto& ms = jv.toString(); !ms.isEmpty())
-            return flagFromJsonString<Membership>(ms, MembershipStrings);
+            return flagFromJsonString<Membership>(ms, MembershipStrings).value_or(Membership::Invalid);
 
         qCWarning(EVENTS) << "Empty membership state";
         return Membership::Invalid;
