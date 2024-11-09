@@ -11,6 +11,7 @@
 #include <QtCore/QHashFunctions>
 #include <QtCore/QLatin1String>
 #include <QtCore/QUrl>
+#include <QtCore/QFuture>
 
 #include <memory>
 #include <optional>
@@ -87,6 +88,27 @@ inline bool alarmX(bool alarmCondition, const auto& msg,
 //! Evaluate the boolean expression and, in Debug mode, assert it to be true
 #define QUO_CHECK(...) \
     !::Quotient::alarmX(!(__VA_ARGS__) ? true : false, "Failing expression: " #__VA_ARGS__)
+
+//! A substitute for QtFuture::makeReadyVoidFuture() for compatibility with Qt pre-6.6
+inline auto makeReadyVoidFuture()
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+    return QtFuture::makeReadyVoidFuture();
+#else
+    return QtFuture::makeReadyFuture<void>();
+#endif
+}
+
+//! A substitute for QtFuture::makeReadyValueFuture() for compatibility with Qt pre-6.6
+template <typename T>
+inline auto makeReadyValueFuture(T&& value)
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+    return QtFuture::makeReadyValueFuture(std::forward<T>(value));
+#else
+    return QtFuture::makeReadyFuture(std::forward<T>(value));
+#endif
+}
 
 #if Quotient_VERSION_MAJOR == 0 && Quotient_VERSION_MINOR < 10
 /// This is only to make UnorderedMap alias work until we get rid of it

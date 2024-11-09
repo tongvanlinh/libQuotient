@@ -835,7 +835,7 @@ QFuture<Room*> Connection::getDirectChat(const QString& otherUserId)
                 continue;
             qCDebug(MAIN) << "Requested direct chat with" << otherUserId
                           << "is already available as" << r->id();
-            return QtFuture::makeReadyFuture(r);
+            return makeReadyValueFuture(r);
         }
         if (auto ir = invitation(roomId)) {
             Q_ASSERT(ir->id() == roomId);
