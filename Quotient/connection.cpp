@@ -296,7 +296,6 @@ void Connection::Private::loginToServer(LoginArgTs&&... loginArgs)
     q->callApi<LoginJob>(std::forward<LoginArgTs>(loginArgs)...)
         .onResult([this](const LoginJob* loginJob) {
             if (loginJob->status().good()) {
-                saveAccessTokenToKeychain();
                 completeSetup(loginJob->userId(), true, loginJob->deviceId(),
                               loginJob->accessToken());
             } else
@@ -314,6 +313,10 @@ void Connection::Private::completeSetup(const QString& mxId, bool newLogin,
                   << "by user" << data->userId()
                   << "from device" << data->deviceId();
     connect(qApp, &QCoreApplication::aboutToQuit, q, &Connection::saveState);
+
+    if (newLogin) {
+        saveAccessTokenToKeychain();
+    }
 
     if (accessToken.has_value()) {
         q->loadVersions();
