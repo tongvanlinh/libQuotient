@@ -17,6 +17,10 @@
 class QFileInfo;
 
 namespace Quotient {
+constexpr inline auto BodyKey = "body"_L1;
+constexpr inline auto FormatKey = "format"_L1;
+constexpr inline auto FormattedBodyKey = "formatted_body"_L1;
+constexpr inline auto HtmlContentTypeId = "org.matrix.custom.html"_L1;
 constexpr inline auto InfoKey = "info"_L1;
 }
 

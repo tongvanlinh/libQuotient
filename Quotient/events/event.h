@@ -19,7 +19,6 @@ using event_ptr_tt = std::unique_ptr<EventT>;
 // === Standard Matrix key names ===
 
 constexpr inline auto TypeKey = "type"_L1;
-constexpr inline auto BodyKey = "body"_L1;
 constexpr inline auto ContentKey = "content"_L1;
 constexpr inline auto SenderKey = "sender"_L1;
 constexpr inline auto UnsignedKey = "unsigned"_L1;

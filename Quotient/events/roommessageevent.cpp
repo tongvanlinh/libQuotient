@@ -19,10 +19,7 @@ using namespace EventContent;
 using MsgType = RoomMessageEvent::MsgType;
 
 namespace { // Supporting internal definitions
-constexpr auto RelatesToKey = "m.relates_to"_L1;
 constexpr auto MsgTypeKey = "msgtype"_L1;
-constexpr auto FormattedBodyKey = "formatted_body"_L1;
-constexpr auto FormatKey = "format"_L1;
 constexpr auto TextTypeId = "m.text"_L1;
 constexpr auto EmoteTypeId = "m.emote"_L1;
 constexpr auto NoticeTypeId = "m.notice"_L1;
@@ -31,7 +28,6 @@ constexpr auto ImageTypeId = "m.image"_L1;
 constexpr auto AudioTypeId = "m.audio"_L1;
 constexpr auto VideoTypeId = "m.video"_L1;
 constexpr auto LocationTypeId = "m.location"_L1;
-constexpr auto HtmlContentTypeId = "org.matrix.custom.html"_L1;
 
 template <typename ContentT>
 std::unique_ptr<Base> make(const QJsonObject& json)
@@ -386,64 +382,4 @@ QString RoomMessageEvent::rawMsgTypeForUrl(const QUrl& url)
 QString RoomMessageEvent::rawMsgTypeForFile(const QFileInfo& fi)
 {
     return rawMsgTypeForMimeType(QMimeDatabase().mimeTypeForFile(fi));
-}
-
-TextContent::TextContent(QString text, const QString& contentType)
-    : mimeType(QMimeDatabase().mimeTypeForName(contentType)), body(std::move(text))
-{
-    if (contentType == HtmlContentTypeId)
-        mimeType = QMimeDatabase().mimeTypeForName("text/html"_L1);
-}
-
-TextContent::TextContent(const QJsonObject& json)
-{
-    QMimeDatabase db;
-    static const auto PlainTextMimeType = db.mimeTypeForName("text/plain"_L1);
-    static const auto HtmlMimeType = db.mimeTypeForName("text/html"_L1);
-
-    const auto relatesTo = fromJson<std::optional<EventRelation>>(json[RelatesToKey]);
-
-    const auto actualJson = isReplacement(relatesTo)
-                                ? json.value("m.new_content"_L1).toObject()
-                                : json;
-    // Special-casing the custom matrix.org's (actually, Element's) way
-    // of sending HTML messages.
-    if (actualJson["format"_L1].toString() == HtmlContentTypeId) {
-        mimeType = HtmlMimeType;
-        body = actualJson[FormattedBodyKey].toString();
-    } else {
-        // Falling back to plain text, as there's no standard way to describe
-        // rich text in messages.
-        mimeType = PlainTextMimeType;
-        body = actualJson[BodyKey].toString();
-    }
-}
-
-void TextContent::fillJson(QJsonObject &json) const
-{
-    if (mimeType.inherits("text/html"_L1)) {
-        json.insert(FormatKey, HtmlContentTypeId);
-        json.insert(FormattedBodyKey, body);
-    }
-}
-
-LocationContent::LocationContent(const QString& geoUri, const Thumbnail& thumbnail)
-    : geoUri(geoUri), thumbnail(thumbnail)
-{}
-
-LocationContent::LocationContent(const QJsonObject& json)
-    : Base(json)
-    , geoUri(json["geo_uri"_L1].toString())
-    , thumbnail(json[InfoKey].toObject())
-{}
-
-QMimeType LocationContent::type() const
-{
-    return QMimeDatabase().mimeTypeForData(geoUri.toLatin1());
-}
-
-void LocationContent::fillJson(QJsonObject& o) const
-{
-    o.insert("geo_uri"_L1, geoUri);
-    o.insert(InfoKey, toInfoJson(thumbnail));
 }

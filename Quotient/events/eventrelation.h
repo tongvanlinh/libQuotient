@@ -7,6 +7,7 @@
 
 namespace Quotient {
 
+constexpr inline auto RelatesToKey = "m.relates_to"_L1;
 constexpr inline auto RelTypeKey = "rel_type"_L1;
 constexpr inline auto IsFallingBackKey = "is_falling_back"_L1;
 

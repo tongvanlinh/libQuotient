@@ -4,6 +4,8 @@
 #include "encryptedevent.h"
 #include <Quotient/e2ee/e2ee_common.h>
 
+#include "eventrelation.h"
+
 using namespace Quotient;
 
 EncryptedEvent::EncryptedEvent(const QJsonObject& ciphertexts,
