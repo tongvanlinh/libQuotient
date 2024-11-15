@@ -13,7 +13,6 @@ constexpr inline auto EventIdKey = "event_id"_L1;
 constexpr inline auto RoomIdKey = "room_id"_L1;
 constexpr inline auto StateKeyKey = "state_key"_L1;
 constexpr inline auto RedactedCauseKey = "redacted_because"_L1;
-constexpr inline auto RelatesToKey = "m.relates_to"_L1;
 
 class RedactionEvent;
 class EncryptedEvent;

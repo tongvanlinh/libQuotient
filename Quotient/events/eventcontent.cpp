@@ -6,6 +6,7 @@
 #include "../logging_categories_p.h"
 
 #include "../converters.h"
+#include "eventrelation.h"
 
 #include <QtCore/QFileInfo>
 #include <QtCore/QMimeDatabase>
@@ -114,4 +115,64 @@ void Thumbnail::dumpTo(QJsonObject& infoJson) const
         fillJson(infoJson, { "thumbnail_url"_L1, "thumbnail_file"_L1 }, source);
     if (!imageSize.isEmpty())
         infoJson.insert("thumbnail_info"_L1, toInfoJson(*this));
+}
+
+TextContent::TextContent(QString text, const QString& contentType)
+    : mimeType(QMimeDatabase().mimeTypeForName(contentType)), body(std::move(text))
+{
+    if (contentType == HtmlContentTypeId)
+        mimeType = QMimeDatabase().mimeTypeForName("text/html"_L1);
+}
+
+TextContent::TextContent(const QJsonObject& json)
+{
+    QMimeDatabase db;
+    static const auto PlainTextMimeType = db.mimeTypeForName("text/plain"_L1);
+    static const auto HtmlMimeType = db.mimeTypeForName("text/html"_L1);
+
+    const auto relatesTo = fromJson<std::optional<EventRelation>>(json[RelatesToKey]);
+
+    const auto actualJson = relatesTo.has_value() && relatesTo->type == EventRelation::ReplacementType
+                                ? json.value("m.new_content"_L1).toObject()
+                                : json;
+    // Special-casing the custom matrix.org's (actually, Element's) way
+    // of sending HTML messages.
+    if (actualJson["format"_L1].toString() == HtmlContentTypeId) {
+        mimeType = HtmlMimeType;
+        body = actualJson[FormattedBodyKey].toString();
+    } else {
+        // Falling back to plain text, as there's no standard way to describe
+        // rich text in messages.
+        mimeType = PlainTextMimeType;
+        body = actualJson[BodyKey].toString();
+    }
+}
+
+void TextContent::fillJson(QJsonObject &json) const
+{
+    if (mimeType.inherits("text/html"_L1)) {
+        json.insert(FormatKey, HtmlContentTypeId);
+        json.insert(FormattedBodyKey, body);
+    }
+}
+
+LocationContent::LocationContent(const QString& geoUri, const Thumbnail& thumbnail)
+    : geoUri(geoUri), thumbnail(thumbnail)
+{}
+
+LocationContent::LocationContent(const QJsonObject& json)
+    : Base(json)
+    , geoUri(json["geo_uri"_L1].toString())
+    , thumbnail(json[InfoKey].toObject())
+{}
+
+QMimeType LocationContent::type() const
+{
+    return QMimeDatabase().mimeTypeForData(geoUri.toLatin1());
+}
+
+void LocationContent::fillJson(QJsonObject& o) const
+{
+    o.insert("geo_uri"_L1, geoUri);
+    o.insert(InfoKey, toInfoJson(thumbnail));
 }
