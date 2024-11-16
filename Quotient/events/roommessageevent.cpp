@@ -193,6 +193,18 @@ std::unique_ptr<Base> RoomMessageEvent::content() const
     return {};
 }
 
+void RoomMessageEvent::setPlainBody(const QString& newPlainBody)
+{
+    editJson()[ContentKey] =
+        assembleContentJson(newPlainBody, rawMsgtype(), content(), relatesTo());
+}
+
+void RoomMessageEvent::setMsgType(MsgType newMsgType)
+{
+    editJson()[ContentKey] =
+        assembleContentJson(plainBody(), msgTypeToJson(newMsgType), content(), relatesTo());
+}
+
 void RoomMessageEvent::setContent(std::unique_ptr<Base> content)
 {
     editJson()[ContentKey] =

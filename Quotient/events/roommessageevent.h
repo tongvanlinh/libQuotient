@@ -59,6 +59,12 @@ public:
     //! \return an event content object if the event has content, nullptr otherwise.
     std::unique_ptr<EventContent::Base> content() const;
 
+    //! Update the message JSON with the given plain body
+    void setPlainBody(const QString& newPlainBody);
+
+    //! Update the message JSON with the given message type
+    void setMsgType(MsgType newMsgType);
+
     //! Update the message JSON with the given content
     void setContent(std::unique_ptr<EventContent::Base> content);
 
