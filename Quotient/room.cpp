@@ -45,6 +45,7 @@
 #include "events/callevents.h"
 #include "events/encryptionevent.h"
 #include "events/event.h"
+#include "events/eventcontent.h"
 #include "events/reactionevent.h"
 #include "events/receiptevent.h"
 #include "events/redactionevent.h"
@@ -52,6 +53,7 @@
 #include "events/roomcanonicalaliasevent.h"
 #include "events/roomcreateevent.h"
 #include "events/roommemberevent.h"
+#include "events/roommessageevent.h"
 #include "events/roompowerlevelsevent.h"
 #include "events/roomtombstoneevent.h"
 #include "events/simplestateevents.h"
@@ -293,7 +295,7 @@ public:
 
     const PendingEventItem& sendEvent(RoomEventPtr&& event);
 
-    QString doPostFile(event_ptr_tt<RoomMessageEvent> fileEvent, const QUrl& localUrl);
+    const PendingEventItem& doPostFile(PendingEvents::iterator eventItemIter, const QUrl& localUrl);
 
     PendingEvents::iterator addAsPending(RoomEventPtr&& event);
 
@@ -1938,6 +1940,16 @@ Room::PendingEvents::iterator Room::Private::addAsPending(RoomEventPtr&& event)
 
 const PendingEventItem& Room::Private::sendEvent(RoomEventPtr&& event)
 {
+    if (const auto rme = eventCast<const RoomMessageEvent>(event);
+        rme->has<EventContent::FileContentBase>()
+    ) {
+        const auto url = rme->get<EventContent::FileContentBase>()->url();
+        // toLocalFile() doesn't work on Android and toString() doesn't work on the desktop
+        QFileInfo localFile(url.isLocalFile() ? url.toLocalFile() : url.toString());
+        Q_ASSERT(localFile.isFile());
+        return doPostFile(addAsPending(std::move(event)), url);
+    }
+
     return doSendEvent(addAsPending(std::move(event)));
 }
 
@@ -2149,9 +2161,9 @@ QString Room::postReaction(const QString& eventId, const QString& key)
     return post<ReactionEvent>(eventId, key)->transactionId();
 }
 
-QString Room::Private::doPostFile(event_ptr_tt<RoomMessageEvent> fileEvent, const QUrl& localUrl)
+const PendingEventItem& Room::Private::doPostFile(PendingEvents::iterator eventItemIter, const QUrl& localUrl)
 {
-    const auto txnId = addAsPending(std::move(fileEvent))->event()->transactionId();
+    const auto txnId = eventItemIter->event()->transactionId();
     // Remote URL will only be known after upload; fill in the local path
     // to enable the preview while the event is pending.
     q->uploadFile(txnId, localUrl);
@@ -2194,7 +2206,7 @@ QString Room::Private::doPostFile(event_ptr_tt<RoomMessageEvent> fileEvent, cons
                 emit q->pendingEventDiscarded();
             });
 
-    return txnId;
+    return *eventItemIter;
 }
 
 QString Room::postFile(const QString& plainText,
@@ -2206,10 +2218,10 @@ QString Room::postFile(const QString& plainText,
     QFileInfo localFile(url.isLocalFile() ? url.toLocalFile() : url.toString());
     Q_ASSERT(localFile.isFile());
 
-    return d->doPostFile(makeEvent<RoomMessageEvent>(plainText,
+    return d->doPostFile(d->addAsPending(makeEvent<RoomMessageEvent>(plainText,
                                                      RoomMessageEvent::rawMsgTypeForFile(localFile),
-                                                     std::move(fileContent)),
-                         url);
+                                                     std::move(fileContent))),
+                         url).event()->transactionId();
 }
 
 QString Room::postEvent(RoomEvent* event)
