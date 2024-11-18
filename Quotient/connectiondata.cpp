@@ -82,7 +82,7 @@ void ConnectionData::submit(BaseJob* job)
 {
     job->setStatus(BaseJob::Pending);
     if (!d->rateLimiter.isActive()) {
-        QTimer::singleShot(0, job, &BaseJob::sendRequest);
+        QMetaObject::invokeMethod(job, &BaseJob::sendRequest, Qt::QueuedConnection);
         return;
     }
     d->jobs[size_t(job->isBackground())].emplace(job);
