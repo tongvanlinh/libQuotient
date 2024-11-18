@@ -25,10 +25,10 @@ template <>
 struct JsonObjectConverter<ThirdPartySigned> {
     static void dumpTo(QJsonObject& jo, const ThirdPartySigned& pod)
     {
-        addParam<>(jo, "sender"_L1, pod.sender);
-        addParam<>(jo, "mxid"_L1, pod.mxid);
-        addParam<>(jo, "token"_L1, pod.token);
-        addParam<>(jo, "signatures"_L1, pod.signatures);
+        addParam(jo, "sender"_L1, pod.sender);
+        addParam(jo, "mxid"_L1, pod.mxid);
+        addParam(jo, "token"_L1, pod.token);
+        addParam(jo, "signatures"_L1, pod.signatures);
     }
     static void fillFrom(const QJsonObject& jo, ThirdPartySigned& pod)
     {

@@ -47,10 +47,10 @@ template <>
 struct JsonObjectConverter<PublicRoomsChunk> {
     static void dumpTo(QJsonObject& jo, const PublicRoomsChunk& pod)
     {
-        addParam<>(jo, "num_joined_members"_L1, pod.numJoinedMembers);
-        addParam<>(jo, "room_id"_L1, pod.roomId);
-        addParam<>(jo, "world_readable"_L1, pod.worldReadable);
-        addParam<>(jo, "guest_can_join"_L1, pod.guestCanJoin);
+        addParam(jo, "num_joined_members"_L1, pod.numJoinedMembers);
+        addParam(jo, "room_id"_L1, pod.roomId);
+        addParam(jo, "world_readable"_L1, pod.worldReadable);
+        addParam(jo, "guest_can_join"_L1, pod.guestCanJoin);
         addParam<IfNotEmpty>(jo, "canonical_alias"_L1, pod.canonicalAlias);
         addParam<IfNotEmpty>(jo, "name"_L1, pod.name);
         addParam<IfNotEmpty>(jo, "topic"_L1, pod.topic);

@@ -35,11 +35,11 @@ template <>
 struct JsonObjectConverter<DeviceKeys> {
     static void dumpTo(QJsonObject& jo, const DeviceKeys& pod)
     {
-        addParam<>(jo, "user_id"_L1, pod.userId);
-        addParam<>(jo, "device_id"_L1, pod.deviceId);
-        addParam<>(jo, "algorithms"_L1, pod.algorithms);
-        addParam<>(jo, "keys"_L1, pod.keys);
-        addParam<>(jo, "signatures"_L1, pod.signatures);
+        addParam(jo, "user_id"_L1, pod.userId);
+        addParam(jo, "device_id"_L1, pod.deviceId);
+        addParam(jo, "algorithms"_L1, pod.algorithms);
+        addParam(jo, "keys"_L1, pod.keys);
+        addParam(jo, "signatures"_L1, pod.signatures);
     }
     static void fillFrom(const QJsonObject& jo, DeviceKeys& pod)
     {

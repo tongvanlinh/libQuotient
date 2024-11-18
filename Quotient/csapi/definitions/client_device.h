@@ -28,7 +28,7 @@ template <>
 struct JsonObjectConverter<Device> {
     static void dumpTo(QJsonObject& jo, const Device& pod)
     {
-        addParam<>(jo, "device_id"_L1, pod.deviceId);
+        addParam(jo, "device_id"_L1, pod.deviceId);
         addParam<IfNotEmpty>(jo, "display_name"_L1, pod.displayName);
         addParam<IfNotEmpty>(jo, "last_seen_ip"_L1, pod.lastSeenIp);
         addParam<IfNotEmpty>(jo, "last_seen_ts"_L1, pod.lastSeenTs);

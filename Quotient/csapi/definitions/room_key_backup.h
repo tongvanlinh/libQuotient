@@ -17,7 +17,7 @@ template <>
 struct JsonObjectConverter<RoomKeyBackup> {
     static void dumpTo(QJsonObject& jo, const RoomKeyBackup& pod)
     {
-        addParam<>(jo, "sessions"_L1, pod.sessions);
+        addParam(jo, "sessions"_L1, pod.sessions);
     }
     static void fillFrom(const QJsonObject& jo, RoomKeyBackup& pod)
     {

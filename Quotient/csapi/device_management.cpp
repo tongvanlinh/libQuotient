@@ -48,7 +48,7 @@ DeleteDevicesJob::DeleteDevicesJob(const QStringList& devices,
               makePath("/_matrix/client/v3", "/delete_devices"))
 {
     QJsonObject _dataJson;
-    addParam<>(_dataJson, "devices"_L1, devices);
+    addParam(_dataJson, "devices"_L1, devices);
     addParam<IfNotEmpty>(_dataJson, "auth"_L1, auth);
     setRequestData({ _dataJson });
 }

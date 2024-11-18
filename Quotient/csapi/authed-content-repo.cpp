@@ -63,8 +63,8 @@ auto queryToGetContentThumbnailAuthed(int width, int height, const QString& meth
                                       qint64 timeoutMs, std::optional<bool> animated)
 {
     QUrlQuery _q;
-    addParam<>(_q, u"width"_s, width);
-    addParam<>(_q, u"height"_s, height);
+    addParam(_q, u"width"_s, width);
+    addParam(_q, u"height"_s, height);
     addParam<IfNotEmpty>(_q, u"method"_s, method);
     addParam<IfNotEmpty>(_q, u"timeout_ms"_s, timeoutMs);
     addParam<IfNotEmpty>(_q, u"animated"_s, animated);
@@ -96,7 +96,7 @@ GetContentThumbnailAuthedJob::GetContentThumbnailAuthedJob(const QString& server
 auto queryToGetUrlPreviewAuthed(const QUrl& url, std::optional<qint64> ts)
 {
     QUrlQuery _q;
-    addParam<>(_q, u"url"_s, url);
+    addParam(_q, u"url"_s, url);
     addParam<IfNotEmpty>(_q, u"ts"_s, ts);
     return _q;
 }

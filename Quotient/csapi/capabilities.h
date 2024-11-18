@@ -15,7 +15,7 @@ template <>
 struct JsonObjectConverter<BooleanCapability> {
     static void dumpTo(QJsonObject& jo, const BooleanCapability& pod)
     {
-        addParam<>(jo, "enabled"_L1, pod.enabled);
+        addParam(jo, "enabled"_L1, pod.enabled);
     }
     static void fillFrom(const QJsonObject& jo, BooleanCapability& pod)
     {

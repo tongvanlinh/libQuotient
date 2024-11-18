@@ -20,8 +20,8 @@ template <>
 struct JsonObjectConverter<FieldType> {
     static void dumpTo(QJsonObject& jo, const FieldType& pod)
     {
-        addParam<>(jo, "regexp"_L1, pod.regexp);
-        addParam<>(jo, "placeholder"_L1, pod.placeholder);
+        addParam(jo, "regexp"_L1, pod.regexp);
+        addParam(jo, "placeholder"_L1, pod.placeholder);
     }
     static void fillFrom(const QJsonObject& jo, FieldType& pod)
     {
@@ -49,9 +49,9 @@ template <>
 struct JsonObjectConverter<ProtocolInstance> {
     static void dumpTo(QJsonObject& jo, const ProtocolInstance& pod)
     {
-        addParam<>(jo, "desc"_L1, pod.desc);
-        addParam<>(jo, "fields"_L1, pod.fields);
-        addParam<>(jo, "network_id"_L1, pod.networkId);
+        addParam(jo, "desc"_L1, pod.desc);
+        addParam(jo, "fields"_L1, pod.fields);
+        addParam(jo, "network_id"_L1, pod.networkId);
         addParam<IfNotEmpty>(jo, "icon"_L1, pod.icon);
     }
     static void fillFrom(const QJsonObject& jo, ProtocolInstance& pod)
@@ -96,11 +96,11 @@ template <>
 struct JsonObjectConverter<ThirdPartyProtocol> {
     static void dumpTo(QJsonObject& jo, const ThirdPartyProtocol& pod)
     {
-        addParam<>(jo, "user_fields"_L1, pod.userFields);
-        addParam<>(jo, "location_fields"_L1, pod.locationFields);
-        addParam<>(jo, "icon"_L1, pod.icon);
-        addParam<>(jo, "field_types"_L1, pod.fieldTypes);
-        addParam<>(jo, "instances"_L1, pod.instances);
+        addParam(jo, "user_fields"_L1, pod.userFields);
+        addParam(jo, "location_fields"_L1, pod.locationFields);
+        addParam(jo, "icon"_L1, pod.icon);
+        addParam(jo, "field_types"_L1, pod.fieldTypes);
+        addParam(jo, "instances"_L1, pod.instances);
     }
     static void fillFrom(const QJsonObject& jo, ThirdPartyProtocol& pod)
     {

@@ -10,7 +10,7 @@ auto queryToGetRoomEvents(const QString& from, const QString& to, const QString&
     QUrlQuery _q;
     addParam<IfNotEmpty>(_q, u"from"_s, from);
     addParam<IfNotEmpty>(_q, u"to"_s, to);
-    addParam<>(_q, u"dir"_s, dir);
+    addParam(_q, u"dir"_s, dir);
     addParam<IfNotEmpty>(_q, u"limit"_s, limit);
     addParam<IfNotEmpty>(_q, u"filter"_s, filter);
     return _q;

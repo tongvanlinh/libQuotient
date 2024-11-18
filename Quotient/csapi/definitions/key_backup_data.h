@@ -27,10 +27,10 @@ template <>
 struct JsonObjectConverter<KeyBackupData> {
     static void dumpTo(QJsonObject& jo, const KeyBackupData& pod)
     {
-        addParam<>(jo, "first_message_index"_L1, pod.firstMessageIndex);
-        addParam<>(jo, "forwarded_count"_L1, pod.forwardedCount);
-        addParam<>(jo, "is_verified"_L1, pod.isVerified);
-        addParam<>(jo, "session_data"_L1, pod.sessionData);
+        addParam(jo, "first_message_index"_L1, pod.firstMessageIndex);
+        addParam(jo, "forwarded_count"_L1, pod.forwardedCount);
+        addParam(jo, "is_verified"_L1, pod.isVerified);
+        addParam(jo, "session_data"_L1, pod.sessionData);
     }
     static void fillFrom(const QJsonObject& jo, KeyBackupData& pod)
     {

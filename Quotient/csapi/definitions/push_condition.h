@@ -40,7 +40,7 @@ template <>
 struct JsonObjectConverter<PushCondition> {
     static void dumpTo(QJsonObject& jo, const PushCondition& pod)
     {
-        addParam<>(jo, "kind"_L1, pod.kind);
+        addParam(jo, "kind"_L1, pod.kind);
         addParam<IfNotEmpty>(jo, "key"_L1, pod.key);
         addParam<IfNotEmpty>(jo, "pattern"_L1, pod.pattern);
         addParam<IfNotEmpty>(jo, "is"_L1, pod.is);

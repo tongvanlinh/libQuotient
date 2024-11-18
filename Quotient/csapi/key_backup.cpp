@@ -9,8 +9,8 @@ PostRoomKeysVersionJob::PostRoomKeysVersionJob(const QString& algorithm, const Q
               makePath("/_matrix/client/v3", "/room_keys/version"))
 {
     QJsonObject _dataJson;
-    addParam<>(_dataJson, "algorithm"_L1, algorithm);
-    addParam<>(_dataJson, "auth_data"_L1, authData);
+    addParam(_dataJson, "algorithm"_L1, algorithm);
+    addParam(_dataJson, "auth_data"_L1, authData);
     setRequestData({ _dataJson });
     addExpectedKey(u"version"_s);
 }
@@ -54,8 +54,8 @@ PutRoomKeysVersionJob::PutRoomKeysVersionJob(const QString& version, const QStri
               makePath("/_matrix/client/v3", "/room_keys/version/", version))
 {
     QJsonObject _dataJson;
-    addParam<>(_dataJson, "algorithm"_L1, algorithm);
-    addParam<>(_dataJson, "auth_data"_L1, authData);
+    addParam(_dataJson, "algorithm"_L1, algorithm);
+    addParam(_dataJson, "auth_data"_L1, authData);
     setRequestData({ _dataJson });
 }
 
@@ -73,7 +73,7 @@ DeleteRoomKeysVersionJob::DeleteRoomKeysVersionJob(const QString& version)
 auto queryToPutRoomKeyBySessionId(const QString& version)
 {
     QUrlQuery _q;
-    addParam<>(_q, u"version"_s, version);
+    addParam(_q, u"version"_s, version);
     return _q;
 }
 
@@ -91,7 +91,7 @@ PutRoomKeyBySessionIdJob::PutRoomKeyBySessionIdJob(const QString& roomId, const 
 auto queryToGetRoomKeyBySessionId(const QString& version)
 {
     QUrlQuery _q;
-    addParam<>(_q, u"version"_s, version);
+    addParam(_q, u"version"_s, version);
     return _q;
 }
 
@@ -114,7 +114,7 @@ GetRoomKeyBySessionIdJob::GetRoomKeyBySessionIdJob(const QString& roomId, const 
 auto queryToDeleteRoomKeyBySessionId(const QString& version)
 {
     QUrlQuery _q;
-    addParam<>(_q, u"version"_s, version);
+    addParam(_q, u"version"_s, version);
     return _q;
 }
 
@@ -141,7 +141,7 @@ DeleteRoomKeyBySessionIdJob::DeleteRoomKeyBySessionIdJob(const QString& roomId,
 auto queryToPutRoomKeysByRoomId(const QString& version)
 {
     QUrlQuery _q;
-    addParam<>(_q, u"version"_s, version);
+    addParam(_q, u"version"_s, version);
     return _q;
 }
 
@@ -159,7 +159,7 @@ PutRoomKeysByRoomIdJob::PutRoomKeysByRoomIdJob(const QString& roomId, const QStr
 auto queryToGetRoomKeysByRoomId(const QString& version)
 {
     QUrlQuery _q;
-    addParam<>(_q, u"version"_s, version);
+    addParam(_q, u"version"_s, version);
     return _q;
 }
 
@@ -180,7 +180,7 @@ GetRoomKeysByRoomIdJob::GetRoomKeysByRoomIdJob(const QString& roomId, const QStr
 auto queryToDeleteRoomKeysByRoomId(const QString& version)
 {
     QUrlQuery _q;
-    addParam<>(_q, u"version"_s, version);
+    addParam(_q, u"version"_s, version);
     return _q;
 }
 
@@ -204,7 +204,7 @@ DeleteRoomKeysByRoomIdJob::DeleteRoomKeysByRoomIdJob(const QString& roomId, cons
 auto queryToPutRoomKeys(const QString& version)
 {
     QUrlQuery _q;
-    addParam<>(_q, u"version"_s, version);
+    addParam(_q, u"version"_s, version);
     return _q;
 }
 
@@ -213,7 +213,7 @@ PutRoomKeysJob::PutRoomKeysJob(const QString& version, const QHash<RoomId, RoomK
               queryToPutRoomKeys(version))
 {
     QJsonObject _dataJson;
-    addParam<>(_dataJson, "rooms"_L1, rooms);
+    addParam(_dataJson, "rooms"_L1, rooms);
     setRequestData({ _dataJson });
     addExpectedKey(u"etag"_s);
     addExpectedKey(u"count"_s);
@@ -222,7 +222,7 @@ PutRoomKeysJob::PutRoomKeysJob(const QString& version, const QHash<RoomId, RoomK
 auto queryToGetRoomKeys(const QString& version)
 {
     QUrlQuery _q;
-    addParam<>(_q, u"version"_s, version);
+    addParam(_q, u"version"_s, version);
     return _q;
 }
 
@@ -242,7 +242,7 @@ GetRoomKeysJob::GetRoomKeysJob(const QString& version)
 auto queryToDeleteRoomKeys(const QString& version)
 {
     QUrlQuery _q;
-    addParam<>(_q, u"version"_s, version);
+    addParam(_q, u"version"_s, version);
     return _q;
 }
 

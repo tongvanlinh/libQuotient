@@ -7,8 +7,8 @@ using namespace Quotient;
 auto queryToGetEventByTimestamp(int ts, const QString& dir)
 {
     QUrlQuery _q;
-    addParam<>(_q, u"ts"_s, ts);
-    addParam<>(_q, u"dir"_s, dir);
+    addParam(_q, u"ts"_s, ts);
+    addParam(_q, u"dir"_s, dir);
     return _q;
 }
 

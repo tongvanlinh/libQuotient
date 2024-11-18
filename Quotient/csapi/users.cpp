@@ -9,7 +9,7 @@ SearchUserDirectoryJob::SearchUserDirectoryJob(const QString& searchTerm, std::o
               makePath("/_matrix/client/v3", "/user_directory/search"))
 {
     QJsonObject _dataJson;
-    addParam<>(_dataJson, "search_term"_L1, searchTerm);
+    addParam(_dataJson, "search_term"_L1, searchTerm);
     addParam<IfNotEmpty>(_dataJson, "limit"_L1, limit);
     setRequestData({ _dataJson });
     addExpectedKey(u"results"_s);

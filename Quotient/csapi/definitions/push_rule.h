@@ -35,10 +35,10 @@ template <>
 struct JsonObjectConverter<PushRule> {
     static void dumpTo(QJsonObject& jo, const PushRule& pod)
     {
-        addParam<>(jo, "actions"_L1, pod.actions);
-        addParam<>(jo, "default"_L1, pod.isDefault);
-        addParam<>(jo, "enabled"_L1, pod.enabled);
-        addParam<>(jo, "rule_id"_L1, pod.ruleId);
+        addParam(jo, "actions"_L1, pod.actions);
+        addParam(jo, "default"_L1, pod.isDefault);
+        addParam(jo, "enabled"_L1, pod.enabled);
+        addParam(jo, "rule_id"_L1, pod.ruleId);
         addParam<IfNotEmpty>(jo, "conditions"_L1, pod.conditions);
         addParam<IfNotEmpty>(jo, "pattern"_L1, pod.pattern);
     }
