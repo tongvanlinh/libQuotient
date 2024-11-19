@@ -52,7 +52,6 @@ public:
     QMetaObject::Connection syncLoopConnection {};
     int syncTimeout = -1;
 
-    GetVersionsJob::Response apiVersions{};
     GetCapabilitiesJob::Capabilities capabilities{};
 
     QVector<GetLoginFlowsJob::LoginFlow> loginFlows;

@@ -238,7 +238,7 @@ bool Connection::capabilitiesReady() const
     return d->capabilities.roomVersions.has_value();
 }
 
-QStringList Connection::supportedMatrixSpecVersions() const { return d->apiVersions.versions; }
+QStringList Connection::supportedMatrixSpecVersions() const { return d->data->homeserverData().supportedSpecVersions; }
 
 void Connection::Private::saveAccessTokenToKeychain() const
 {
