@@ -48,6 +48,8 @@
 #include <QtNetwork/QDnsLookup>
 #include <qt6keychain/keychain.h>
 
+#include <ranges>
+
 using namespace Quotient;
 
 namespace {
@@ -1123,7 +1125,7 @@ QVector<Room*> Connection::allRooms() const
 {
     QVector<Room*> result;
     result.resize(d->roomMap.size());
-    std::copy(d->roomMap.cbegin(), d->roomMap.cend(), result.begin());
+    std::ranges::copy(d->roomMap, result.begin());
     return result;
 }
 
@@ -1203,9 +1205,8 @@ QStringList Connection::tagNames() const
 QVector<Room*> Connection::roomsWithTag(const QString& tagName) const
 {
     QVector<Room*> rooms;
-    std::copy_if(d->roomMap.cbegin(), d->roomMap.cend(),
-                 std::back_inserter(rooms),
-                 [&tagName](Room* r) { return r->tags().contains(tagName); });
+    std::ranges::copy_if(d->roomMap, std::back_inserter(rooms),
+                         [&tagName](Room* r) { return r->tags().contains(tagName); });
     return rooms;
 }
 
@@ -1657,31 +1658,30 @@ void Connection::enableDirectChatEncryption(bool enable)
     emit directChatsEncryptionChanged(enable);
 }
 
-inline bool roomVersionLess(const Connection::SupportedRoomVersion& v1,
-                            const Connection::SupportedRoomVersion& v2)
-{
-    bool ok1 = false, ok2 = false;
-    const auto vNum1 = v1.id.toFloat(&ok1);
-    const auto vNum2 = v2.id.toFloat(&ok2);
-    return ok1 && ok2 ? vNum1 < vNum2 : v1.id < v2.id;
-}
-
 QVector<Connection::SupportedRoomVersion> Connection::availableRoomVersions() const
 {
-    QVector<SupportedRoomVersion> result;
-    if (d->capabilities.roomVersions) {
-        const auto& allVersions = d->capabilities.roomVersions->available;
-        result.reserve(allVersions.size());
-        for (auto it = allVersions.begin(); it != allVersions.end(); ++it)
-            result.push_back({ it.key(), it.value() });
-        // Put stable versions over unstable; within each group,
-        // sort numeric versions as numbers, the rest as strings.
-        const auto mid =
-            std::partition(result.begin(), result.end(),
-                           std::mem_fn(&SupportedRoomVersion::isStable));
-        std::sort(result.begin(), mid, roomVersionLess);
-        std::sort(mid, result.end(), roomVersionLess);
-    }
+    if (!d->capabilities.roomVersions)
+        return {};
+
+    // Can't stuff QKeyValueRange in a std:: view directly because it's not move-assignable and
+    // most views require that - using std::views::all to go around this
+    // TODO: use std::ranges::to() when all toolchains support it
+    const auto allVersions = d->capabilities.roomVersions->available.asKeyValueRange();
+    auto allVersionsView = std::views::all(allVersions) | std::views::transform([](const auto& p) {
+                               return SupportedRoomVersion{ p.first, p.second };
+                           });
+    QVector<SupportedRoomVersion> result(allVersionsView.begin(), allVersionsView.end());
+    // Put stable versions over unstable; for
+    std::ranges::sort(result, [](const SupportedRoomVersion& v1, const SupportedRoomVersion& v2) {
+        if (const auto stable1 = v1.isStable(), stable2 = v2.isStable(); stable1 != stable2)
+            return stable1 && !stable2; // Put all stable versions over unstable
+        // For two versions with the same stability, if both versions are numeric order them as
+        // numbers, otherwise compare strings.
+        bool ok1 = false, ok2 = false;
+        const auto vNum1 = v1.id.toFloat(&ok1);
+        const auto vNum2 = v2.id.toFloat(&ok2);
+        return ok1 && ok2 ? vNum1 < vNum2 : v1.id < v2.id;
+    });
     return result;
 }
 

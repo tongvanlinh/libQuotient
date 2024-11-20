@@ -840,38 +840,32 @@ TEST_IMPL(visitResources)
     static const auto joinRoomAlias = u"##/?.@\"unjoined:example.org"_s;
     static const auto& encodedRoomAliasNoSigil =
         QString::fromLatin1(QUrl::toPercentEncoding(joinRoomAlias.mid(1), ":"_ba));
-    static const QString joinQuery { "?action=join"_L1 };
+    static const auto joinQuery = u"?action=join"_s;
     // These URIs are not supposed to be actually joined (and even exist,
     // as yet) - only to be syntactically correct
-    static const QStringList joinByAliasUris {
+    static const QStringList joinByAliasUris{
         Uri(joinRoomAlias.toUtf8(), {}, joinQuery.mid(1)).toDisplayString(),
-        "matrix:room/"_L1 + encodedRoomAliasNoSigil + joinQuery,
-        "matrix:r/"_L1 + encodedRoomAliasNoSigil + joinQuery,
-        "https://matrix.to/#/%23"_L1/*`#`*/ + encodedRoomAliasNoSigil + joinQuery,
-        "https://matrix.to/#/%23"_L1 + joinRoomAlias.mid(1) /* unencoded */ + joinQuery
+        "matrix:room/"_L1 % encodedRoomAliasNoSigil % joinQuery,
+        "matrix:r/"_L1 % encodedRoomAliasNoSigil % joinQuery,
+        "https://matrix.to/#/%23"_L1 /*`#`*/ % encodedRoomAliasNoSigil % joinQuery,
+        "https://matrix.to/#/%23"_L1 % joinRoomAlias.mid(1) /* unencoded */ % joinQuery
     };
     static const auto joinRoomId = u"!anyid:example.org"_s;
-    static const QStringList viaServers { "matrix.org"_L1, "example.org"_L1 };
-    static const auto viaQuery =
-        std::accumulate(viaServers.cbegin(), viaServers.cend(), joinQuery,
-                        [](const QString& q, const QString& s) {
-                            return q + "&via="_L1 + s;
-                        });
-    static const QStringList joinByIdUris {
-        "matrix:roomid/"_L1 + joinRoomId.mid(1) + viaQuery,
-        "https://matrix.to/#/"_L1 + joinRoomId + viaQuery
-    };
+    static constexpr auto viaServers = std::to_array({ "matrix.org"_L1, "example.org"_L1 });
+    static const auto viaQuery = std::apply(
+        [](const auto&... servers) { return QString((joinQuery % ... % (u"&via="_s % servers))); },
+        viaServers);
+    static const QStringList joinByIdUris{ "matrix:roomid/"_L1 % joinRoomId.mid(1) % viaQuery,
+                                           "https://matrix.to/#/"_L1 % joinRoomId % viaQuery };
     // If any test breaks, the breaking call will return true, and further
     // execution will be cut by ||'s short-circuiting
     if (testResourceResolver(roomUris, &UriDispatcher::roomAction, room())
-        || testResourceResolver(userUris, &UriDispatcher::userAction,
-                                connection()->user())
-        || testResourceResolver(eventUris, &UriDispatcher::roomAction,
-                                room(), { eventId })
-        || testResourceResolver(joinByAliasUris, &UriDispatcher::joinAction,
-                                connection(), { joinRoomAlias })
-        || testResourceResolver(joinByIdUris, &UriDispatcher::joinAction,
-                                connection(), { joinRoomId, viaServers }))
+        || testResourceResolver(userUris, &UriDispatcher::userAction, connection()->user())
+        || testResourceResolver(eventUris, &UriDispatcher::roomAction, room(), { eventId })
+        || testResourceResolver(joinByAliasUris, &UriDispatcher::joinAction, connection(),
+                                { joinRoomAlias })
+        || testResourceResolver(joinByIdUris, &UriDispatcher::joinAction, connection(),
+                                { joinRoomId, QStringList(viaServers.cbegin(), viaServers.cend()) }))
         return true;
     // TODO: negative cases
     FINISH_TEST(true);
@@ -925,23 +919,22 @@ void TestManager::conclude()
 
     auto txnId = room->postHtmlText(plainReport, htmlReport);
     // Now just wait until all the pending events reach the server
-    connectUntil(room, &Room::messageSent, this,
-        [this, txnId, room, plainReport] {
-            const auto& pendingEvents = room->pendingEvents();
-            if (auto stillFlyingCount = std::count_if(pendingEvents.cbegin(), pendingEvents.cend(),
-                                                      [](const PendingEventItem& pe) {
-                                                          return pe.deliveryStatus()
-                                                                 < EventStatus::ReachedServer;
-                                                      });
-                stillFlyingCount > 0) {
-                clog << "Events to reach the server: " << stillFlyingCount << ", not leaving yet\n";
-                return false;
-            }
+    connectUntil(room, &Room::messageSent, this, [this, txnId, room, plainReport] {
+        const auto& pendingEvents = room->pendingEvents();
+        if (const auto stillFlyingCount =
+                std::ranges::count_if(pendingEvents,
+                                      [](const PendingEventItem& pe) {
+                                          return pe.deliveryStatus() < EventStatus::ReachedServer;
+                                      });
+            stillFlyingCount > 0) {
+            clog << "Events to reach the server: " << stillFlyingCount << ", not leaving yet\n";
+            return false;
+        }
 
-            clog << "Leaving the room" << endl;
-            room->leaveRoom().then(this, std::bind_front(&TestManager::finalize, this, plainReport));
-            return true;
-        });
+        clog << "Leaving the room" << endl;
+        room->leaveRoom().then(this, std::bind_front(&TestManager::finalize, this, plainReport));
+        return true;
+    });
 }
 
 void TestManager::finalize(const QString& lastWords)

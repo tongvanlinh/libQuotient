@@ -1686,7 +1686,7 @@ void Room::Private::removeMemberFromMap(const QString& memberId)
         // (for release builds) if there's one. That search is O(n), which
         // may come rather expensive for larger rooms.
         QElapsedTimer et;
-        auto it = std::find(memberNameMap.cbegin(), memberNameMap.cend(), memberId);
+        auto it = std::ranges::find(memberNameMap, memberId);
         if (et.nsecsElapsed() > ProfilerMinNsecs / 10)
             qCDebug(MEMBERS) << "...done in" << et;
         if (it != memberNameMap.cend()) {
@@ -2097,10 +2097,7 @@ auto FileTransferCancelledMsg() { return Room::tr("File transfer cancelled"); }
 
 void Room::discardMessage(const QString& txnId)
 {
-    auto it = std::find_if(d->unsyncedEvents.begin(), d->unsyncedEvents.end(),
-                           [txnId](const auto& evt) {
-                               return evt->transactionId() == txnId;
-                           });
+    auto it = std::ranges::find(d->unsyncedEvents, txnId, &RoomEvent::transactionId);
     Q_ASSERT(it != d->unsyncedEvents.end());
     qCDebug(EVENTS) << "Discarding transaction" << txnId;
     const auto& transferIt = d->fileTransfers.find(txnId);
@@ -2500,8 +2497,7 @@ void Room::downloadFile(const QString& eventId, const QUrl& localFilename)
             eventId, fileUrl, QUrl::fromLocalFile(job->targetFileName()));
     });
     connect(job, &BaseJob::failure, this,
-            std::bind(&Private::failedTransfer, d, eventId,
-                      job->errorString()));
+            std::bind_front(&Private::failedTransfer, d, eventId, job->errorString()));
     emit newFileTransfer(eventId, localFilename);
 }
 
@@ -2759,8 +2755,7 @@ void Room::Private::addRelation(const ReactionEvent& reactionEvt)
     };
 
     auto& thisEventReactions = relations[{ content.eventId, content.type }];
-    if (std::any_of(thisEventReactions.cbegin(), thisEventReactions.cend(),
-                    isSameReaction)) {
+    if (std::ranges::any_of(thisEventReactions, isSameReaction)) {
         qDebug(MESSAGES) << "Skipping a duplicate reaction from"
                          << reactionEvt.senderId();
         return;
@@ -2825,7 +2820,7 @@ Room::Changes Room::Private::addNewMessageEvents(RoomEvents&& events)
         // treated.
         // NB: We have to store redacting/replacing events to the timeline too -
         // see #220.
-        auto it = std::find_if(events.begin(), events.end(), isEditing);
+        auto it = std::ranges::find_if(events, isEditing);
         for (const auto& eptr : std::ranges::subrange(it, events.end())) {
             if (auto* r = eventCast<RedactionEvent>(eptr)) {
                 // Try to find the target in the timeline, then in the batch.
@@ -3298,13 +3293,10 @@ Room::Private::buildShortlist(const QStringList& userIds) const
     // the name of the room. The below code selects 3 topmost users,
     // slightly extending the spec.
     users_shortlist_t shortlist {}; // Prefill with nullptrs
-    std::partial_sort_copy(
-        userIds.begin(), userIds.end(), shortlist.begin(), shortlist.end(),
-        [this](const QString& u1, const QString& u2) {
-            // localUser(), if it's in the list, is sorted
-            // below all others
-            return isLocalMember(u2) || (!isLocalMember(u1) && u1 < u2);
-        });
+    std::ranges::partial_sort_copy(userIds, shortlist, [this](const QString& u1, const QString& u2) {
+        // localUser(), if it's in the list, is sorted below all others
+        return isLocalMember(u2) || (!isLocalMember(u1) && u1 < u2);
+    });
     return shortlist;
 }
 

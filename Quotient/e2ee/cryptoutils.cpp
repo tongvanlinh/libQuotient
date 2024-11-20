@@ -315,7 +315,7 @@ std::vector<byte_t> Quotient::base58Decode(const QByteArray& encoded)
         result.push_back(0x0);
     }
 
-    std::reverse(result.begin(), result.end());
+    std::ranges::reverse(result);
     return result;
 }
 
