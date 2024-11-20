@@ -38,7 +38,7 @@ public:
 
     bool erase(const QString& threadRootId);
 
-    bool exisits(const QString& threadRootId) const;
+    bool exists(const QString& threadRootId) const;
 
     Thread* getThread(const QString& threadRootId) const;
 

@@ -1776,7 +1776,7 @@ void Room::Private::updateThread(const RoomEvent* event)
         return;
     }
 
-    if (threads.exisits(rme->threadRootEventId())) {
+    if (threads.exists(rme->threadRootEventId())) {
         auto thread = threads.getThread(rme->threadRootEventId());
         const auto threadLatestIndex = eventsIndex.constFind(thread->latestEventId());
         if (threadLatestIndex == eventsIndex.cend()) {
@@ -1796,7 +1796,9 @@ void Room::Private::updateThread(const RoomEvent* event)
             threads.add(std::make_unique<Thread>(rme->threadRootEventId(),
                         // For pending events we can get the full correct details when the remote echo comes in.
                         rme->id().isEmpty() ? rme->threadRootEventId() : rme->id(),
-                        rme->id().isEmpty() ? 1 : 2,
+                        // When we can't find the root we assume its a historical event that will load later if
+                        // we can find it we assume a new thread was just created.
+                        rme->id().isEmpty() || q->findInTimeline(rme->threadRootEventId()) == historyEdge() ? 1 : 2,
                         rme->senderId() == connection->userId()));
         }
     }

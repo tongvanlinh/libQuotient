@@ -7,6 +7,12 @@
 
 using namespace Quotient;
 
+namespace {
+inline auto checkThreadRoot(const QString& threadRootId) {
+    return [threadRootId](const std::unique_ptr<Thread>& thread) { return threadRootId == thread->threadRootId(); };
+}
+}
+
 void ThreadView::add(std::unique_ptr<Thread> thread)
 {
     _threads.push_back(std::move(thread));
@@ -14,22 +20,17 @@ void ThreadView::add(std::unique_ptr<Thread> thread)
 
 bool ThreadView::erase(const QString& threadRootId)
 {
-    auto threadIt = std::find_if(_threads.begin(), _threads.end(), [threadRootId](const auto& thread) { return thread->threadRootId() == threadRootId; });
-    if (threadIt == _threads.end()) {
-        return false;
-    }
-     _threads.erase(threadIt);
-    return true;
+    return std::erase_if(_threads, checkThreadRoot(threadRootId)) > 0;
 }
 
-bool ThreadView::exisits(const QString& threadRootId) const
+bool ThreadView::exists(const QString& threadRootId) const
 {
-    return std::find_if(_threads.begin(), _threads.end(), [threadRootId](const auto& thread) { return thread->threadRootId() == threadRootId; }) != _threads.end();
+    return std::ranges::any_of(_threads, checkThreadRoot(threadRootId));
 }
 
 Thread* ThreadView::getThread(const QString& threadRootId) const
 {
-    auto threadIt = std::find_if(_threads.begin(), _threads.end(), [threadRootId](const auto& thread) { return thread->threadRootId() == threadRootId; });
+    auto threadIt = std::ranges::find_if(_threads, checkThreadRoot(threadRootId));
     if (threadIt == _threads.end()) {
         return nullptr;
     }
@@ -37,7 +38,7 @@ Thread* ThreadView::getThread(const QString& threadRootId) const
 }
 
 Thread::Thread(QString threadRootId, QString latestEventId, int size, bool localUserParticipated)
-    : _threadRootId(threadRootId), _latestEventId(threadRootId), _size(size), _localUserParticipated(localUserParticipated)
+    : _threadRootId(threadRootId), _latestEventId(latestEventId), _size(size), _localUserParticipated(localUserParticipated)
 {}
 
 QString Thread::threadRootId() const
@@ -68,7 +69,7 @@ bool Thread::addEvent(const RoomMessageEvent* event, bool isLatest, bool isLocal
     if (isLatest) {
         _latestEventId = event->id();
     }
-    _size++;
+    ++_size;
     if (!_localUserParticipated) {
         _localUserParticipated = isLocalUser;
     }
