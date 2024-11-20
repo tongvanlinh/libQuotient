@@ -164,7 +164,12 @@ void KeyVerificationSession::handleEvent(const KeyVerificationEvent& baseEvent)
                     cancelVerification(UNKNOWN_METHOD);
                     return false;
                 }
-                m_commitment = event.commitment();
+                m_commitment = event.commitment().toLatin1();
+                if (!QByteArray::fromBase64Encoding(m_commitment,
+                                                    QByteArray::AbortOnBase64DecodingErrors)) {
+                    cancelVerification(INVALID_MESSAGE);
+                    return false;
+                }
                 sendKey();
                 setState(WAITINGFORKEY);
                 return true;
@@ -228,12 +233,10 @@ void KeyVerificationSession::handleKey(const KeyVerificationKeyEvent& event)
     olm_sas_set_their_key(olmData, eventKey.data(), unsignedSize(eventKey));
 
     if (startSentByUs) {
-        const auto paddedCommitment =
+        const auto unpaddedCommitment =
             QCryptographicHash::hash((event.key() % m_startEvent).toLatin1(),
                                      QCryptographicHash::Sha256)
-                .toBase64();
-        const QLatin1String unpaddedCommitment(paddedCommitment.constData(),
-                                               QString::fromLatin1(paddedCommitment).indexOf(u'='));
+                .toBase64(QByteArray::OmitTrailingEquals);
         if (unpaddedCommitment != m_commitment) {
             qCWarning(E2EE) << "Commitment mismatch; aborting verification";
             cancelVerification(MISMATCHED_COMMITMENT);
