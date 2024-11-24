@@ -156,19 +156,15 @@ BaseJob::Status DownloadFileJob::prepareResult()
         }
     } else {
         if (d->encryptedFileMetadata.has_value()) {
-            QTemporaryFile tempTempFile; // Assuming it to be next to tempFile
-            decryptFile(*d->tempFile, *d->encryptedFileMetadata, tempTempFile);
+            QScopedPointer<QFile> tempTempFile(new QTemporaryFile);
+            if (!tempTempFile->open(QFile::ReadWrite)) {
+                qCWarning(JOBS) << "Failed to open temporary file for decryption"
+                                << tempTempFile->errorString();
+                return { FileError, "Couldn't open temporary file for decryption"_L1 };
+            }
+            decryptFile(*d->tempFile, *d->encryptedFileMetadata, *tempTempFile);
+            d->tempFile.swap(tempTempFile);
             d->tempFile->close();
-            if (!d->tempFile->remove()) {
-                qWarning(JOBS)
-                    << "Failed to remove the decrypted file placeholder";
-                return { FileError, "Couldn't finalise the download"_L1 };
-            }
-            if (!tempTempFile.rename(d->tempFile->fileName())) {
-                qWarning(JOBS) << "Failed to rename" << tempTempFile.fileName()
-                                << "to" << d->tempFile->fileName();
-                return { FileError, "Couldn't finalise the download"_L1 };
-            }
         } else {
             d->tempFile->close();
         }
