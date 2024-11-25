@@ -280,7 +280,7 @@ void SSSSHandler::unlockSSSSFromSecurityKey(const QString& encodedKey)
         emit error(WrongKeyError);
         return;
     }
-    if (std::accumulate(decoded.cbegin(), decoded.cend(), uint8_t{ 0 }, std::bit_xor<>()) != 0) {
+    if (std::reduce(decoded.cbegin(), decoded.cend(), uint8_t{ 0 }, std::bit_xor<>()) != 0) {
         qCWarning(E2EE) << "SSSS: invalid parity byte in the decryption key";
         emit error(WrongKeyError);
         return;
