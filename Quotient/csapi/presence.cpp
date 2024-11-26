@@ -10,7 +10,7 @@ SetPresenceJob::SetPresenceJob(const QString& userId, const QString& presence,
               makePath("/_matrix/client/v3", "/presence/", userId, "/status"))
 {
     QJsonObject _dataJson;
-    addParam<>(_dataJson, "presence"_L1, presence);
+    addParam(_dataJson, "presence"_L1, presence);
     addParam<IfNotEmpty>(_dataJson, "status_msg"_L1, statusMsg);
     setRequestData({ _dataJson });
 }

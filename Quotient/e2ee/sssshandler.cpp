@@ -35,7 +35,7 @@ QByteArray SSSSHandler::decryptKey(event_type_t keyType, const QString& defaultK
     const auto& encrypted =
         encryptedKeyObject->contentPart<QJsonObject>("encrypted"_L1).value(defaultKey).toObject();
 
-    auto hkdfResult = hkdfSha256(decryptionKey, zeroes<32>(), asCBytes<>(keyType));
+    auto hkdfResult = hkdfSha256(decryptionKey, zeroes<32>(), asCBytes(keyType));
     if (!hkdfResult.has_value()) {
         qCWarning(E2EE) << "Failed to calculate HKDF for" << keyType;
         emit error(DecryptionError);
@@ -280,7 +280,7 @@ void SSSSHandler::unlockSSSSFromSecurityKey(const QString& encodedKey)
         emit error(WrongKeyError);
         return;
     }
-    if (std::accumulate(decoded.cbegin(), decoded.cend(), uint8_t{ 0 }, std::bit_xor<>()) != 0) {
+    if (std::reduce(decoded.cbegin(), decoded.cend(), uint8_t{ 0 }, std::bit_xor<>()) != 0) {
         qCWarning(E2EE) << "SSSS: invalid parity byte in the decryption key";
         emit error(WrongKeyError);
         return;

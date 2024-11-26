@@ -9,7 +9,7 @@ SetDisplayNameJob::SetDisplayNameJob(const QString& userId, const QString& displ
               makePath("/_matrix/client/v3", "/profile/", userId, "/displayname"))
 {
     QJsonObject _dataJson;
-    addParam<>(_dataJson, "displayname"_L1, displayname);
+    addParam(_dataJson, "displayname"_L1, displayname);
     setRequestData({ _dataJson });
 }
 
@@ -29,7 +29,7 @@ SetAvatarUrlJob::SetAvatarUrlJob(const QString& userId, const QUrl& avatarUrl)
               makePath("/_matrix/client/v3", "/profile/", userId, "/avatar_url"))
 {
     QJsonObject _dataJson;
-    addParam<>(_dataJson, "avatar_url"_L1, avatarUrl);
+    addParam(_dataJson, "avatar_url"_L1, avatarUrl);
     setRequestData({ _dataJson });
 }
 

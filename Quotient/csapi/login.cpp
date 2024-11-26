@@ -19,7 +19,7 @@ LoginJob::LoginJob(const QString& type, const std::optional<UserIdentifier>& ide
     : BaseJob(HttpVerb::Post, u"LoginJob"_s, makePath("/_matrix/client/v3", "/login"), false)
 {
     QJsonObject _dataJson;
-    addParam<>(_dataJson, "type"_L1, type);
+    addParam(_dataJson, "type"_L1, type);
     addParam<IfNotEmpty>(_dataJson, "identifier"_L1, identifier);
     addParam<IfNotEmpty>(_dataJson, "password"_L1, password);
     addParam<IfNotEmpty>(_dataJson, "token"_L1, token);

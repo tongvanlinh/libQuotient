@@ -17,17 +17,31 @@ struct ReplacePair { QLatin1String uriString; char sigil; };
 ///
 /// When there are two prefixes for the same sigil, the first matching
 /// entry for a given sigil is used.
-const ReplacePair replacePairs[] = {
-    { "u/"_L1, '@' },
-    { "user/"_L1, '@' },
-    { "roomid/"_L1, '!' },
-    { "r/"_L1, '#' },
-    { "room/"_L1, '#' },
-    // The notation for bare event ids is not proposed in MSC2312 but there's
-    // https://github.com/matrix-org/matrix-doc/pull/2644
-    { "e/"_L1, '$' },
-    { "event/"_L1, '$' }
-};
+constexpr auto replacePairs = std::to_array<ReplacePair>({ { "u/"_L1, '@' },
+                                                           { "user/"_L1, '@' },
+                                                           { "roomid/"_L1, '!' },
+                                                           { "r/"_L1, '#' },
+                                                           { "room/"_L1, '#' },
+                                                           // This is here to support bare (without
+                                                           // roomid) event ids proposed in MSC2644
+                                                           { "e/"_L1, '$' },
+                                                           { "event/"_L1, '$' } });
+
+inline auto encodedPath(const QUrl& url)
+{
+    return url.path(QUrl::EncodeDelimiters | QUrl::EncodeUnicode);
+}
+
+QString pathSegment(const QUrl& url, int which)
+{
+    return QUrl::fromPercentEncoding(
+        encodedPath(url).section(u'/', which, which).toUtf8());
+}
+
+auto decodeFragmentPart(QStringView part)
+{
+    return QUrl::fromPercentEncoding(part.toLatin1()).toUtf8();
+}
 
 }
 
@@ -64,32 +78,6 @@ Uri::Uri(QByteArray primaryId, QByteArray secondaryId, QString query)
         setQuery(query);
 }
 
-static inline auto encodedPath(const QUrl& url)
-{
-    return url.path(QUrl::EncodeDelimiters | QUrl::EncodeUnicode);
-}
-
-static QString pathSegment(const QUrl& url, int which)
-{
-    return QUrl::fromPercentEncoding(
-        encodedPath(url).section(u'/', which, which).toUtf8());
-}
-
-static auto decodeFragmentPart(QStringView part)
-{
-    return QUrl::fromPercentEncoding(part.toLatin1()).toUtf8();
-}
-
-static inline auto matrixToUrlRegexInit()
-{
-    // See https://matrix.org/docs/spec/appendices#matrix-to-navigation
-    const QRegularExpression MatrixToUrlRE {
-        "^/(?<main>[^:]+(:|%3A|%3a)[^/?]+)(/(?<sec>(\\$|%24)[^?]+))?(\\?(?<query>.+))?$"_L1
-    };
-    Q_ASSERT(MatrixToUrlRE.isValid());
-    return MatrixToUrlRE;
-}
-
 Uri::Uri(QUrl url) : QUrl(std::move(url))
 {
     // NB: don't try to use `url` from here on, it's moved-from and empty
@@ -101,7 +89,7 @@ Uri::Uri(QUrl url) : QUrl(std::move(url))
         return;
 
     if (scheme() == "matrix"_L1) {
-        // Check sanity as per https://github.com/matrix-org/matrix-doc/pull/2312
+        // Check sanity according to MSC2312
         const auto& urlPath = encodedPath(*this);
         const auto& splitPath = urlPath.split(u'/');
         switch (splitPath.size()) {
@@ -127,7 +115,9 @@ Uri::Uri(QUrl url) : QUrl(std::move(url))
 
     primaryType_ = NonMatrix; // Default, unless overridden by the code below
     if (scheme() == "https"_L1 && authority() == "matrix.to"_L1) {
-        static const auto MatrixToUrlRE = matrixToUrlRegexInit();
+        static const QRegularExpression MatrixToUrlRE(
+            "^/(?<main>[^:]+(:|%3A|%3a)[^/?]+)(/(?<sec>(\\$|%24)[^?]+))?(\\?(?<query>.+))?$"_L1);
+        static const auto _ [[maybe_unused]] = QUO_CHECK(MatrixToUrlRE.isValid());
         // matrix.to accepts both literal sigils (as well as & and ? used in
         // its "query" substitute) and their %-encoded forms;
         // so force QUrl to decode everything.

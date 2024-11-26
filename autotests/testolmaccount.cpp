@@ -187,9 +187,7 @@ void TestOlmAccount::uploadIdentityKey()
             QFAIL("upload failed");
         const auto& oneTimeKeyCounts = request->oneTimeKeyCounts();
         // Allow the response to have entries with zero counts
-        QCOMPARE(std::accumulate(oneTimeKeyCounts.begin(),
-                                 oneTimeKeyCounts.end(), 0),
-                 0);
+        QVERIFY(std::ranges::all_of(oneTimeKeyCounts, std::bind_front(std::equal_to{}, 0)));
     });
     conn->run(request);
     QSignalSpy spy3(request, &BaseJob::result);

@@ -363,7 +363,7 @@ void BaseJob::initiate(ConnectionData* connData, bool inBackground)
         setStatus(IncorrectRequest, tr("Invalid server connection"));
     }
     // The status is no good, finalise
-    QTimer::singleShot(0, this, &BaseJob::finishJob);
+    QMetaObject::invokeMethod(this, &BaseJob::finishJob, Qt::QueuedConnection);
 }
 
 void BaseJob::sendRequest()

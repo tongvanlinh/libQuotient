@@ -28,10 +28,10 @@ template <>
 struct JsonObjectConverter<OpenIdCredentials> {
     static void dumpTo(QJsonObject& jo, const OpenIdCredentials& pod)
     {
-        addParam<>(jo, "access_token"_L1, pod.accessToken);
-        addParam<>(jo, "token_type"_L1, pod.tokenType);
-        addParam<>(jo, "matrix_server_name"_L1, pod.matrixServerName);
-        addParam<>(jo, "expires_in"_L1, pod.expiresIn);
+        addParam(jo, "access_token"_L1, pod.accessToken);
+        addParam(jo, "token_type"_L1, pod.tokenType);
+        addParam(jo, "matrix_server_name"_L1, pod.matrixServerName);
+        addParam(jo, "expires_in"_L1, pod.expiresIn);
     }
     static void fillFrom(const QJsonObject& jo, OpenIdCredentials& pod)
     {

@@ -18,7 +18,7 @@ Post3PIDsJob::Post3PIDsJob(const ThreePidCredentials& threePidCreds)
     : BaseJob(HttpVerb::Post, u"Post3PIDsJob"_s, makePath("/_matrix/client/v3", "/account/3pid"))
 {
     QJsonObject _dataJson;
-    addParam<>(_dataJson, "three_pid_creds"_L1, threePidCreds);
+    addParam(_dataJson, "three_pid_creds"_L1, threePidCreds);
     setRequestData({ _dataJson });
 }
 
@@ -28,8 +28,8 @@ Add3PIDJob::Add3PIDJob(const QString& clientSecret, const QString& sid,
 {
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "auth"_L1, auth);
-    addParam<>(_dataJson, "client_secret"_L1, clientSecret);
-    addParam<>(_dataJson, "sid"_L1, sid);
+    addParam(_dataJson, "client_secret"_L1, clientSecret);
+    addParam(_dataJson, "sid"_L1, sid);
     setRequestData({ _dataJson });
 }
 
@@ -38,10 +38,10 @@ Bind3PIDJob::Bind3PIDJob(const QString& clientSecret, const QString& idServer,
     : BaseJob(HttpVerb::Post, u"Bind3PIDJob"_s, makePath("/_matrix/client/v3", "/account/3pid/bind"))
 {
     QJsonObject _dataJson;
-    addParam<>(_dataJson, "client_secret"_L1, clientSecret);
-    addParam<>(_dataJson, "id_server"_L1, idServer);
-    addParam<>(_dataJson, "id_access_token"_L1, idAccessToken);
-    addParam<>(_dataJson, "sid"_L1, sid);
+    addParam(_dataJson, "client_secret"_L1, clientSecret);
+    addParam(_dataJson, "id_server"_L1, idServer);
+    addParam(_dataJson, "id_access_token"_L1, idAccessToken);
+    addParam(_dataJson, "sid"_L1, sid);
     setRequestData({ _dataJson });
 }
 
@@ -52,8 +52,8 @@ Delete3pidFromAccountJob::Delete3pidFromAccountJob(const QString& medium, const 
 {
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "id_server"_L1, idServer);
-    addParam<>(_dataJson, "medium"_L1, medium);
-    addParam<>(_dataJson, "address"_L1, address);
+    addParam(_dataJson, "medium"_L1, medium);
+    addParam(_dataJson, "address"_L1, address);
     setRequestData({ _dataJson });
     addExpectedKey(u"id_server_unbind_result"_s);
 }
@@ -65,8 +65,8 @@ Unbind3pidFromAccountJob::Unbind3pidFromAccountJob(const QString& medium, const 
 {
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "id_server"_L1, idServer);
-    addParam<>(_dataJson, "medium"_L1, medium);
-    addParam<>(_dataJson, "address"_L1, address);
+    addParam(_dataJson, "medium"_L1, medium);
+    addParam(_dataJson, "address"_L1, address);
     setRequestData({ _dataJson });
     addExpectedKey(u"id_server_unbind_result"_s);
 }

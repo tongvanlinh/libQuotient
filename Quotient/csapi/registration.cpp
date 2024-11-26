@@ -50,7 +50,7 @@ ChangePasswordJob::ChangePasswordJob(const QString& newPassword, bool logoutDevi
               makePath("/_matrix/client/v3", "/account/password"))
 {
     QJsonObject _dataJson;
-    addParam<>(_dataJson, "new_password"_L1, newPassword);
+    addParam(_dataJson, "new_password"_L1, newPassword);
     addParam<IfNotEmpty>(_dataJson, "logout_devices"_L1, logoutDevices);
     addParam<IfNotEmpty>(_dataJson, "auth"_L1, auth);
     setRequestData({ _dataJson });
@@ -88,7 +88,7 @@ DeactivateAccountJob::DeactivateAccountJob(const std::optional<AuthenticationDat
 auto queryToCheckUsernameAvailability(const QString& username)
 {
     QUrlQuery _q;
-    addParam<>(_q, u"username"_s, username);
+    addParam(_q, u"username"_s, username);
     return _q;
 }
 

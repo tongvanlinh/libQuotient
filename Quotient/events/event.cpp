@@ -7,6 +7,7 @@
 #include "../ranges_extras.h"
 
 #include <QtCore/QJsonDocument>
+#include <QtCore/QStringBuilder>
 
 #if Quotient_VERSION_MAJOR == 0 && Quotient_VERSION_MINOR <= 9
 #include "stateevent.h" // For deprecated isStateEvent(); remove, once Event::isStateEvent() is gone
@@ -23,13 +24,13 @@ void AbstractEventMetaType::addDerived(const AbstractEventMetaType* newType)
             return;
         // Two different metatype objects claim the same Matrix type id; this
         // is not normal, so give as much information as possible to diagnose
-        if ((*existing)->className == newType->className) {
-            qCritical(EVENTS) << newType->className << "claims" << newType->matrixId
-                              << "repeatedly; check that it's exported across translation "
-                                 "units or shared objects";
-            Q_ASSERT(false); // That situation is plain wrong
-            return; // So maybe std::terminate() even?
-        }
+        if (QUO_ALARM_X(
+                (*existing)->className == newType->className,
+                QLatin1StringView(newType->className) % " claims '"_L1 % newType->matrixId
+                    % "' repeatedly;"
+                      " check that it's exported across translation units or shared objects"_L1))
+            return; // That situation is very wrong so maybe std::terminate() even?
+
         qWarning(EVENTS).nospace() << newType->matrixId << " is already mapped to "
                                    << (*existing)->className << " before " << newType->className
                                    << "; unless the two have different isValid() conditions, the "

@@ -7,7 +7,7 @@ using namespace Quotient;
 auto queryToRegistrationTokenValidity(const QString& token)
 {
     QUrlQuery _q;
-    addParam<>(_q, u"token"_s, token);
+    addParam(_q, u"token"_s, token);
     return _q;
 }
 

@@ -72,7 +72,7 @@ QueryUserByProtocolJob::QueryUserByProtocolJob(const QString& protocol,
 auto queryToQueryLocationByAlias(const QString& alias)
 {
     QUrlQuery _q;
-    addParam<>(_q, u"alias"_s, alias);
+    addParam(_q, u"alias"_s, alias);
     return _q;
 }
 
@@ -91,7 +91,7 @@ QueryLocationByAliasJob::QueryLocationByAliasJob(const QString& alias)
 auto queryToQueryUserByID(const QString& userid)
 {
     QUrlQuery _q;
-    addParam<>(_q, u"userid"_s, userid);
+    addParam(_q, u"userid"_s, userid);
     return _q;
 }
 

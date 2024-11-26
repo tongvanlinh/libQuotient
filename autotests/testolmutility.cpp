@@ -63,27 +63,22 @@ void TestOlmUtility::verifySignedOneTimeKey()
     auto utilityBuf = new uint8_t[olm_utility_size()];
     auto utility = olm_utility(utilityBuf);
 
+    const auto signatureBuf1 = sig; // sig can be written to in olm_ed25519_verify
 
-    QByteArray signatureBuf1(sig.size(), '\0');
-    std::copy(sig.begin(), sig.end(), signatureBuf1.begin());
-
-    auto res =
-        olm_ed25519_verify(utility,
-                           aliceOlm.identityKeys().ed25519.toLatin1().data(),
-                           aliceOlm.identityKeys().ed25519.size(), msg.data(),
-                           msg.size(), sig.data(), sig.size());
-
+    // Verify via bare Olm, to make sure we test on the valid material
+    const auto res = olm_ed25519_verify(utility, aliceOlm.identityKeys().ed25519.toLatin1().data(),
+                                        unsignedSize(aliceOlm.identityKeys().ed25519), msg.data(),
+                                        unsignedSize(msg), sig.data(), unsignedSize(sig));
     QCOMPARE(olm_utility_last_error_code(utility), OLM_SUCCESS);
     QCOMPARE(res, 0);
 
     delete[](reinterpret_cast<uint8_t *>(utility));
 
+    // Now verify using libQuotient wrapper and test that the result is the same
     QOlmUtility utility2;
-    auto res2 =
-        utility2.ed25519Verify(aliceOlm.identityKeys().ed25519.toLatin1(), msg,
-                               signatureBuf1);
-
-    //QCOMPARE(std::string(olm_utility_last_error(utility)), "SUCCESS");
+    const auto res2 =
+        utility2.ed25519Verify(aliceOlm.identityKeys().ed25519.toLatin1(), msg, signatureBuf1);
+    QCOMPARE(utility2.lastErrorCode(), OLM_SUCCESS);
     QVERIFY(res2);
 }
 

@@ -24,7 +24,7 @@ struct JsonObjectConverter<DiscoveryInformation> {
     static void dumpTo(QJsonObject& jo, const DiscoveryInformation& pod)
     {
         fillJson(jo, pod.additionalProperties);
-        addParam<>(jo, "m.homeserver"_L1, pod.homeserver);
+        addParam(jo, "m.homeserver"_L1, pod.homeserver);
         addParam<IfNotEmpty>(jo, "m.identity_server"_L1, pod.identityServer);
     }
     static void fillFrom(QJsonObject jo, DiscoveryInformation& pod)

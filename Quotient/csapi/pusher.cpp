@@ -20,9 +20,9 @@ PostPusherJob::PostPusherJob(const QString& pushkey, const QString& kind, const 
     : BaseJob(HttpVerb::Post, u"PostPusherJob"_s, makePath("/_matrix/client/v3", "/pushers/set"))
 {
     QJsonObject _dataJson;
-    addParam<>(_dataJson, "pushkey"_L1, pushkey);
-    addParam<>(_dataJson, "kind"_L1, kind);
-    addParam<>(_dataJson, "app_id"_L1, appId);
+    addParam(_dataJson, "pushkey"_L1, pushkey);
+    addParam(_dataJson, "kind"_L1, kind);
+    addParam(_dataJson, "app_id"_L1, appId);
     addParam<IfNotEmpty>(_dataJson, "app_display_name"_L1, appDisplayName);
     addParam<IfNotEmpty>(_dataJson, "device_display_name"_L1, deviceDisplayName);
     addParam<IfNotEmpty>(_dataJson, "profile_tag"_L1, profileTag);

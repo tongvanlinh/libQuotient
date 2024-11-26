@@ -53,7 +53,7 @@ QFuture<void> setupPicklingKey(Connection* connection,
                     qDebug(E2EE) << "Successfully loaded pickling key from keychain";
                     encryptionData = std::make_unique<ConnectionEncryptionData>(
                         connection, PicklingKey::fromByteArray(std::move(data)));
-                    return QtFuture::makeReadyFuture<Job*>(nullptr);
+                    return makeReadyValueFuture<Job*>(nullptr);
                 }
                 qCritical(E2EE)
                     << "The pickling key loaded from" << keychainId << "has length"
@@ -592,8 +592,7 @@ void ConnectionEncryptionData::handleDevicesList(
                     << device.userId << user;
                 continue;
             }
-            if (!std::all_of(device.algorithms.cbegin(),
-                             device.algorithms.cend(), isSupportedAlgorithm)) {
+            if (!std::ranges::all_of(device.algorithms, isSupportedAlgorithm)) {
                 qWarning(E2EE) << "Unsupported encryption algorithms found"
                                << device.algorithms;
                 continue;
@@ -755,8 +754,7 @@ std::pair<QByteArray, QByteArray> doDecryptMessage(const QOlmSession& session,
 {
     const auto expectedMessage = session.decrypt(message);
     if (expectedMessage) {
-        const auto result =
-            std::make_pair(*expectedMessage, session.sessionId());
+        const auto result = std::pair{ *expectedMessage, session.sessionId() };
         andThen();
         return result;
     }

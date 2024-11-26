@@ -230,7 +230,7 @@ template <>
 struct QUOTIENT_API JsonObjectConverter<SearchJob::RoomEventsCriteria> {
     static void dumpTo(QJsonObject& jo, const SearchJob::RoomEventsCriteria& pod)
     {
-        addParam<>(jo, "search_term"_L1, pod.searchTerm);
+        addParam(jo, "search_term"_L1, pod.searchTerm);
         addParam<IfNotEmpty>(jo, "keys"_L1, pod.keys);
         addParam<IfNotEmpty>(jo, "filter"_L1, pod.filter);
         addParam<IfNotEmpty>(jo, "order_by"_L1, pod.orderBy);

@@ -140,10 +140,10 @@ template <>
 struct QUOTIENT_API JsonObjectConverter<Post3PIDsJob::ThreePidCredentials> {
     static void dumpTo(QJsonObject& jo, const Post3PIDsJob::ThreePidCredentials& pod)
     {
-        addParam<>(jo, "client_secret"_L1, pod.clientSecret);
-        addParam<>(jo, "id_server"_L1, pod.idServer);
-        addParam<>(jo, "id_access_token"_L1, pod.idAccessToken);
-        addParam<>(jo, "sid"_L1, pod.sid);
+        addParam(jo, "client_secret"_L1, pod.clientSecret);
+        addParam(jo, "id_server"_L1, pod.idServer);
+        addParam(jo, "id_access_token"_L1, pod.idAccessToken);
+        addParam(jo, "sid"_L1, pod.sid);
     }
 };
 QT_WARNING_POP

@@ -16,7 +16,7 @@ SearchJob::SearchJob(const Categories& searchCategories, const QString& nextBatc
               queryToSearch(nextBatch))
 {
     QJsonObject _dataJson;
-    addParam<>(_dataJson, "search_categories"_L1, searchCategories);
+    addParam(_dataJson, "search_categories"_L1, searchCategories);
     setRequestData({ _dataJson });
     addExpectedKey(u"search_categories"_s);
 }

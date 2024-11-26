@@ -186,10 +186,10 @@ template <>
 struct QUOTIENT_API JsonObjectConverter<CreateRoomJob::Invite3pid> {
     static void dumpTo(QJsonObject& jo, const CreateRoomJob::Invite3pid& pod)
     {
-        addParam<>(jo, "id_server"_L1, pod.idServer);
-        addParam<>(jo, "id_access_token"_L1, pod.idAccessToken);
-        addParam<>(jo, "medium"_L1, pod.medium);
-        addParam<>(jo, "address"_L1, pod.address);
+        addParam(jo, "id_server"_L1, pod.idServer);
+        addParam(jo, "id_access_token"_L1, pod.idAccessToken);
+        addParam(jo, "medium"_L1, pod.medium);
+        addParam(jo, "address"_L1, pod.address);
     }
 };
 
@@ -197,8 +197,8 @@ template <>
 struct QUOTIENT_API JsonObjectConverter<CreateRoomJob::StateEvent> {
     static void dumpTo(QJsonObject& jo, const CreateRoomJob::StateEvent& pod)
     {
-        addParam<>(jo, "type"_L1, pod.type);
-        addParam<>(jo, "content"_L1, pod.content);
+        addParam(jo, "type"_L1, pod.type);
+        addParam(jo, "content"_L1, pod.content);
         addParam<IfNotEmpty>(jo, "state_key"_L1, pod.stateKey);
     }
 };

@@ -54,10 +54,10 @@ template <>
 struct JsonObjectConverter<MsisdnValidationData> {
     static void dumpTo(QJsonObject& jo, const MsisdnValidationData& pod)
     {
-        addParam<>(jo, "client_secret"_L1, pod.clientSecret);
-        addParam<>(jo, "country"_L1, pod.country);
-        addParam<>(jo, "phone_number"_L1, pod.phoneNumber);
-        addParam<>(jo, "send_attempt"_L1, pod.sendAttempt);
+        addParam(jo, "client_secret"_L1, pod.clientSecret);
+        addParam(jo, "country"_L1, pod.country);
+        addParam(jo, "phone_number"_L1, pod.phoneNumber);
+        addParam(jo, "send_attempt"_L1, pod.sendAttempt);
         addParam<IfNotEmpty>(jo, "next_link"_L1, pod.nextLink);
         addParam<IfNotEmpty>(jo, "id_server"_L1, pod.idServer);
         addParam<IfNotEmpty>(jo, "id_access_token"_L1, pod.idAccessToken);
