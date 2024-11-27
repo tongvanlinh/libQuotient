@@ -23,15 +23,16 @@ public:
     explicit Private(QString serverName, QString mediaId, const QString& localFilename)
         : serverName(std::move(serverName))
         , mediaId(std::move(mediaId))
-        , targetFile(!localFilename.isEmpty() ? new QFile(localFilename) : nullptr)
-        , tempFile(!localFilename.isEmpty() ? new QFile(targetFile->fileName() + ".qtntdownload"_L1)
-                                            : new QTemporaryFile())
+        , targetFile(!localFilename.isEmpty() ? std::make_unique<QFile>(localFilename) : nullptr)
+        , tempFile(!localFilename.isEmpty()
+                       ? std::make_unique<QFile>(targetFile->fileName() + ".qtntdownload"_L1)
+                       : std::make_unique<QTemporaryFile>())
     {}
 
     QString serverName;
     QString mediaId;
-    QScopedPointer<QFile> targetFile;
-    QScopedPointer<QFile> tempFile;
+    std::unique_ptr<QFile> targetFile;
+    std::unique_ptr<QFile> tempFile;
 
     std::optional<EncryptedFileMetadata> encryptedFileMetadata;
 };
@@ -156,8 +157,8 @@ BaseJob::Status DownloadFileJob::prepareResult()
         }
     } else {
         if (d->encryptedFileMetadata.has_value()) {
-            QScopedPointer<QFile> tempTempFile(new QTemporaryFile);
-            if (!tempTempFile->open(QFile::ReadWrite)) {
+            std::unique_ptr<QFile> tempTempFile = std::make_unique<QTemporaryFile>();
+            if (!tempTempFile->isWritable()) {
                 qCWarning(JOBS) << "Failed to open temporary file for decryption"
                                 << tempTempFile->errorString();
                 return { FileError, "Couldn't open temporary file for decryption"_L1 };

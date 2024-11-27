@@ -470,12 +470,13 @@ TEST_IMPL(sendFile)
     return false;
 }
 
-void getResource(const QUrl& url, QScopedPointer<QNetworkReply, QScopedPointerDeleteLater>& r,
-                 QEventLoop& el)
+using NetworkReplyPtr = QObjectHolder<QNetworkReply>;
+
+void getResource(const QUrl& url, NetworkReplyPtr& r, QEventLoop& el)
 {
     r.reset(NetworkAccessManager::instance()->get(QNetworkRequest(url)));
     QObject::connect(
-        r.data(), &QNetworkReply::finished, &el,
+        r.get(), &QNetworkReply::finished, &el,
         [url, &r, &el] {
             if (r->error() != QNetworkReply::NoError)
                 getResource(url, r, el);
@@ -490,7 +491,7 @@ bool testDownload(const QUrl& url)
     // The actual test is separate from the download invocation to help debugging
     const auto results = QtConcurrent::blockingMapped(QVector<int>{ 1, 2, 3 }, [url](int) {
         thread_local QEventLoop el;
-        thread_local QScopedPointer<QNetworkReply, QScopedPointerDeleteLater> reply{};
+        thread_local NetworkReplyPtr reply{};
         getResource(url, reply, el);
         el.exec();
         return reply->error();

@@ -8,10 +8,11 @@
 
 #include <QtCore/QDebug>
 #include <QtCore/QElapsedTimer>
+#include <QtCore/QFuture>
 #include <QtCore/QHashFunctions>
 #include <QtCore/QLatin1String>
+#include <QtCore/QScopedPointer>
 #include <QtCore/QUrl>
-#include <QtCore/QFuture>
 
 #include <memory>
 #include <optional>
@@ -229,6 +230,15 @@ inline std::pair<InputIt, ForwardIt> findFirstOf(InputIt first, InputIt last,
 
     return { last, sLast };
 }
+
+//! \brief Common custom deleter for std::unique_ptr and QScopedPointer
+//!
+//! Since Qt 6, this is merely an alias for QScopedPointerDeleteLater (which is suitable
+//! for std::unique_ptr too).
+using DeleteLater = QScopedPointerDeleteLater;
+
+template <std::derived_from<QObject> T>
+using QObjectHolder = std::unique_ptr<T, DeleteLater>;
 
 //! \brief An owning implementation pointer
 //!
