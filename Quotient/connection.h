@@ -18,6 +18,7 @@
 
 #include "events/accountdataevents.h"
 #include "jobs/jobhandle.h"
+#include "jobs/syncjob.h"
 
 #include <QtCore/QDir>
 #include <QtCore/QObject>
@@ -40,8 +41,6 @@ class RoomEvent;
 
 class GetVersionsJob;
 class GetCapabilitiesJob;
-class SyncJob;
-class SyncData;
 class RoomMessagesJob;
 class PostReceiptJob;
 class ForgetRoomJob;
@@ -692,7 +691,7 @@ public Q_SLOTS:
     QFuture<void> logout();
 
     void sync(int timeout = -1);
-    void syncLoop(int timeout = 30000);
+    void syncLoop(int timeout = SyncJob::defaultTimeoutMillis);
 
     void stopSync();
 

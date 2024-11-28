@@ -32,7 +32,6 @@
 #include "events/encryptionevent.h"
 #include "jobs/downloadfilejob.h"
 #include "jobs/mediathumbnailjob.h"
-#include "jobs/syncjob.h"
 
 // moc needs fully defined deps, see https://www.qt.io/blog/whats-new-in-qmetatype-qvariant
 #include "moc_connection.cpp" // NOLINT(bugprone-suspicious-include)
@@ -191,7 +190,8 @@ void Connection::assumeIdentity(const QString& mxId, const QString& deviceId,
                         << ") is different from passed MXID (" << mxId << ")!";
                 return;
             case BaseJob::NetworkError:
-                emit networkError(job->errorString(), job->rawDataSample(), job->maxRetries(), -1);
+                QT_IGNORE_DEPRECATIONS(emit networkError(job->errorString(), job->rawDataSample(),
+                                                         job->maxRetries(), -1);)
                 return;
             default: emit loginError(job->errorString(), job->rawDataSample());
             }

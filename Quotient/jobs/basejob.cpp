@@ -20,8 +20,7 @@
 #include <ranges>
 
 using namespace Quotient;
-using std::chrono::seconds, std::chrono::milliseconds;
-using namespace std::chrono_literals;
+using namespace std::chrono;
 
 BaseJob::StatusCode BaseJob::Status::fromHttpCode(int httpCode)
 {
@@ -67,11 +66,6 @@ QDebug BaseJob::Status::dumpToLog(QDebug dbg) const
 
 class Q_DECL_HIDDEN BaseJob::Private {
 public:
-    struct JobTimeoutConfig {
-        seconds jobTimeout;
-        seconds nextRetryInterval;
-    };
-
     // Using an idiom from clang-tidy:
     // http://clang.llvm.org/extra/clang-tidy/checks/modernize-pass-by-value.html
     Private(HttpVerb v, QByteArray endpoint, const QUrlQuery& q,
@@ -147,16 +141,10 @@ public:
     QTimer timer;
     QTimer retryTimer;
 
-    static constexpr auto errorStrategy = std::to_array<const JobTimeoutConfig>(
-        { { 30s, 2s }, { 60s, 5s }, { 150s, 30s } });
-    int maxRetries = int(errorStrategy.size());
-    int retriesTaken = 0;
+    static inline JobBackoffStrategy defaultBackoffStrategy{ { 45s, 90s, 150s }, { 2s, 5s } };
 
-    [[nodiscard]] const JobTimeoutConfig& getCurrentTimeoutConfig() const
-    {
-        return errorStrategy[std::min(size_t(retriesTaken),
-                                      errorStrategy.size() - 1)];
-    }
+    JobBackoffStrategy backoffStrategy = defaultBackoffStrategy;
+    int retriesTaken = 0;
 
     [[nodiscard]] QString dumpRequest() const
     {
@@ -599,12 +587,11 @@ void BaseJob::finishJob()
     case NetworkError:
     case IncorrectResponse:
     case Timeout:
-        if (d->retriesTaken < d->maxRetries) {
+        if (!d->backoffStrategy.maxRetries || d->retriesTaken < *d->backoffStrategy.maxRetries) {
             // TODO: The whole retrying thing should be put to
             // Connection(Manager) otherwise independently retrying jobs make a
             // bit of notification storm towards the UI.
-            const seconds retryIn = error() == Timeout ? 0s
-                                                       : getNextRetryInterval();
+            const auto retryIn = error() == Timeout ? 0s : getNextRetryInterval();
             ++d->retriesTaken;
             qCWarning(d->logCat).nospace()
                 << this << ": retry #" << d->retriesTaken << " in "
@@ -633,9 +620,15 @@ void BaseJob::finishJob()
     deleteLater();
 }
 
-seconds BaseJob::getCurrentTimeout() const
+inline auto atOrLast(const auto& values, auto index)
 {
-    return d->getCurrentTimeoutConfig().jobTimeout;
+    QUO_CHECK(!values.empty());
+    return index < values.size() ? values[index] : values.back();
+}
+
+JobBackoffStrategy::duration_t BaseJob::getCurrentTimeout() const
+{
+    return atOrLast(d->backoffStrategy.jobTimeouts, d->retriesTaken);
 }
 
 BaseJob::duration_ms_t BaseJob::getCurrentTimeoutMs() const
@@ -643,9 +636,9 @@ BaseJob::duration_ms_t BaseJob::getCurrentTimeoutMs() const
     return milliseconds(getCurrentTimeout()).count();
 }
 
-seconds BaseJob::getNextRetryInterval() const
+JobBackoffStrategy::duration_t BaseJob::getNextRetryInterval() const
 {
-    return d->getCurrentTimeoutConfig().nextRetryInterval;
+    return atOrLast(d->backoffStrategy.nextRetryIntervals, d->retriesTaken);
 }
 
 BaseJob::duration_ms_t BaseJob::getNextRetryMs() const
@@ -664,11 +657,33 @@ BaseJob::duration_ms_t BaseJob::millisToRetry() const
     return timeToRetry().count();
 }
 
-int BaseJob::maxRetries() const { return d->maxRetries; }
+int BaseJob::maxRetries() const
+{
+    return d->backoffStrategy.maxRetries ? static_cast<int>(*d->backoffStrategy.maxRetries)
+                                         : std::numeric_limits<int>::max();
+}
 
 void BaseJob::setMaxRetries(int newMaxRetries)
 {
-    d->maxRetries = newMaxRetries;
+    d->backoffStrategy.maxRetries = newMaxRetries;
+}
+
+JobBackoffStrategy BaseJob::currentBackoffStrategy() const { return d->backoffStrategy; }
+
+void BaseJob::setBackoffStrategy(JobBackoffStrategy strategy)
+{
+    QUO_CHECK(!strategy.jobTimeouts.empty());
+    QUO_CHECK(!strategy.nextRetryIntervals.empty());
+    d->backoffStrategy = std::move(strategy);
+}
+
+JobBackoffStrategy BaseJob::defaultBackoffStrategy() { return Private::defaultBackoffStrategy; }
+
+void BaseJob::setDefaultBackoffStrategy(JobBackoffStrategy defaultStrategy)
+{
+    QUO_CHECK(!defaultStrategy.jobTimeouts.empty());
+    QUO_CHECK(!defaultStrategy.nextRetryIntervals.empty());
+    Private::defaultBackoffStrategy = std::move(defaultStrategy);
 }
 
 BaseJob::Status BaseJob::status() const { return d->status; }

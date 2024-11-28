@@ -16,12 +16,17 @@ SyncJob::SyncJob(const QString& since, const QString& filter, int timeout, const
     QUrlQuery query;
     addParam<IfNotEmpty>(query, u"filter"_s, filter);
     addParam<IfNotEmpty>(query, u"set_presence"_s, presence);
-    if (timeout >= 0)
+    using namespace std::chrono_literals;
+    // Add time for the request roundtrip on top of the server-side timeout specified above
+    JobBackoffStrategy backoffStrategy { { defaultTimeout + 10s }, { 2s, 5s, 15s }, std::nullopt };
+    if (timeout >= 0) {
         query.addQueryItem(u"timeout"_s, QString::number(timeout));
+        backoffStrategy.jobTimeouts = { std::chrono::seconds(timeout / 1000 + 10) };
+    } else
+        backoffStrategy.jobTimeouts = { std::chrono::seconds::max() };
+    setBackoffStrategy(std::move(backoffStrategy));
     addParam<IfNotEmpty>(query, u"since"_s, since);
     setRequestQuery(query);
-
-    setMaxRetries(std::numeric_limits<int>::max());
 }
 
 SyncJob::SyncJob(const QString& since, const Filter& filter, int timeout,
