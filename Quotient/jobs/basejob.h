@@ -277,9 +277,9 @@ Q_SIGNALS:
     void statusChanged(Quotient::BaseJob::Status newStatus);
 
     //! \brief A retry of the network request is scheduled after the previous request failed
-    //! \param nextAttempt the 1-based number of attempt (will always be more than 1)
+    //! \param nextRetryNumber the number of the next retry, starting from 1
     //! \param inMilliseconds the interval after which the next attempt will be taken
-    void retryScheduled(int nextAttempt, Quotient::BaseJob::duration_ms_t inMilliseconds);
+    void retryScheduled(int nextRetryNumber, Quotient::BaseJob::duration_ms_t inMilliseconds);
 
     //! \brief The job has been rate-limited
     //!

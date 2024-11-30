@@ -6,8 +6,13 @@ namespace Quotient {
 
 //! Same as std::projected but Proj is checked against the reference under the iterator
 template <std::indirectly_readable IterT,
-          std::indirectly_regular_unary_invocable<std::iter_reference_t<IterT>> Proj>
-using IndirectlyProjected = std::projected<std::iter_reference_t<IterT>, Proj>;
+          std::indirectly_regular_unary_invocable<std::iter_reference_t<IterT>> ProjT>
+using IndirectlyProjected = std::projected<std::iter_reference_t<IterT>, ProjT>;
+
+//! Same as std::indirectly_comparable but uses IndirectlyProjected<> instead of std::projected<>
+template <typename IterT, typename ValT, typename ProjT, typename CompT = std::ranges::equal_to>
+concept IndirectlyProjectedComparable =
+    std::indirect_binary_predicate<CompT, IndirectlyProjected<IterT, ProjT>, const ValT*>;
 
 //! \brief Find a value in a container of (smart) pointers
 //!
@@ -17,12 +22,9 @@ using IndirectlyProjected = std::projected<std::iter_reference_t<IterT>, Proj>;
 //! searching for events that match a specific simple criterion; e.g., to find an event with a given
 //! id in a container you can now write `findIndirect(events, eventId, &RoomEvent::id);` instead
 //! of having to supply your own lambda to dereference the timeline item and check the event id.
-template <std::input_iterator IterT, typename ValT, typename Proj = std::identity>
-    requires std::indirect_binary_predicate<std::ranges::equal_to,
-                                            IndirectlyProjected<IterT, Proj>, const ValT*>
-// Most of constraints here (including IndirectlyProjected) are based on the definition of
-// std::ranges::find and things around it
-inline constexpr auto findIndirect(IterT from, IterT to, const ValT& value, Proj proj = {})
+template <std::input_iterator IterT, typename ValT, typename ProjT = std::identity>
+    requires IndirectlyProjectedComparable<IterT, ValT, ProjT>
+inline constexpr auto findIndirect(IterT from, IterT to, const ValT& value, ProjT proj = {})
 {
     return std::ranges::find(from, to, value, [p = std::move(proj)](auto& itemPtr) {
         return std::invoke(p, *itemPtr);
@@ -30,13 +32,23 @@ inline constexpr auto findIndirect(IterT from, IterT to, const ValT& value, Proj
 }
 
 //! The overload of findIndirect for ranges
-template <typename RangeT, typename ValT, typename Proj = std::identity>
-    requires std::indirect_binary_predicate<
-        std::ranges::equal_to, IndirectlyProjected<std::ranges::iterator_t<RangeT>, Proj>,
-        const ValT*>
-inline constexpr auto findIndirect(RangeT&& range, const ValT& value, Proj proj = {})
+template <typename RangeT, typename ValT, typename ProjT = std::identity>
+    requires IndirectlyProjectedComparable<std::ranges::iterator_t<RangeT>, ValT, ProjT>
+inline constexpr auto findIndirect(RangeT&& range, const ValT& value, ProjT proj = {})
 {
     return findIndirect(std::ranges::begin(range), std::ranges::end(range), value, std::move(proj));
+}
+
+//! \brief An indexOf() alternative for any range
+//!
+//! Unlike QList::indexOf(), returns `range.size()` if \p value is not found
+template <typename RangeT, typename ValT, typename ProjT = std::identity>
+    requires std::indirectly_comparable<std::ranges::iterator_t<RangeT>, const ValT*,
+                                        std::ranges::equal_to, ProjT>
+inline auto findIndex(const RangeT& range, const ValT& value, ProjT proj = {})
+{
+    using namespace std::ranges;
+    return distance(begin(range), find(range, value, std::move(proj)));
 }
 
 }

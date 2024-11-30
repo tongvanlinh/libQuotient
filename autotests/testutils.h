@@ -11,6 +11,8 @@
 namespace Quotient {
 
 class Connection;
+template <class JobT>
+class JobHandle;
 
 std::shared_ptr<Connection> createTestConnection(QLatin1StringView localUserName,
                                                  QLatin1StringView secret,
@@ -22,8 +24,13 @@ std::shared_ptr<Connection> createTestConnection(QLatin1StringView localUserName
     if (!VAR)                                                             \
         QFAIL("Could not set up test connection");
 
-inline bool waitForFuture(const auto& ft)
-    requires requires { ft.isFinished(); }
+template <typename JobT>
+inline bool waitForJob(const Quotient::JobHandle<JobT>& job)
 {
-    return QTest::qWaitFor([ft] { return ft.isFinished(); }, 40000);
+    const auto& [timeouts, retryIntervals, _] = job->currentBackoffStrategy();
+    return QTest::qWaitFor([job] { return job.isFinished(); },
+                           std::chrono::milliseconds(
+                               std::reduce(timeouts.cbegin(), timeouts.cend())
+                               + std::reduce(retryIntervals.cbegin(), retryIntervals.cend()))
+                               .count());
 }
