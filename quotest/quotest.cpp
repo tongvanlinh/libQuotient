@@ -3,6 +3,7 @@
 
 #include <Quotient/connection.h>
 #include <Quotient/room.h>
+#include <Quotient/thread.h>
 #include <Quotient/user.h>
 #include <Quotient/uriresolver.h>
 #include <Quotient/networkaccessmanager.h>
@@ -12,6 +13,8 @@
 #include <Quotient/csapi/leaving.h>
 #include <Quotient/csapi/room_send.h>
 
+#include <Quotient/events/roommessageevent.h>
+#include <Quotient/events/eventrelation.h>
 #include <Quotient/events/reactionevent.h>
 #include <Quotient/events/redactionevent.h>
 #include <Quotient/events/simplestateevents.h>
@@ -27,6 +30,7 @@
 #include <QtNetwork/QNetworkReply>
 
 #include <iostream>
+#include <stdexcept>
 
 using namespace Quotient;
 using std::clog, std::endl;
@@ -110,6 +114,7 @@ private slots:
     TEST_DECL(addAndRemoveTag)
     TEST_DECL(markDirectChat)
     TEST_DECL(visitResources)
+    TEST_DECL(thread)
     // Add more tests above here
 
 public:
@@ -887,6 +892,27 @@ TEST_IMPL(visitResources)
         return true;
     // TODO: negative cases
     FINISH_TEST(true);
+}
+
+TEST_IMPL(thread)
+{
+    auto txnId = targetRoom->postPlainText("Threadroot"_L1);
+    targetRoom->whenMessageMerged(txnId)
+        .then(this, [this, thisTest, txnId](const RoomEvent& rootEvt) -> PendingEventItem::future_type {
+            const auto relation = EventRelation::replyInThread(rootEvt.id(), true, {});
+            auto txnId = targetRoom->post<RoomMessageEvent>(u"Thread reply 1"_s, RoomMessageEvent::MsgType::Text, nullptr, relation)->transactionId();
+            return targetRoom->whenMessageMerged(txnId);
+        })
+        .unwrap()
+        .then(this, [this, thisTest](const RoomEvent& replyEvt) {
+            const auto rmReplyEvt = eventCast<const RoomMessageEvent>(&replyEvt);
+            const auto thread = targetRoom->threads()[rmReplyEvt->threadRootEventId()];
+            FINISH_TEST(thread.threadRootId == rmReplyEvt->threadRootEventId() &&
+                        thread.latestEventId == rmReplyEvt->id() &&
+                        thread.size == 2
+            );
+        });
+    return false;
 }
 
 bool checkPrettyPrint(
