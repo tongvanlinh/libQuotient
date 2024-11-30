@@ -22,7 +22,7 @@
 #include "roommember.h"
 #include "roomstateview.h"
 #include "syncdata.h"
-#include "threadview.h"
+#include "thread.h"
 #include "user.h"
 
 #include "csapi/account-data.h"
@@ -59,6 +59,7 @@
 #include "events/typingevent.h"
 #include "jobs/downloadfilejob.h"
 #include "jobs/mediathumbnailjob.h"
+#include <Quotient/events/roommessageevent.h>
 
 // NB: since Qt 6, moc_room.cpp needs User fully defined
 #include "moc_room.cpp" // NOLINT(bugprone-suspicious-include)
@@ -124,7 +125,7 @@ public:
     // about the timeline.
     EventStats partiallyReadStats {}, unreadStats {};
 
-    ThreadView threads;
+    QHash<QString, Thread> threads;
 
     // For storing a list of current member names for the purpose of disambiguation.
     QMultiHash<QString, QString> memberNameMap;
@@ -560,7 +561,7 @@ const Room::PendingEvents& Room::pendingEvents() const
     return d->unsyncedEvents;
 }
 
-const ThreadView& Room::threads() const { return d->threads; }
+const QHash<QString, Thread>& Room::threads() const { return d->threads; }
 
 int Room::requestedHistorySize() const
 {
@@ -1776,32 +1777,29 @@ void Room::Private::updateThread(const RoomEvent* event)
         return;
     }
 
-    if (threads.exists(rme->threadRootEventId())) {
-        auto thread = threads.getThread(rme->threadRootEventId());
-        const auto threadLatestIndex = eventsIndex.constFind(thread->latestEventId());
-        if (threadLatestIndex == eventsIndex.cend()) {
-            // Assume this is the latest event. This shouldn't happen but we can work around it.
-            thread->addEvent(rme, true, rme->senderId() == connection->userId());
-            return;
-        }
-
-        const auto eventIndexIt = eventsIndex.constFind(rme->id());
-        if (eventIndexIt == eventsIndex.cend()) {
-            qCCritical(EVENTS) << rme->id() << "not in the timeline. Update a thread after moving the event to timeline.";
-        }
-
-        thread->addEvent(rme, *eventIndexIt > *threadLatestIndex, rme->senderId() == connection->userId());
-    } else {
-        if (!event->id().isEmpty()) {
-            threads.add(std::make_unique<Thread>(rme->threadRootEventId(),
-                        // For pending events we can get the full correct details when the remote echo comes in.
-                        rme->id().isEmpty() ? rme->threadRootEventId() : rme->id(),
-                        // When we can't find the root we assume its a historical event that will load later if
-                        // we can find it we assume a new thread was just created.
-                        rme->id().isEmpty() || q->findInTimeline(rme->threadRootEventId()) == historyEdge() ? 1 : 2,
-                        rme->senderId() == connection->userId()));
+    auto& thread = threads[rme->threadRootEventId()];
+    if (thread.threadRootId.isEmpty()) {
+        thread.threadRootId = rme->threadRootEventId();
+        const auto threadRootIndex = eventsIndex.constFind(rme->threadRootEventId());
+        // If we can't find the root we assume it's a historical event and will be loaded later.
+        if (threadRootIndex != eventsIndex.cend()) {
+            const auto rootEvent = timeline[Timeline::size_type(*threadRootIndex - q->minTimelineIndex())].viewAs<RoomMessageEvent>();
+            thread.addEvent(rootEvent, true, rootEvent->senderId() == connection->userId());
         }
     }
+
+    const auto threadLatestIndex = eventsIndex.constFind(thread.latestEventId);
+    const auto eventIndexIt = eventsIndex.constFind(rme->id());
+    if (QUO_ALARM_X(
+            eventIndexIt == eventsIndex.cend(),
+            rme->id()
+                + u"not in the timeline. Update a thread after moving the event to timeline."_s)) {
+        return;
+    }
+
+    thread.addEvent(rme,
+                    (threadLatestIndex == eventsIndex.cend() || *eventIndexIt > *threadLatestIndex),
+                    rme->senderId() == connection->userId());
 }
 
 const Avatar& Room::memberAvatarObject(const QString& memberId) const

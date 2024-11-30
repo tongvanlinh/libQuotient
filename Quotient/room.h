@@ -43,7 +43,7 @@ struct MemberSorter;
 class LeaveRoomJob;
 class SetRoomStateWithKeyJob;
 class RedactEventJob;
-class ThreadView;
+class Thread;
 
 /** The data structure used to expose file transfer information to views
  *
@@ -365,7 +365,7 @@ public:
     //! Same as messageEvents().crend()
     rev_iter_t historyEdge() const;
 
-    const ThreadView& threads() const;
+    const QHash<QString, Thread>& threads() const;
 
     //! \brief Get an iterator for the position beyond the latest arrived event
     //!

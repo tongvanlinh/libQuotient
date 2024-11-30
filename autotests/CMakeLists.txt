@@ -6,6 +6,8 @@ include(CMakeParseArguments)
 
 add_custom_target(autotests ALL)
 
+add_definitions(-DDATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data" )
+
 function(QUOTIENT_ADD_TEST)
     cmake_parse_arguments(ARG "" "NAME" "" ${ARGN})
     add_executable(${ARG_NAME} ${ARG_NAME}.cpp testutils.h testutils.cpp)

@@ -190,7 +190,7 @@ target_sources(${QUOTIENT_LIB_NAME} PUBLIC FILE_SET HEADERS BASE_DIRS .
         Quotient/events/keyverificationevent.h
         Quotient/keyimport.h
         Quotient/qt_connection_util.h
-        Quotient/threadview.h
+        Quotient/thread.h
     PRIVATE
         Quotient/function_traits.cpp
         Quotient/networkaccessmanager.cpp
@@ -248,7 +248,7 @@ target_sources(${QUOTIENT_LIB_NAME} PUBLIC FILE_SET HEADERS BASE_DIRS .
         Quotient/e2ee/cryptoutils.cpp
         Quotient/e2ee/sssshandler.cpp
         Quotient/keyimport.cpp
-        Quotient/threadview.cpp
+        Quotient/thread.cpp
         libquotientemojis.qrc
 )
 
