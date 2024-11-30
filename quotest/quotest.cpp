@@ -896,22 +896,30 @@ TEST_IMPL(visitResources)
 
 TEST_IMPL(thread)
 {
-    auto txnId = targetRoom->postPlainText("Threadroot"_L1);
-    targetRoom->whenMessageMerged(txnId)
-        .then(this, [this, thisTest, txnId](const RoomEvent& rootEvt) -> PendingEventItem::future_type {
-            const auto relation = EventRelation::replyInThread(rootEvt.id(), true, {});
-            auto txnId = targetRoom->post<RoomMessageEvent>(u"Thread reply 1"_s, RoomMessageEvent::MsgType::Text, nullptr, relation)->transactionId();
-            return targetRoom->whenMessageMerged(txnId);
-        })
-        .unwrap()
-        .then(this, [this, thisTest](const RoomEvent& replyEvt) {
-            const auto rmReplyEvt = eventCast<const RoomMessageEvent>(&replyEvt);
-            const auto thread = targetRoom->threads()[rmReplyEvt->threadRootEventId()];
-            FINISH_TEST(thread.threadRootId == rmReplyEvt->threadRootEventId() &&
-                        thread.latestEventId == rmReplyEvt->id() &&
-                        thread.size == 2
-            );
-        });
+    auto rootTxnId = targetRoom->postPlainText("Threadroot"_L1);
+    connect(targetRoom, &Room::pendingEventAboutToMerge, this, [this, thisTest, rootTxnId](Quotient::RoomEvent* rootEvt) {
+        if (rootEvt->transactionId() == rootTxnId) {
+            const auto relation = EventRelation::replyInThread(rootEvt->id(), true, rootEvt->id());
+            auto replyTxnId = targetRoom->post<RoomMessageEvent>(u"Thread reply 1"_s, RoomMessageEvent::MsgType::Text, nullptr, relation)->transactionId();
+            connect(targetRoom, &Room::pendingEventAboutToMerge, this, [this, thisTest, replyTxnId](Quotient::RoomEvent* replyEvt) {
+                if (replyEvt->transactionId() == replyTxnId) {
+                    connect(targetRoom, &Room::pendingEventMerged, this, [this, thisTest, replyEvt]() {
+                        replyEvt->switchOnType(
+                            [&](const RoomMessageEvent& rmReplyEvt) {
+                                const auto thread = targetRoom->threads()[rmReplyEvt.threadRootEventId()];
+                                FINISH_TEST(thread.threadRootId == rmReplyEvt.threadRootEventId() &&
+                                            thread.latestEventId == rmReplyEvt.id() &&
+                                            thread.size == 2
+                                );
+                            },
+                            [this, thisTest](const RoomEvent&) { FAIL_TEST(); }
+                        );
+                    });
+                }
+            });
+        }
+    });
+
     return false;
 }
 
