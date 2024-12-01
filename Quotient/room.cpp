@@ -52,7 +52,6 @@
 #include "events/roomcanonicalaliasevent.h"
 #include "events/roomcreateevent.h"
 #include "events/roommemberevent.h"
-#include "events/roommessageevent.h"
 #include "events/roompowerlevelsevent.h"
 #include "events/roomtombstoneevent.h"
 #include "events/simplestateevents.h"
@@ -293,6 +292,25 @@ public:
     void getAllMembers();
 
     const PendingEventItem& sendEvent(RoomEventPtr&& event);
+
+    // template<MessageEventType msgType>
+    template<MessageEventType type>
+    QString postAllText(const QString& plainText,
+                           std::optional<const QString> html,
+                           std::optional<EventRelation> relatesTo)
+    {
+        static_assert(type == MessageEventType::Text ||
+                      type == MessageEventType::Emote ||
+                      type == MessageEventType::Notice ,
+                      "MessageEvent type is not a text message"
+        );
+
+        std::unique_ptr<EventContent::TextContent> content = nullptr;
+        if (html) {
+            content = std::make_unique<EventContent::TextContent>(*html, u"text/html"_s);
+        }
+        return q->post<RoomMessageEvent>(plainText, type, std::move(content), relatesTo)->transactionId();
+    }
 
     QString doPostFile(event_ptr_tt<RoomMessageEvent> fileEvent, const QUrl& localUrl);
 
@@ -2122,37 +2140,19 @@ void Room::discardMessage(const QString& txnId)
     emit pendingEventDiscarded();
 }
 
+QString Room::postText(const QString& plainText, std::optional<const QString> html, std::optional<EventRelation> relatesTo)
+{
+    return d->postAllText<MessageEventType::Text>(plainText, html, relatesTo);
+}
+
 QString Room::postEmote(const QString& plainText, std::optional<const QString> html, std::optional<EventRelation> relatesTo)
 {
-    std::unique_ptr<EventContent::TextContent> content = nullptr;
-    if (html) {
-        content = std::make_unique<EventContent::TextContent>(*html, u"text/html"_s);
-    }
-
-    return post<RoomMessageEvent>(plainText, MessageEventType::Emote, std::move(content), relatesTo)->transactionId();
+    return d->postAllText<MessageEventType::Emote>(plainText, html, relatesTo);
 }
 
 QString Room::postNotice(const QString& plainText, std::optional<const QString> html, std::optional<EventRelation> relatesTo)
 {
-    std::unique_ptr<EventContent::TextContent> content = nullptr;
-    if (html) {
-        content = std::make_unique<EventContent::TextContent>(*html, u"text/html"_s);
-    }
-
-    return post<RoomMessageEvent>(plainText, MessageEventType::Notice, std::move(content), relatesTo)->transactionId();
-}
-
-QString Room::postPlainText(const QString& plainText, std::optional<EventRelation> relatesTo)
-{
-    return post<RoomMessageEvent>(plainText, MessageEventType::Text, nullptr, relatesTo)->transactionId();
-}
-
-QString Room::postHtmlText(const QString& plainText, const QString& html, std::optional<EventRelation> relatesTo)
-{
-    return post<RoomMessageEvent>(plainText, MessageEventType::Text,
-                                  std::make_unique<EventContent::TextContent>(html, u"text/html"_s),
-                                  relatesTo)
-        ->transactionId();
+    return d->postAllText<MessageEventType::Notice>(plainText, html, relatesTo);
 }
 
 QString Room::postReaction(const QString& eventId, const QString& key)

@@ -721,27 +721,24 @@ public:
         return post(makeEvent<EvT>(std::forward<ArgTs>(args)...));
     }
 
-    /// Send a plain text message
-    QString postPlainText(const QString& plainText, std::optional<EventRelation> relatesTo = std::nullopt);
+    //! Send a text message
+    QString postText(const QString& plainText, std::optional<const QString> html = std::nullopt, std::optional<EventRelation> relatesTo = std::nullopt);
 
-    /// Send a rich text message
-    QString postHtmlText(const QString& plainText, const QString& html, std::optional<EventRelation> relatesTo = std::nullopt);
-
-    /// Send a m.emote message
+    //! Send a m.emote message
     QString postEmote(const QString& plainText, std::optional<const QString> html = std::nullopt, std::optional<EventRelation> relatesTo = std::nullopt);
 
-    /// Send an m.notice message
+    //! Send an m.notice message
     QString postNotice(const QString& plainText, std::optional<const QString> html = std::nullopt, std::optional<EventRelation> relatesTo = std::nullopt);
 
-    /// Send a file with the given content
+    //! Send a file with the given content
     QString postFile(const QString& plainText,
                      std::unique_ptr<EventContent::FileContentBase> fileContent,
                      std::optional<EventRelation> relatesTo = std::nullopt);
 
-    /// Send the given Json as a message
+    //! Send the given Json as a message
     QString postJson(const QString& matrixType, const QJsonObject& eventContent);
 
-    /// Send a reaction on a given event with a given key
+    //! Send a reaction on a given event with a given key
     QString postReaction(const QString& eventId, const QString& key);
 
     PendingEventItem::future_type whenMessageMerged(QString txnId) const;
