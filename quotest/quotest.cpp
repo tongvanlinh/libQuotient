@@ -169,7 +169,7 @@ void TestSuite::finishTest(const TestToken& token, bool condition,
     if (condition) {
         clog << item << " successful" << endl;
         if (targetRoom)
-            targetRoom->postNotice(origin % ": "_L1 % QString::fromUtf8(item) % " successful"_L1);
+            targetRoom->postText<MessageEventType::Notice>(origin % ": "_L1 % QString::fromUtf8(item) % " successful"_L1);
     } else {
         clog << item << " FAILED at " << file << ":" << line << endl;
         if (targetRoom)

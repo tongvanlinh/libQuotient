@@ -721,14 +721,26 @@ public:
         return post(makeEvent<EvT>(std::forward<ArgTs>(args)...));
     }
 
-    //! Send a text message
-    QString postText(const QString& plainText, std::optional<const QString> html = std::nullopt, std::optional<EventRelation> relatesTo = std::nullopt);
+    //! \brief Send a text type message
+    //!
+    //! This means MessageEventType Text, Emote or Notice.
+    template<MessageEventType type = MessageEventType::Text>
+    QString postText(const QString& plainText,
+                     const std::optional<QString>& html = std::nullopt,
+                     const std::optional<EventRelation>& relatesTo = std::nullopt)
+    {
+        static_assert(type == MessageEventType::Text ||
+                      type == MessageEventType::Emote ||
+                      type == MessageEventType::Notice ,
+                      "MessageEvent type is not a text message"
+        );
 
-    //! Send a m.emote message
-    QString postEmote(const QString& plainText, std::optional<const QString> html = std::nullopt, std::optional<EventRelation> relatesTo = std::nullopt);
-
-    //! Send an m.notice message
-    QString postNotice(const QString& plainText, std::optional<const QString> html = std::nullopt, std::optional<EventRelation> relatesTo = std::nullopt);
+        std::unique_ptr<EventContent::TextContent> content = nullptr;
+        if (html) {
+            content = std::make_unique<EventContent::TextContent>(*html, u"text/html"_s);
+        }
+        return post<RoomMessageEvent>(plainText, type, std::move(content), relatesTo)->transactionId();
+    }
 
     //! Send a file with the given content
     QString postFile(const QString& plainText,

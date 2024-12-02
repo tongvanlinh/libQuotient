@@ -293,25 +293,6 @@ public:
 
     const PendingEventItem& sendEvent(RoomEventPtr&& event);
 
-    // template<MessageEventType msgType>
-    template<MessageEventType type>
-    QString postAllText(const QString& plainText,
-                           std::optional<const QString> html,
-                           std::optional<EventRelation> relatesTo)
-    {
-        static_assert(type == MessageEventType::Text ||
-                      type == MessageEventType::Emote ||
-                      type == MessageEventType::Notice ,
-                      "MessageEvent type is not a text message"
-        );
-
-        std::unique_ptr<EventContent::TextContent> content = nullptr;
-        if (html) {
-            content = std::make_unique<EventContent::TextContent>(*html, u"text/html"_s);
-        }
-        return q->post<RoomMessageEvent>(plainText, type, std::move(content), relatesTo)->transactionId();
-    }
-
     QString doPostFile(event_ptr_tt<RoomMessageEvent> fileEvent, const QUrl& localUrl);
 
     PendingEvents::iterator addAsPending(RoomEventPtr&& event);
@@ -2138,21 +2119,6 @@ void Room::discardMessage(const QString& txnId)
     emit pendingEventAboutToDiscard(int(it - d->unsyncedEvents.begin()));
     d->unsyncedEvents.erase(it);
     emit pendingEventDiscarded();
-}
-
-QString Room::postText(const QString& plainText, std::optional<const QString> html, std::optional<EventRelation> relatesTo)
-{
-    return d->postAllText<MessageEventType::Text>(plainText, html, relatesTo);
-}
-
-QString Room::postEmote(const QString& plainText, std::optional<const QString> html, std::optional<EventRelation> relatesTo)
-{
-    return d->postAllText<MessageEventType::Emote>(plainText, html, relatesTo);
-}
-
-QString Room::postNotice(const QString& plainText, std::optional<const QString> html, std::optional<EventRelation> relatesTo)
-{
-    return d->postAllText<MessageEventType::Notice>(plainText, html, relatesTo);
 }
 
 QString Room::postReaction(const QString& eventId, const QString& key)
