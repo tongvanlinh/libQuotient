@@ -573,6 +573,18 @@ TEST_IMPL(setTopic)
     return false;
 }
 
+// TODO: maybe move it to Room?..
+QFuture<void> ensureEvent(Room* room, const QString& evtId, QPromise<void>&& p = QPromise<void>{})
+{
+    auto future = p.future();
+    if (room->findInTimeline(evtId) == room->historyEdge()) {
+        clog << "Loading a page of history, " << room->timelineSize() << " events so far\n";
+        room->getPreviousContent().then(std::bind_front(ensureEvent, room, evtId, std::move(p)));
+    } else
+        p.finish();
+    return future;
+}
+
 TEST_IMPL(redactEvent)
 {
     using TargetEventType = RoomMemberEvent;
@@ -587,20 +599,25 @@ TEST_IMPL(redactEvent)
     Q_ASSERT(memberEventToRedact); // ...or the room state is totally screwed
     const auto& evtId = memberEventToRedact->id();
 
-    clog << "Redacting the latest member event" << endl;
-    targetRoom->redactEvent(evtId, origin);
-    connectUntil(targetRoom, &Room::addedMessages, this, [this, thisTest, evtId] {
-        auto it = targetRoom->findInTimeline(evtId);
-        if (it == targetRoom->historyEdge())
-            return false; // Waiting for the next sync
-
-        FINISH_TEST((*it)->switchOnType([this](const TargetEventType& e) {
-            return e.redactionReason() == origin
-                   && e.membership() == Membership::Join;
-            // The second condition above tests MSC2176 - if it's violated (pre
-            // 0.8 beta), membership() ends up being Membership::Undefined
-        }));
+    // Make sure the event is loaded in the timeline before proceeding with the test, to make sure
+    // the replacement tracked below actually occurs
+    ensureEvent(targetRoom, evtId).then([this, thisTest, evtId] {
+        clog << "Redacting the latest member event" << endl;
+        targetRoom->redactEvent(evtId, origin);
+        connectUntil(targetRoom, &Room::replacedEvent, this,
+                     [this, thisTest, evtId](const RoomEvent* evt) {
+                         // Concurrent replacement/redaction shouldn't happen as of now; but if/when
+                         // event editing is added to the test suite, this may become a thing
+                         if (evt->id() != evtId)
+                             return false;
+                         FINISH_TEST(evt->switchOnType([this](const TargetEventType& e) {
+                             return e.redactionReason() == origin && e.membership() == Membership::Join;
+                             // The second condition above tests MSC2176 - if it's violated (pre 0.8
+                             // beta), membership() ends up being Membership::Undefined
+                         }));
+                     });
     });
+
     return false;
 }
 
