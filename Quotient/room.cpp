@@ -77,7 +77,15 @@
 using namespace Quotient;
 using std::llround;
 
+namespace {
 enum EventsPlacement : int { Older = -1, Newer = 1 };
+
+struct HistoryRequest {
+    EventId upToEventId;
+    QDeadlineTimer deadline;
+    EventPromise promise{};
+};
+}
 
 class Q_DECL_HIDDEN Room::Private {
 public:
@@ -149,6 +157,7 @@ public:
     std::optional<QString> prevBatch = QString();
     int lastRequestedHistorySize = 0;
     JobHandle<GetRoomEventsJob> eventsHistoryJob;
+    std::vector<HistoryRequest> historyRequests;
     JobHandle<GetMembersByRoomJob> allMembersJob;
     //! Map from megolm sessionId to set of eventIds
     std::unordered_map<QString, QSet<QString>> undecryptedEvents;
@@ -223,6 +232,7 @@ public:
     Timeline::const_iterator syncEdge() const { return timeline.cend(); }
 
     JobHandle<GetRoomEventsJob> getPreviousContent(int limit = 10, const QString &filter = {});
+    void checkForRequestedEvents(const rev_iter_t& from, bool allHistoryLoaded);
 
     Changes updateStateFrom(StateEvents&& events)
     {
@@ -2372,6 +2382,80 @@ JobHandle<GetRoomEventsJob> Room::getPreviousContent(int limit, const QString& f
     return d->getPreviousContent(limit, filter);
 }
 
+EventFuture Room::ensureEvent(const QString& eventId, quint16 maxWaitSeconds)
+{
+    if (auto eventIt = findInTimeline(eventId); eventIt != historyEdge())
+        return makeReadyValueFuture(std::cref(**eventIt));
+
+    if (allHistoryLoaded())
+        return {};
+    // Request a small number of events (or whatever the ongoing request says, if there's any),
+    // to make sure checkForRequestedEvents() gets executed
+    getPreviousContent();
+    HistoryRequest r{ eventId,
+                      QDeadlineTimer{ std::chrono::seconds(maxWaitSeconds), Qt::VeryCoarseTimer } };
+    auto future = r.promise.future();
+    d->historyRequests.push_back(std::move(r));
+    return future;
+}
+
+namespace {
+template <typename RangeT>
+inline auto dumpJoined(RangeT&& range, const QString& separator = u","_s)
+    requires(std::convertible_to<std::ranges::range_reference_t<RangeT>, QString>)
+{
+    return [r = std::forward<RangeT>(range), &separator](QDebug dbg) mutable {
+        QDebugStateSaver _(dbg);
+        dbg.noquote();
+#if defined(__cpp_lib_ranges_join_with) && defined(__cpp_lib_ranges_to_container)
+        dbg << std::ranges::to<QString>(std::views::join_with(r, separator));
+#else
+        dbg << QStringList(begin(r), end(r)).join(separator);
+#endif
+        return dbg;
+    };
+}
+}
+
+void Room::Private::checkForRequestedEvents(const rev_iter_t& from, bool allHistoryLoaded)
+{
+    using namespace std::ranges;
+    std::erase_if(historyRequests, [this, from](HistoryRequest& request) {
+        auto& [upToEventId, deadline, promise] = request;
+        if (promise.isCanceled()) {
+            qCInfo(MESSAGES) << "The request to ensure event" << upToEventId << "has been cancelled";
+            return true;
+        }
+        if (auto it = find(from, historyEdge(), upToEventId, &RoomEvent::id); it != historyEdge()) {
+            promise.addResult(std::cref(**it));
+            promise.finish();
+            return true;
+        }
+        if (deadline.hasExpired()) {
+            qCWarning(MESSAGES) << "Timeout - giving up on obtaining event" << upToEventId;
+            promise.future().cancel();
+            return true;
+        }
+        return false;
+    });
+    if (!historyRequests.empty()) {
+        auto requestedIds =
+            dumpJoined(std::views::transform(historyRequests, &HistoryRequest::upToEventId));
+        if (allHistoryLoaded) {
+            qCDebug(MESSAGES) << "Could not find in the whole room history:" << requestedIds;
+            for_each(historyRequests, [](auto& r) { r.promise.future().cancel(); });
+            historyRequests.clear();
+        }
+        static constexpr auto EventsProgression = std::array{ 50, 100, 200, 500, 1000 };
+        static_assert(is_sorted(EventsProgression));
+        const auto thisMany = lastRequestedHistorySize >= EventsProgression.back()
+                                  ? EventsProgression.back()
+                                  : *upper_bound(EventsProgression, lastRequestedHistorySize);
+        qCDebug(MESSAGES) << "Requesting" << thisMany << "events, looking for" << requestedIds;
+        getPreviousContent(thisMany);
+    }
+}
+
 JobHandle<GetRoomEventsJob> Room::Private::getPreviousContent(int limit, const QString& filter)
 {
     if (!prevBatch)
@@ -2384,7 +2468,7 @@ JobHandle<GetRoomEventsJob> Room::Private::getPreviousContent(int limit, const Q
     eventsHistoryJob =
         connection->callApi<GetRoomEventsJob>(id, "b"_L1, *prevBatch, QString(), limit, filter);
     emit q->eventsHistoryJobChanged();
-    connect(eventsHistoryJob, &BaseJob::success, q, [this] {
+    eventsHistoryJob.then([this] {
         if (const auto newPrevBatch = eventsHistoryJob->end();
             !newPrevBatch.isEmpty() && *prevBatch != newPrevBatch) //
         {
@@ -2403,9 +2487,9 @@ JobHandle<GetRoomEventsJob> Room::Private::getPreviousContent(int limit, const Q
         changes |= updateStats(from, historyEdge());
         if (changes > 0)
             postprocessChanges(changes);
+        checkForRequestedEvents(from, !prevBatch);
     });
-    connect(eventsHistoryJob, &QObject::destroyed, q,
-            &Room::eventsHistoryJobChanged);
+    connect(eventsHistoryJob, &QObject::destroyed, q, &Room::eventsHistoryJobChanged);
     return eventsHistoryJob;
 }
 

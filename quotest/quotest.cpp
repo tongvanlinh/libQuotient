@@ -587,18 +587,6 @@ TEST_IMPL(setTopic)
     return false;
 }
 
-// TODO: maybe move it to Room?..
-QFuture<void> ensureEvent(Room* room, const QString& evtId, QPromise<void>&& p = QPromise<void>{})
-{
-    auto future = p.future();
-    if (room->findInTimeline(evtId) == room->historyEdge()) {
-        clog << "Loading a page of history, " << room->timelineSize() << " events so far\n";
-        room->getPreviousContent().then(std::bind_front(ensureEvent, room, evtId, std::move(p)));
-    } else
-        p.finish();
-    return future;
-}
-
 TEST_IMPL(redactEvent)
 {
     using TargetEventType = RoomMemberEvent;
@@ -613,9 +601,18 @@ TEST_IMPL(redactEvent)
     Q_ASSERT(memberEventToRedact); // ...or the room state is totally screwed
     const auto& evtId = memberEventToRedact->id();
 
-    // Make sure the event is loaded in the timeline before proceeding with the test, to make sure
-    // the replacement tracked below actually occurs
-    ensureEvent(targetRoom, evtId).then([this, thisTest, evtId] {
+    // Make sure the event is loaded in the timeline before proceeding with the test, so that
+    // Room::replacedEvent is actually emitted
+    targetRoom->ensureEvent(evtId).then([this, thisTest, evtId](const RoomEvent& checkEvt) {
+        auto it = targetRoom->findInTimeline(evtId);
+        if (it == targetRoom->historyEdge()) {
+            clog << "Room::ensureEvent() failed to actually ensure the event in the timeline\n";
+            FAIL_TEST();
+        }
+        if (it->event() != &checkEvt) {
+            clog << "Room::ensureEvent() resolved to a different event than expected\n";
+            FAIL_TEST();
+        }
         clog << "Redacting the latest member event" << endl;
         targetRoom->redactEvent(evtId, origin);
         connectUntil(targetRoom, &Room::replacedEvent, this,
@@ -625,11 +622,13 @@ TEST_IMPL(redactEvent)
                          if (evt->id() != evtId)
                              return false;
                          FINISH_TEST(evt->switchOnType([this](const TargetEventType& e) {
-                             return e.redactionReason() == origin && e.membership() == Membership::Join;
+                             return e.redactionReason() == origin
+                                    && e.membership() == Membership::Join;
                              // The second condition above tests MSC2176 - if it's violated (pre 0.8
                              // beta), membership() ends up being Membership::Undefined
                          }));
                      });
+        return false;
     });
 
     return false;

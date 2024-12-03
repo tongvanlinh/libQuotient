@@ -750,6 +750,22 @@ public:
 
     QJsonArray exportMegolmSessions();
 
+    //! \brief Loads the message history until the specified event id is found
+    //!
+    //! This is potentially heavy; clients should use this sparingly. One intended use case is
+    //! loading the timeline until the last read event, assuming that the last read event is
+    //! not too far back and that the user will read or at least scroll through the just loaded
+    //! events anyway. This will not be necessary once we move to sliding sync but sliding sync
+    //! support is still a bit away in the future.
+    //!
+    //! Because the process is heavy (particularly on the homeserver), ensureEvent() will cancel
+    //! after \p maxWaitSeconds. Clients may opt to reduce this number; it is not recommended
+    //! to increase it, as most users will give up waiting much earlier than even the default value.
+    //! \return the future that resolves to the event with \p eventId, or self-cancels if the event
+    //!         is not found
+    Q_INVOKABLE Quotient::EventFuture ensureEvent(const QString& eventId,
+                                                  quint16 maxWaitSeconds = 20);
+
 public Q_SLOTS:
     /** Check whether the room should be upgraded */
     void checkVersion();

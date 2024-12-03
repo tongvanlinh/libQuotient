@@ -37,6 +37,9 @@ namespace EventStatus {
     Q_ENUM_NS(Code)
 } // namespace EventStatus
 
+using EventPromise = QPromise<std::reference_wrapper<const RoomEvent>>;
+using EventFuture = QFuture<std::reference_wrapper<const RoomEvent>>;
+
 class QUOTIENT_API EventItemBase {
 public:
     using value_type = RoomEvent;
@@ -98,7 +101,7 @@ private:
 
 class QUOTIENT_API PendingEventItem : public EventItemBase {
 public:
-    using future_type = QFuture<std::reference_wrapper<const RoomEvent>>;
+    using future_type = EventFuture;
 
     explicit PendingEventItem(RoomEventPtr&& e) : EventItemBase(std::move(e))
     {
@@ -141,7 +144,7 @@ private:
     EventStatus::Code _status = EventStatus::Submitted;
     QDateTime _lastUpdated = QDateTime::currentDateTimeUtc();
     QString _annotation;
-    QPromise<std::reference_wrapper<const RoomEvent>> _promise;
+    EventPromise _promise;
 
     void setStatus(EventStatus::Code status)
     {
