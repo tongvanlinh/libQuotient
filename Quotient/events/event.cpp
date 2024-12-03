@@ -18,7 +18,7 @@ using namespace Quotient;
 void AbstractEventMetaType::addDerived(const AbstractEventMetaType* newType)
 {
     if (const auto existing =
-            findIndirect(_derivedTypes, newType->matrixId, &AbstractEventMetaType::matrixId);
+            std::ranges::find(_derivedTypes, newType->matrixId, &AbstractEventMetaType::matrixId);
         existing != _derivedTypes.cend()) {
         if (*existing == newType)
             return;
