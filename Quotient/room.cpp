@@ -1102,12 +1102,12 @@ Room::rev_iter_t Room::findInTimeline(const QString& evtId) const
 
 Room::PendingEvents::iterator Room::findPendingEvent(const QString& txnId)
 {
-    return findIndirect(d->unsyncedEvents, txnId, &RoomEvent::transactionId);
+    return std::ranges::find(d->unsyncedEvents, txnId, &RoomEvent::transactionId);
 }
 
 Room::PendingEvents::const_iterator Room::findPendingEvent(const QString& txnId) const
 {
-    return findIndirect(d->unsyncedEvents, txnId, &RoomEvent::transactionId);
+    return std::ranges::find(d->unsyncedEvents, txnId, &RoomEvent::transactionId);
 }
 
 const Room::RelatedEvents Room::relatedEvents(
@@ -2815,18 +2815,19 @@ Room::Changes Room::Private::addNewMessageEvents(RoomEvents&& events)
     et.start();
 
     {
+        using namespace std::ranges;
         // Pre-process redactions and edits so that events that get
         // redacted/replaced in the same batch landed in the timeline already
         // treated.
         // NB: We have to store redacting/replacing events to the timeline too -
         // see #220.
-        auto it = std::ranges::find_if(events, isEditing);
-        for (const auto& eptr : std::ranges::subrange(it, events.end())) {
+        auto it = find_if(events, isEditing);
+        for (const auto& eptr : subrange(it, events.end())) {
             if (auto* r = eventCast<RedactionEvent>(eptr)) {
                 // Try to find the target in the timeline, then in the batch.
                 if (processRedaction(*r))
                     continue;
-                if (auto targetIt = findIndirect(events, r->redactedEvent(), &RoomEvent::id);
+                if (auto targetIt = find(events, r->redactedEvent(), &RoomEvent::id);
                     targetIt != events.end())
                     *targetIt = makeRedacted(**targetIt, *r);
                 else
@@ -2839,8 +2840,7 @@ Room::Changes Room::Private::addNewMessageEvents(RoomEvents&& events)
                     msg && !msg->replacedEvent().isEmpty()) {
                 if (processReplacement(*msg))
                     continue;
-                if (auto targetIt =
-                        findIndirect(events.begin(), it, msg->replacedEvent(), &RoomEvent::id);
+                if (auto targetIt = find(events.begin(), it, msg->replacedEvent(), &RoomEvent::id);
                     targetIt != it)
                     *targetIt = makeReplaced(**targetIt, *msg);
                 else // FIXME: hide the replacing event when target arrives later
