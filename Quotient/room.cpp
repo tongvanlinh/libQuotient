@@ -124,7 +124,7 @@ public:
     // about the timeline.
     EventStats partiallyReadStats {}, unreadStats {};
 
-    QHash<QString, Thread> threads;
+    ThreadView threads;
 
     // For storing a list of current member names for the purpose of disambiguation.
     QMultiHash<QString, QString> memberNameMap;
@@ -560,7 +560,7 @@ const Room::PendingEvents& Room::pendingEvents() const
     return d->unsyncedEvents;
 }
 
-const QHash<QString, Thread>& Room::threads() const { return d->threads; }
+const Room::ThreadView& Room::threads() const { return d->threads; }
 
 int Room::requestedHistorySize() const
 {
