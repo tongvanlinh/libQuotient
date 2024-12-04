@@ -26,7 +26,7 @@ inline event_ptr_tt<EventT> loadEventFromFile(const QString &eventFileName)
 {
     if (!eventFileName.isEmpty()) {
         QFile testEventFile;
-        testEventFile.setFileName(QLatin1String(DATA_DIR) + u'/' + eventFileName);
+        testEventFile.setFileName(QLatin1StringView(DATA_DIR) + u'/' + eventFileName);
         testEventFile.open(QIODevice::ReadOnly);
         return loadEvent<EventT>(QJsonDocument::fromJson(testEventFile.readAll()).object());
     }

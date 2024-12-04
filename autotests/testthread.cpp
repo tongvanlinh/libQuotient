@@ -1,14 +1,24 @@
-// SPDX-FileCopyrightText: 2021 Carl Schwan <carlschwan@kde.org>
+// SPDX-FileCopyrightText: 2024 James Graham <james.h.graham@protonmail.com>
 //
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include "testthread.h"
+#include <QTest>
+
 #include <Quotient/events/roommessageevent.h>
 #include <Quotient/thread.h>
 
 #include "testutils.h"
 
 using namespace Quotient;
+
+class TestThread : public QObject
+{
+    Q_OBJECT
+
+private Q_SLOTS:
+    void newThread();
+    void historicalThread();
+};
 
 void TestThread::newThread()
 {
@@ -75,3 +85,4 @@ void TestThread::historicalThread()
 }
 
 QTEST_GUILESS_MAIN(TestThread)
+#include "testthread.moc"

@@ -30,7 +30,6 @@
 #include <QtNetwork/QNetworkReply>
 
 #include <iostream>
-#include <stdexcept>
 
 using namespace Quotient;
 using std::clog, std::endl;
@@ -900,11 +899,11 @@ TEST_IMPL(thread)
     connect(targetRoom, &Room::pendingEventAboutToMerge, this, [this, thisTest, rootTxnId](Quotient::RoomEvent* rootEvt) {
         if (rootEvt->transactionId() == rootTxnId) {
             const auto relation = EventRelation::replyInThread(rootEvt->id(), true, rootEvt->id());
-            auto replyTxnId = targetRoom->post<RoomMessageEvent>(u"Thread reply 1"_s, RoomMessageEvent::MsgType::Text, nullptr, relation)->transactionId();
-            connect(targetRoom, &Room::pendingEventAboutToMerge, this, [this, thisTest, replyTxnId](Quotient::RoomEvent* replyEvt) {
-                if (replyEvt->transactionId() == replyTxnId) {
-                    connect(targetRoom, &Room::pendingEventMerged, this, [this, thisTest, replyEvt]() {
-                        replyEvt->switchOnType(
+            targetRoom->post<Quotient::RoomMessageEvent>(u"Thread reply 1"_s, Quotient::RoomMessageEvent::MsgType::Text, nullptr, relation)
+                .whenMerged()
+                .then([this, thisTest](const RoomEvent& replyEvt) {
+                    connect(targetRoom, &Room::pendingEventMerged, this, [this, thisTest, &replyEvt]() {
+                        replyEvt.switchOnType(
                             [&](const RoomMessageEvent& rmReplyEvt) {
                                 const auto thread = targetRoom->threads()[rmReplyEvt.threadRootEventId()];
                                 FINISH_TEST(thread.threadRootId == rmReplyEvt.threadRootEventId() &&
@@ -915,8 +914,7 @@ TEST_IMPL(thread)
                             [this, thisTest](const RoomEvent&) { FAIL_TEST(); }
                         );
                     });
-                }
-            });
+                });
         }
     });
 

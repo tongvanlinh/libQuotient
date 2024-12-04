@@ -59,7 +59,6 @@
 #include "events/typingevent.h"
 #include "jobs/downloadfilejob.h"
 #include "jobs/mediathumbnailjob.h"
-#include <Quotient/events/roommessageevent.h>
 
 // NB: since Qt 6, moc_room.cpp needs User fully defined
 #include "moc_room.cpp" // NOLINT(bugprone-suspicious-include)
@@ -1780,11 +1779,10 @@ void Room::Private::updateThread(const RoomEvent* event)
     auto& thread = threads[rme->threadRootEventId()];
     if (thread.threadRootId.isEmpty()) {
         thread.threadRootId = rme->threadRootEventId();
-        const auto threadRootIndex = eventsIndex.constFind(rme->threadRootEventId());
         // If we can't find the root we assume it's a historical event and will be loaded later.
-        if (threadRootIndex != eventsIndex.cend()) {
-            const auto rootEvent = timeline[Timeline::size_type(*threadRootIndex - q->minTimelineIndex())].viewAs<RoomMessageEvent>();
-            thread.addEvent(rootEvent, true, rootEvent->senderId() == connection->userId());
+        if (auto rootIt = q->findInTimeline(thread.threadRootId); rootIt != historyEdge()) {
+            thread.addEvent(rootIt->viewAs<RoomMessageEvent>(), true,
+                            (*rootIt)->senderId() == connection->userId());
         }
     }
 
