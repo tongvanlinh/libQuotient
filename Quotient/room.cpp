@@ -75,7 +75,6 @@
 #include <functional>
 
 using namespace Quotient;
-using namespace std::placeholders;
 using std::llround;
 
 enum EventsPlacement : int { Older = -1, Newer = 1 };
