@@ -13,8 +13,6 @@
 #include <Quotient/csapi/leaving.h>
 #include <Quotient/csapi/room_send.h>
 
-#include <Quotient/events/roommessageevent.h>
-#include <Quotient/events/eventrelation.h>
 #include <Quotient/events/reactionevent.h>
 #include <Quotient/events/redactionevent.h>
 #include <Quotient/events/simplestateevents.h>
