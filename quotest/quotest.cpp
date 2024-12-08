@@ -28,6 +28,7 @@
 #include <QtNetwork/QNetworkReply>
 
 #include <iostream>
+#include <qnamespace.h>
 
 using namespace Quotient;
 using std::clog, std::endl;
@@ -911,7 +912,7 @@ TEST_IMPL(thread)
                             },
                             [this, thisTest](const RoomEvent&) { FAIL_TEST(); }
                         );
-                    });
+                    }, Qt::SingleShotConnection);
                 });
         }
     });
