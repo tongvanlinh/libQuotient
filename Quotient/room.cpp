@@ -2793,9 +2793,9 @@ Room::Timeline::size_type Room::Private::mergePendingEvent(PendingEvents::iterat
     // unsyncedEvents (see #286). Fortunately, unsyncedEvents only grows at
     // its back so we can rely on the index staying valid at least.
     localEchoIt = unsyncedEvents.begin() + pendingEvtIdx;
+    const auto insertedSize = moveEventsToTimeline({ remoteEchoIt, remoteEchoIt + 1 }, Newer);
     localEchoIt->setMerged(*remoteEcho);
     unsyncedEvents.erase(localEchoIt);
-    const auto insertedSize = moveEventsToTimeline({ remoteEchoIt, remoteEchoIt + 1 }, Newer);
     if (insertedSize > 0)
         q->onAddNewTimelineEvents(syncEdge() - insertedSize);
 
