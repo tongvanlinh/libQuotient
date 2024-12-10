@@ -28,7 +28,6 @@
 #include <QtNetwork/QNetworkReply>
 
 #include <iostream>
-#include <qnamespace.h>
 
 using namespace Quotient;
 using std::clog, std::endl;
@@ -901,18 +900,16 @@ TEST_IMPL(thread)
             targetRoom->post<Quotient::RoomMessageEvent>(u"Thread reply 1"_s, Quotient::RoomMessageEvent::MsgType::Text, nullptr, relation)
                 .whenMerged()
                 .then([this, thisTest](const RoomEvent& replyEvt) {
-                    connect(targetRoom, &Room::pendingEventMerged, this, [this, thisTest, &replyEvt]() {
-                        replyEvt.switchOnType(
-                            [&](const RoomMessageEvent& rmReplyEvt) {
-                                const auto thread = targetRoom->threads()[rmReplyEvt.threadRootEventId()];
-                                FINISH_TEST(thread.threadRootId == rmReplyEvt.threadRootEventId() &&
-                                            thread.latestEventId == rmReplyEvt.id() &&
-                                            thread.size == 2
-                                );
-                            },
-                            [this, thisTest](const RoomEvent&) { FAIL_TEST(); }
-                        );
-                    }, Qt::SingleShotConnection);
+                    replyEvt.switchOnType(
+                        [&](const RoomMessageEvent& rmReplyEvt) {
+                            const auto thread = targetRoom->threads()[rmReplyEvt.threadRootEventId()];
+                            FINISH_TEST(thread.threadRootId == rmReplyEvt.threadRootEventId() &&
+                                        thread.latestEventId == rmReplyEvt.id() &&
+                                        thread.size == 2
+                            );
+                        },
+                        [this, thisTest](const RoomEvent&) { FAIL_TEST(); }
+                    );
                 });
         }
     });
