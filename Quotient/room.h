@@ -43,6 +43,7 @@ struct MemberSorter;
 class LeaveRoomJob;
 class SetRoomStateWithKeyJob;
 class RedactEventJob;
+class Thread;
 
 /** The data structure used to expose file transfer information to views
  *
@@ -176,6 +177,7 @@ public:
     using RelatedEvents = QVector<const RoomEvent*>;
     using rev_iter_t = Timeline::const_reverse_iterator;
     using timeline_iter_t = Timeline::const_iterator;
+    using ThreadView = QHash<QString, Thread>;
 
     //! \brief Room changes that can be tracked using Room::changed() signal
     //!
@@ -363,6 +365,9 @@ public:
     //!
     //! Same as messageEvents().crend()
     rev_iter_t historyEdge() const;
+
+    const ThreadView& threads() const;
+
     //! \brief Get an iterator for the position beyond the latest arrived event
     //!
     //! Same as messageEvents().cend()

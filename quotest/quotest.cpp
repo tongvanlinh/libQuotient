@@ -3,6 +3,7 @@
 
 #include <Quotient/connection.h>
 #include <Quotient/room.h>
+#include <Quotient/thread.h>
 #include <Quotient/user.h>
 #include <Quotient/uriresolver.h>
 #include <Quotient/networkaccessmanager.h>
@@ -110,6 +111,7 @@ private slots:
     TEST_DECL(addAndRemoveTag)
     TEST_DECL(markDirectChat)
     TEST_DECL(visitResources)
+    TEST_DECL(thread)
     // Add more tests above here
 
 public:
@@ -887,6 +889,32 @@ TEST_IMPL(visitResources)
         return true;
     // TODO: negative cases
     FINISH_TEST(true);
+}
+
+TEST_IMPL(thread)
+{
+    auto rootTxnId = targetRoom->postPlainText("Threadroot"_L1);
+    connect(targetRoom, &Room::pendingEventAboutToMerge, this, [this, thisTest, rootTxnId](Quotient::RoomEvent* rootEvt) {
+        if (rootEvt->transactionId() == rootTxnId) {
+            const auto relation = EventRelation::replyInThread(rootEvt->id(), true, rootEvt->id());
+            targetRoom->post<Quotient::RoomMessageEvent>(u"Thread reply 1"_s, Quotient::RoomMessageEvent::MsgType::Text, nullptr, relation)
+                .whenMerged()
+                .then([this, thisTest](const RoomEvent& replyEvt) {
+                    replyEvt.switchOnType(
+                        [&](const RoomMessageEvent& rmReplyEvt) {
+                            const auto thread = targetRoom->threads()[rmReplyEvt.threadRootEventId()];
+                            FINISH_TEST(thread.threadRootId == rmReplyEvt.threadRootEventId() &&
+                                        thread.latestEventId == rmReplyEvt.id() &&
+                                        thread.size == 2
+                            );
+                        },
+                        [this, thisTest](const RoomEvent&) { FAIL_TEST(); }
+                    );
+                });
+        }
+    });
+
+    return false;
 }
 
 bool checkPrettyPrint(

@@ -8,6 +8,8 @@
 
 #include <memory>
 
+#include <Quotient/events/event.h>
+
 namespace Quotient {
 
 class Connection;
@@ -17,6 +19,19 @@ class JobHandle;
 std::shared_ptr<Connection> createTestConnection(QLatin1StringView localUserName,
                                                  QLatin1StringView secret,
                                                  QLatin1StringView deviceName);
+
+
+template<EventClass EventT>
+inline event_ptr_tt<EventT> loadEventFromFile(const QString &eventFileName)
+{
+    if (!eventFileName.isEmpty()) {
+        QFile testEventFile;
+        testEventFile.setFileName(QLatin1StringView(DATA_DIR) + u'/' + eventFileName);
+        testEventFile.open(QIODevice::ReadOnly);
+        return loadEvent<EventT>(QJsonDocument::fromJson(testEventFile.readAll()).object());
+    }
+    return nullptr;
+}
 }
 
 #define CREATE_CONNECTION(VAR, USERNAME, SECRET, DEVICE_NAME)             \

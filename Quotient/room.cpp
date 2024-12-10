@@ -22,6 +22,7 @@
 #include "roommember.h"
 #include "roomstateview.h"
 #include "syncdata.h"
+#include "thread.h"
 #include "user.h"
 
 #include "csapi/account-data.h"
@@ -122,6 +123,8 @@ public:
     // Starting up with estimate event statistics as there's zero knowledge
     // about the timeline.
     EventStats partiallyReadStats {}, unreadStats {};
+
+    ThreadView threads;
 
     // For storing a list of current member names for the purpose of disambiguation.
     QMultiHash<QString, QString> memberNameMap;
@@ -269,6 +272,8 @@ public:
      */
     Timeline::size_type moveEventsToTimeline(RoomEventsRange events,
                                              EventsPlacement placement);
+
+    void updateThread(const RoomEvent* event);
 
     /**
      * Remove events from the passed container that are already in the timeline
@@ -554,6 +559,8 @@ const Room::PendingEvents& Room::pendingEvents() const
 {
     return d->unsyncedEvents;
 }
+
+const Room::ThreadView& Room::threads() const { return d->threads; }
 
 int Room::requestedHistorySize() const
 {
@@ -1752,10 +1759,45 @@ Room::Private::moveEventsToTimeline(RoomEventsRange events,
         if (auto n = q->checkForNotifications(ti); n.type != Notification::None)
             notifications.insert(eId, n);
         Q_ASSERT(q->findInTimeline(eId)->event()->id() == eId);
+        updateThread(ti.event());
     }
     const auto insertedSize = (index - baseIndex) * placement;
     Q_ASSERT(insertedSize == int(events.size()));
     return Timeline::size_type(insertedSize);
+}
+
+void Room::Private::updateThread(const RoomEvent* event)
+{
+    const auto rme = eventCast<const RoomMessageEvent>(event);
+    if (rme == nullptr) {
+        return;
+    }
+    if (!rme->isThreaded()) {
+        return;
+    }
+
+    auto& thread = threads[rme->threadRootEventId()];
+    if (thread.threadRootId.isEmpty()) {
+        thread.threadRootId = rme->threadRootEventId();
+        // If we can't find the root we assume it's a historical event and will be loaded later.
+        if (auto rootIt = q->findInTimeline(thread.threadRootId); rootIt != historyEdge()) {
+            thread.addEvent(rootIt->viewAs<RoomMessageEvent>(), true,
+                            (*rootIt)->senderId() == connection->userId());
+        }
+    }
+
+    const auto threadLatestIndex = eventsIndex.constFind(thread.latestEventId);
+    const auto eventIndexIt = eventsIndex.constFind(rme->id());
+    if (QUO_ALARM_X(
+            eventIndexIt == eventsIndex.cend(),
+            rme->id()
+                + u"not in the timeline. Update a thread after moving the event to timeline."_s)) {
+        return;
+    }
+
+    thread.addEvent(rme,
+                    (threadLatestIndex == eventsIndex.cend() || *eventIndexIt > *threadLatestIndex),
+                    rme->senderId() == connection->userId());
 }
 
 const Avatar& Room::memberAvatarObject(const QString& memberId) const

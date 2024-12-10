@@ -314,9 +314,10 @@ QString RoomMessageEvent::threadRootEventId() const
     const auto relation = relatesTo();
     if (relation && relation.value().type == EventRelation::ThreadType) {
         return relation.value().eventId;
-    } else {
-        return unsignedPart<QJsonObject>("m.relations"_ls)[EventRelation::ThreadType].toString();
+    } else if (unsignedPart<QJsonObject>("m.relations"_L1).contains(EventRelation::ThreadType)) {
+        return id();
     }
+    return {};
 }
 
 namespace {
