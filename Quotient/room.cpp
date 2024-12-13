@@ -80,6 +80,12 @@ using std::llround;
 namespace {
 enum EventsPlacement : int { Older = -1, Newer = 1 };
 
+struct SingleEventRequest {
+    EventId eventId;
+    JobHandle<GetOneRoomEventJob> requestHandle;
+    std::vector<EventPromise> eventPromises{};
+};
+
 struct HistoryRequest {
     EventId upToEventId;
     QDeadlineTimer deadline;
@@ -118,6 +124,8 @@ public:
 
     Timeline timeline;
     PendingEvents unsyncedEvents;
+    std::unordered_map<EventId, event_ptr_tt<const RoomEvent>> cachedEvents;
+    std::vector<SingleEventRequest> singleEventRequests;
     QHash<QString, TimelineItem::index_t> eventsIndex;
     // A map from event id/relation type pairs to a vector of event pointers. Not using QMultiHash,
     // because we want to quickly return a number of relations for a given event without enumerating
@@ -256,12 +264,32 @@ public:
         }
         return changes;
     }
+    auto getOrInsertSingleEventRequest(const QString& eventId);
     void addRelation(const ReactionEvent& reactionEvt);
-    void addRelations(auto from, auto to)
+    void finishEventPromises(const RoomEvent& evt)
     {
-        for (auto it = from; it != to; ++it)
-            if (const auto* reaction = it->template viewAs<ReactionEvent>())
-                addRelation(*reaction);
+        if (auto it = std::ranges::find(singleEventRequests, evt.id(), &SingleEventRequest::eventId);
+            it != cend(singleEventRequests)) {
+            for (auto& p : it->eventPromises)
+                if (!p.isCanceled()) {
+                    p.addResult(std::cref(evt));
+                    p.finish();
+                }
+            if (!it->requestHandle.isFinished())
+                it->requestHandle.abandon();
+            singleEventRequests.erase(it);
+        }
+    }
+    void afterAddedMessages(auto from, auto to)
+    {
+        for (const auto& ti : std::ranges::subrange(from, to)) {
+            // NB: switchOnType() and std::bind_front() don't go well together
+            ti->switchOnType([this](const ReactionEvent& e) { addRelation(e); });
+            finishEventPromises(*ti);
+            cachedEvents.erase(ti->id());
+            // TODO: check if it has relations to another event and call getEvent() for it, _if_
+            //       we are in the displayed area
+        }
     }
 
     Changes addNewMessageEvents(RoomEvents&& events);
@@ -1765,7 +1793,6 @@ Room::Private::moveEventsToTimeline(RoomEventsRange events,
                                          },
                                           [](QUrl&&) {} },
                                fileContent->commonInfo().source);
-
         if (auto n = q->checkForNotifications(ti); n.type != Notification::None)
             notifications.insert(eId, n);
         Q_ASSERT(q->findInTimeline(eId)->event()->id() == eId);
@@ -2380,6 +2407,48 @@ void Room::hangupCall(const QString& callId)
 JobHandle<GetRoomEventsJob> Room::getPreviousContent(int limit, const QString& filter)
 {
     return d->getPreviousContent(limit, filter);
+}
+
+inline auto Room::Private::getOrInsertSingleEventRequest(const QString& eventId)
+{
+    const auto alreadyRequestedIt =
+        std::ranges::find(singleEventRequests, eventId, &SingleEventRequest::eventId);
+    if (alreadyRequestedIt != singleEventRequests.cend())
+        return alreadyRequestedIt;
+
+    return singleEventRequests.insert(
+        alreadyRequestedIt,
+        { eventId,
+          connection->callApi<GetOneRoomEventJob>(id, eventId).then([this](RoomEventPtr&& pEvt) {
+              const auto [it, cachedEventInserted] =
+                  cachedEvents.insert_or_assign(pEvt->id(), std::move(pEvt));
+              finishEventPromises(*(it->second));
+              if (QUO_ALARM(!cachedEventInserted))
+                  emit q->updatedEvent(it->first); // At least notify clients...
+          }) });
+}
+
+const RoomEvent* Room::getEvent(const QString& eventId, MissingEventAction missingEventAction)
+{
+    if (auto timelineIt = findInTimeline(eventId); timelineIt != historyEdge())
+        return timelineIt->event();
+    auto baseStateObjects = std::as_const(d->baseState) | std::views::values;
+    if (auto stateIt = std::ranges::find(baseStateObjects, eventId, &RoomEvent::id);
+        stateIt != cend(baseStateObjects))
+        return (*stateIt).get(); // operator-> is not guaranteed on range adaptor iterators
+    if (auto cachedIt = d->cachedEvents.find(eventId); cachedIt != d->cachedEvents.end())
+        return cachedIt->second.get();
+    if (missingEventAction == RequestMissingEvent)
+        d->getOrInsertSingleEventRequest(eventId);
+
+    return nullptr;
+}
+
+EventFuture Room::getEventFuture(const QString& eventId)
+{
+    if (auto localEvt = getEvent(eventId))
+        return makeReadyValueFuture(std::cref(*localEvt));
+    return d->getOrInsertSingleEventRequest(eventId)->eventPromises.emplace_back().future();
 }
 
 EventFuture Room::ensureEvent(const QString& eventId, quint16 maxWaitSeconds)
@@ -3061,7 +3130,7 @@ Room::Changes Room::Private::addNewMessageEvents(RoomEvents&& events)
     }
 
     if (totalInserted > 0) {
-        addRelations(from, syncEdge());
+        afterAddedMessages(from, syncEdge());
 
         qCDebug(MESSAGES) << "Room" << q->objectName() << "received"
                        << totalInserted << "new events; the last event is now"
@@ -3120,7 +3189,7 @@ std::pair<Room::Changes, Room::rev_iter_t> Room::Private::addHistoricalMessageEv
     q->onAddHistoricalTimelineEvents(from);
     emit q->addedMessages(timeline.front().index(), from->index());
 
-    addRelations(from, historyEdge());
+    afterAddedMessages(from, historyEdge());
     Q_ASSERT(timeline.size() == timelineSize + insertedSize);
     if (insertedSize > 9 || et.nsecsElapsed() >= ProfilerMinNsecs)
         qCDebug(PROFILER) << "Added" << insertedSize << "historical event(s) to" << q->objectName()

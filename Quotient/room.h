@@ -750,6 +750,22 @@ public:
 
     QJsonArray exportMegolmSessions();
 
+    enum MissingEventAction : quint8 { DoNothing = 0, RequestMissingEvent };
+
+    //! \brief Obtain an arbitrary room event by its id that is available locally
+    //!
+    Q_INVOKABLE const RoomEvent* getEvent(
+        const QString& eventId, Quotient::Room::MissingEventAction missingEventAction = DoNothing);
+
+    //! \brief Obtain an arbitrary room event by its id
+    //!
+    //! Looks through the timeline, state events that arrived out of the timeline, and finally
+    //! cached individual events; if the event is not found locally, requests this one event from
+    //! the homeserver.
+    //! \return a ready future with the event reference if an event with \p eventId is found locally;
+    //!         otherwise, a running future connected to the homeserver request
+    EventFuture getEventFuture(const QString& eventId);
+
     //! \brief Loads the message history until the specified event id is found
     //!
     //! This is potentially heavy; clients should use this sparingly. One intended use case is

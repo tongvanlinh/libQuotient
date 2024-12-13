@@ -104,6 +104,7 @@ private slots:
     TEST_DECL(sendReaction)
     TEST_DECL(sendFile)
     TEST_DECL(sendCustomEvent)
+    TEST_DECL(getEvent)
     TEST_DECL(setTopic)
     TEST_DECL(redactEvent)
     TEST_DECL(changeName)
@@ -545,6 +546,20 @@ bool TestSuite::checkFileSendingOutcome(const TestToken& thisTest,
                 [this, thisTest](const RoomEvent&) { FAIL_TEST(); });
         });
     return true;
+}
+
+TEST_IMPL(getEvent)
+{
+    QUO_CHECK(targetRoom->maxTimelineIndex() - targetRoom->minTimelineIndex() > 5);
+    const auto& timelineEventIt = targetRoom->findInTimeline(targetRoom->maxTimelineIndex() - 5);
+    const auto timelineEventFuture = targetRoom->getEventFuture((*timelineEventIt)->id());
+    FAIL_TEST_IF(!timelineEventFuture.isFinished());
+    FAIL_TEST_IF(&timelineEventFuture.result().get() != timelineEventIt->event());
+    const auto& stateEvent = targetRoom->creation();
+    const auto stateEventFuture = targetRoom->getEventFuture(stateEvent->id());
+    FAIL_TEST_IF(!stateEventFuture.isFinished());
+    FAIL_TEST_IF(&stateEventFuture.result().get() != stateEvent);
+    FINISH_TEST(true); // TODO: Test a request to an event that is not loaded yet
 }
 
 DEFINE_SIMPLE_EVENT(CustomEvent, RoomEvent, "quotest.custom", int, testValue,
