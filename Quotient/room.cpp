@@ -1733,15 +1733,16 @@ Room::Private::moveEventsToTimeline(RoomEventsRange events,
                                           : timeline.back().index();
     auto baseIndex = index;
     for (auto&& e : events) {
-        Q_ASSERT_X(e, __FUNCTION__, "Attempt to add nullptr to timeline");
+        if (QUO_ALARM_X(e == nullptr, "Attempt to add nullptr to timeline"))
+            continue;
         const auto eId = e->id();
-        Q_ASSERT_X(
-            !eId.isEmpty(), __FUNCTION__,
-            makeErrorStr(*e, "Event with empty id cannot be in the timeline"));
-        Q_ASSERT_X(
-            !eventsIndex.contains(eId), __FUNCTION__,
-            makeErrorStr(*e, "Event is already in the timeline; "
-                             "incoming events were not properly deduplicated"));
+        if (QUO_ALARM_X(eId.isEmpty(),
+                        makeErrorStr(*e, "An event with empty id cannot be in the timeline")))
+            continue;
+        if (QUO_ALARM_X(eventsIndex.contains(eId),
+                        makeErrorStr(*e, "Event is already in the timeline; "
+                                         "incoming events were not properly deduplicated")))
+            continue;
         const auto& ti = placement == Older
                              ? timeline.emplace_front(std::move(e), --index)
                              : timeline.emplace_back(std::move(e), ++index);
@@ -1761,7 +1762,7 @@ Room::Private::moveEventsToTimeline(RoomEventsRange events,
         updateThread(ti.event());
     }
     const auto insertedSize = (index - baseIndex) * placement;
-    Q_ASSERT(insertedSize == int(events.size()));
+    QUO_CHECK(insertedSize == int(events.size()));
     return Timeline::size_type(insertedSize);
 }
 
@@ -2805,15 +2806,17 @@ void Room::Private::addRelation(const ReactionEvent& reactionEvt)
     emit q->updatedEvent(content.eventId);
 }
 
+namespace {
 /// Whether the event is a redaction or a replacement
 inline bool isEditing(const RoomEventPtr& ep)
 {
-    Q_ASSERT(ep);
-    return ep->switchOnType([](const RedactionEvent&) { return true; },
-                     [](const RoomMessageEvent& rme) {
-                         return !rme.replacedEvent().isEmpty();
-                     },
-                     false);
+    return QUO_CHECK(ep != nullptr)
+           && ep->switchOnType([](const RedactionEvent&) { return true; },
+                               [](const RoomMessageEvent& rme) {
+                                   return !rme.replacedEvent().isEmpty();
+                               },
+                               false);
+}
 }
 
 Room::Timeline::size_type Room::Private::mergePendingEvent(PendingEvents::iterator localEchoIt,
