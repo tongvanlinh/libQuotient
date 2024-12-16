@@ -12,6 +12,7 @@
 #include "database.h"
 #include "logging_categories_p.h"
 #include "qt_connection_util.h"
+#include "ranges_extras.h"
 #include "room.h"
 #include "settings.h"
 #include "user.h"
@@ -1665,13 +1666,12 @@ QVector<Connection::SupportedRoomVersion> Connection::availableRoomVersions() co
 
     // Can't stuff QKeyValueRange in a std:: view directly because it's not move-assignable and
     // most views require that - using std::views::all to go around this
-    // TODO: use std::ranges::to() when all toolchains support it
     const auto allVersions = d->capabilities.roomVersions->available.asKeyValueRange();
-    auto allVersionsView = std::views::all(allVersions) | std::views::transform([](const auto& p) {
-                               return SupportedRoomVersion{ p.first, p.second };
-                           });
-    QVector<SupportedRoomVersion> result(allVersionsView.begin(), allVersionsView.end());
-    // Put stable versions over unstable; for
+    auto result =
+        rangeTo<QVector>(std::views::all(allVersions) | std::views::transform([](const auto& p) {
+                             return SupportedRoomVersion{ p.first, p.second };
+                         }));
+    // Put stable versions over unstable
     std::ranges::sort(result, [](const SupportedRoomVersion& v1, const SupportedRoomVersion& v2) {
         if (const auto stable1 = v1.isStable(), stable2 = v2.isStable(); stable1 != stable2)
             return stable1 && !stable2; // Put all stable versions over unstable
