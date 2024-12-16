@@ -2803,7 +2803,8 @@ void Room::Private::addRelation(const ReactionEvent& reactionEvt)
         return;
     }
     thisEventReactions << &reactionEvt;
-    emit q->updatedEvent(content.eventId);
+    if (q->findInTimeline(content.eventId) != historyEdge())
+        emit q->updatedEvent(content.eventId);
 }
 
 namespace {
