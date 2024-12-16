@@ -129,8 +129,8 @@ private:
     template <EventClass<RoomEvent> EventT>
     [[nodiscard]] bool validatePendingEvent(const QString& txnId);
     [[nodiscard]] bool checkDirectChat() const;
-    void finishTest(const TestToken& token, bool condition, const char* file,
-                    int line);
+    void finishTest(const TestToken& token, bool condition,
+                    std::source_location loc = std::source_location::current());
 
 private:
     Room* targetRoom;
@@ -142,10 +142,23 @@ private:
 // Returning true (rather than a void) allows to reuse the convention with
 // connectUntil() to break the QMetaObject::Connection upon finishing the test
 // item.
-#define FINISH_TEST(Condition) \
-    return (finishTest(thisTest, (Condition), __FILE__, __LINE__), true)
+#define FINISH_TEST(Condition) return (finishTest(thisTest, (Condition)), true)
+
+#define FINISH_TEST_IF(Condition) \
+    do {                          \
+        if (Condition)            \
+            FINISH_TEST(true);    \
+    } while (false)
 
 #define FAIL_TEST() FINISH_TEST(false)
+
+#define FAIL_TEST_IF(Condition, ...)                           \
+    do {                                                       \
+        if (Condition) {                                       \
+            __VA_OPT__(clog << QUO_CSTR(__VA_ARGS__) << endl;) \
+            FAIL_TEST();                                       \
+        }                                                      \
+    } while (false)
 
 void TestSuite::doTest(const QByteArray& testName)
 {
@@ -164,8 +177,7 @@ bool TestSuite::validatePendingEvent(const QString& txnId)
            && (*it)->matrixType() == EventT::TypeId;
 }
 
-void TestSuite::finishTest(const TestToken& token, bool condition,
-                           const char* file, int line)
+void TestSuite::finishTest(const TestToken& token, bool condition, std::source_location loc)
 {
     const auto& item = testName(token);
     if (condition) {
@@ -174,10 +186,11 @@ void TestSuite::finishTest(const TestToken& token, bool condition,
             targetRoom->postMessage(origin % ": "_L1 % QString::fromUtf8(item) % " successful"_L1,
                                     MessageEventType::Notice);
     } else {
-        clog << item << " FAILED at " << file << ":" << line << endl;
+        clog << item << " FAILED at " << loc.file_name() << ":" << loc.line() << endl;
         if (targetRoom)
             targetRoom->postPlainText(origin % ": "_L1 % QString::fromUtf8(item) % " FAILED at "_L1
-                                      % QString::fromUtf8(file) % ", line "_L1 % QString::number(line));
+                                      % QString::fromUtf8(loc.file_name()) % ", line "_L1
+                                      % QString::number(loc.line()));
     }
 
     emit finishedItem(item, condition);
