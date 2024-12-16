@@ -398,44 +398,43 @@ TEST_IMPL(sendMessage)
 
 TEST_IMPL(sendReaction)
 {
-    clog << "Reacting to the newest message in the room" << endl;
-    Q_ASSERT(targetRoom->timelineSize() > 0);
-    const auto targetEvtId = targetRoom->messageEvents().back()->id();
+    return targetRoom->post<RoomMessageEvent>(u"Reaction target"_s)
+        .whenMerged()
+        .then([this, thisTest](const RoomEvent& targetEvt) {
+            const auto targetEvtId = targetEvt.id();
+            clog << "Reacting to the message just sent to the room: " << targetEvtId.toStdString()
+                 << endl;
 
-    // TODO: a separate test unit for reactionevent.h
-    if (loadEvent<ReactionEvent>(RoomEvent::basicJson(
-            ReactionEvent::TypeId,
-            { { RelatesToKey, toJson(EventRelation::replace(targetEvtId)) } }))) {
-        clog << "ReactionEvent can be created with an invalid relation type"
-             << endl;
-        FAIL_TEST();
-    }
-
-    const auto key = u"+1"_s;
-    const auto txnId = targetRoom->postReaction(targetEvtId, key);
-    if (!validatePendingEvent<ReactionEvent>(txnId)) {
-        clog << "Invalid pending event right after submitting" << endl;
-        FAIL_TEST();
-    }
-
-    connectUntil(targetRoom, &Room::updatedEvent, this,
-        [this, thisTest, txnId, key, targetEvtId](const QString& actualTargetEvtId) {
-            if (actualTargetEvtId != targetEvtId)
-                return false;
-            const auto reactions = targetRoom->relatedEvents(
-                targetEvtId, EventRelation::AnnotationType);
-            // It's a test room, assuming no interference there should
-            // be exactly one reaction
-            if (reactions.size() != 1)
+            // TODO: a separate test unit for reactionevent.h
+            if (loadEvent<ReactionEvent>(RoomEvent::basicJson(
+                    ReactionEvent::TypeId,
+                    { { RelatesToKey, toJson(EventRelation::replace(targetEvtId)) } }))) {
+                clog << "ReactionEvent can be created with an invalid relation type" << endl;
                 FAIL_TEST();
+            }
 
-            const auto* evt =
-                eventCast<const ReactionEvent>(reactions.back());
-            FINISH_TEST(is<ReactionEvent>(*evt) && !evt->id().isEmpty()
-                        && evt->key() == key && evt->transactionId() == txnId);
-            // TODO: Test removing the reaction
-        });
-    return false;
+            const auto key = u"+"_s;
+            const auto txnId = targetRoom->postReaction(targetEvtId, key);
+            FAIL_TEST_IF(!validatePendingEvent<ReactionEvent>(txnId),
+                         "Invalid pending event right after submitting");
+
+            connectUntil(targetRoom, &Room::updatedEvent, this,
+                         [this, thisTest, txnId, key, targetEvtId](const QString& actualTargetEvtId) {
+                             if (actualTargetEvtId != targetEvtId)
+                                 return false;
+                             const auto reactions =
+                                 targetRoom->relatedEvents(targetEvtId,
+                                                           EventRelation::AnnotationType);
+                             FAIL_TEST_IF(reactions.size() != 1);
+
+                             const auto* evt = eventCast<const ReactionEvent>(reactions.back());
+                             FINISH_TEST(is<ReactionEvent>(*evt) && !evt->id().isEmpty()
+                                         && evt->key() == key && evt->transactionId() == txnId);
+                             // TODO: Test removing the reaction
+                         });
+            return false;
+        })
+        .isRunning();
 }
 
 TEST_IMPL(sendFile)
