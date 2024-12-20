@@ -16,4 +16,36 @@ inline auto findIndex(const RangeT& range, const ValT& value, ProjT proj = {})
     return distance(begin(range), find(range, value, std::move(proj)));
 }
 
+//! \brief A replacement of std::ranges::to() while toolchains catch up
+//!
+//! Returns a container of type \p TargetT created from \p sourceRange. Unlike std::ranges::to(),
+//! you have to pass the range to it (e.g. `rangeTo<TargetT>(someRange)`); using it in a pipeline
+//! (`someRange | rangeTo<TargetT>()`) won't compile. Internally calls std::ranges::to() if it's
+//! available; otherwise, returns the result of calling
+//! `TargetT(ranges::begin(sourceRange), ranges::end(sourceRange))`.
+template <class TargetT, typename SourceT>
+[[nodiscard]] constexpr auto rangeTo(SourceT&& sourceRange)
+{
+#if defined(__cpp_lib_ranges_to_container)
+    return std::ranges::to<TargetT>(std::forward<SourceT>(sourceRange));
+#else
+    using std::begin, std::end;
+    return TargetT(begin(sourceRange), end(sourceRange));
+#endif
+}
+
+//! An overload that accepts unspecialised container template
+template <template <typename> class TargetT, typename SourceT>
+[[nodiscard]] constexpr auto rangeTo(SourceT&& sourceRange)
+{
+    // Avoid template argument deduction because Xcode still can't do it when TargetT is an alias
+#if defined(__cpp_lib_ranges_to_container)
+    return std::ranges::to<TargetT<std::ranges::range_value_t<SourceT>>>(
+        std::forward<SourceT>(sourceRange));
+#else
+    using std::begin, std::end;
+    return TargetT<std::ranges::range_value_t<SourceT>>(begin(sourceRange), end(sourceRange));
+#endif
+}
+
 }
