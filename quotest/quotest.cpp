@@ -3,6 +3,7 @@
 
 #include <Quotient/connection.h>
 #include <Quotient/room.h>
+#include <Quotient/settings.h>
 #include <Quotient/thread.h>
 #include <Quotient/user.h>
 #include <Quotient/uriresolver.h>

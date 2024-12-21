@@ -69,6 +69,12 @@ public:
     Q_INVOKABLE bool contains(const QString& key) const;
     Q_INVOKABLE QStringList childGroups() const;
 
+    //! Escape forward- and backslashes in keys because QSettings doesn't (see #842)
+    static QString escapedForSettings(QString key);
+
+    //! Unescape `\` and `/` in keys stored with escapedForSettings()
+    static QString unescapedFromSettings(QString key);
+
 private:
     static QString legacyOrganizationName;
     static QString legacyApplicationName;
@@ -128,7 +134,7 @@ class QUOTIENT_API AccountSettings : public SettingsGroup {
                    WRITE setEncryptionAccountPickle)
 public:
     explicit AccountSettings(const QString& accountId, QObject* parent = nullptr)
-        : SettingsGroup("Accounts/"_L1 + accountId, parent)
+        : SettingsGroup("Accounts/"_L1 + escapedForSettings(accountId), parent)
     {}
 
     QString userId() const;
