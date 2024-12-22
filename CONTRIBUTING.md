@@ -104,13 +104,23 @@ under *LGPL v3 or later* (that includes licenses permitting *LGPL v2.1 or later*
 *LGPL v2.1 only*). While this rule can be negotiated in some situations, using only licenses from
 [the list approved by OSI](https://opensource.org/licenses) is non-negotiable.
 
-We use [SPDX](https://spdx.dev) conventions for copyright statements. Please
-follow them when making a sizable contribution: add your name and year to
-the top of the file. New files should begin with the following preamble:
+We use [SPDX](https://spdx.dev) conventions for copyright statements. Please follow them when adding
+new files by beginning them with the following preamble, also available in
+[source_file.template](./source_file.template) for convenience:
 ```cpp
-// SPDX-FileCopyrightText: 2021 Your Name <your@email.address>
-// SPDX-License-Identifier: LGPL-2.1-or-later
+// SPDX-FileCopyrightText: The Quotient Project Contributors
+// SPDX-License-Identifier: LGPL-3.0-or-later
 ```
+Individual names and years are discouraged as they bitrot quickly, and both of these are much more
+reliably found out from Git logs. See
+[the recommendation of LF](https://www.linuxfoundation.org/blog/blog/copyright-notices-in-open-source-software-projects)
+for more details on why a static preamble is better and is just as robust when when it comes to
+copyright compliance.
+
+In line with the same LF recommendation, you're totally allowed to use a different (OSI-approved -
+see above) license and/or include your name, year, and additional SPDX annotations. The only
+requirement is using SPDX. Otherwise, the copyright preamble is not subject to any kind of "cleanup"
+except for glaring bitrot.
 
 ## Vulnerability reporting (security issues) - see [SECURITY.md](./SECURITY.md)
 
