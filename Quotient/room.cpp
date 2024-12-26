@@ -240,7 +240,7 @@ public:
     Timeline::const_iterator syncEdge() const { return timeline.cend(); }
 
     JobHandle<GetRoomEventsJob> getPreviousContent(int limit = 10, const QString &filter = {});
-    void checkForRequestedEvents(const rev_iter_t& from, bool allHistoryLoaded);
+    void checkForRequestedEvents(const rev_iter_t& from);
 
     Changes updateStateFrom(StateEvents&& events)
     {
@@ -2486,7 +2486,7 @@ inline auto dumpJoined(RangeT&& range, const QString& separator = u","_s)
 }
 }
 
-void Room::Private::checkForRequestedEvents(const rev_iter_t& from, bool allHistoryLoaded)
+void Room::Private::checkForRequestedEvents(const rev_iter_t& from)
 {
     using namespace std::ranges;
     std::erase_if(historyRequests, [this, from](HistoryRequest& request) {
@@ -2510,7 +2510,7 @@ void Room::Private::checkForRequestedEvents(const rev_iter_t& from, bool allHist
     if (!historyRequests.empty()) {
         auto requestedIds =
             dumpJoined(std::views::transform(historyRequests, &HistoryRequest::upToEventId));
-        if (allHistoryLoaded) {
+        if (q->allHistoryLoaded()) {
             qCDebug(MESSAGES) << "Could not find in the whole room history:" << requestedIds;
             for_each(historyRequests, [](auto& r) { r.promise.future().cancel(); });
             historyRequests.clear();
@@ -2556,7 +2556,7 @@ JobHandle<GetRoomEventsJob> Room::Private::getPreviousContent(int limit, const Q
         changes |= updateStats(from, historyEdge());
         if (changes > 0)
             postprocessChanges(changes);
-        checkForRequestedEvents(from, !prevBatch);
+        checkForRequestedEvents(from);
     });
     connect(eventsHistoryJob, &QObject::destroyed, q, &Room::eventsHistoryJobChanged);
     return eventsHistoryJob;
