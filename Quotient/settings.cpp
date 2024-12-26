@@ -132,7 +132,7 @@ void AccountSettings::setHomeserver(const QUrl& url)
     setValue(HomeserverKey, url.toString());
 }
 
-QString AccountSettings::userId() const { return group().section(u'/', -1); }
+QString AccountSettings::userId() const { return unescapedFromSettings(group().section(u'/', -1)); }
 
 QByteArray AccountSettings::encryptionAccountPickle()
 {
