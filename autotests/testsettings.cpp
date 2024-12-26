@@ -13,6 +13,7 @@ class TestSettings : public QObject {
 
 private slots:
     void initTestCase();
+    void accountSettings_data() const;
     void accountSettings();
 
 private:
@@ -25,22 +26,31 @@ void TestSettings::initTestCase()
     qSettings.remove(AccountsGroupName);
 }
 
+void TestSettings::accountSettings_data() const
+{
+    QTest::addColumn<QString>("mxId");
+
+    QTest::newRow("normal MXID") << u"@user:example.org"_s;
+    QTest::newRow("MXID with slashes") << u"@user/with\\slashes:example.org"_s; // Test #842
+}
+
 void TestSettings::accountSettings()
 {
-    const auto mxId = u"@user/with\\slashes:example.org"_s; // Test #842
+    static const auto homeserverUrl = QUrl(u"https://example.org"_s);
+    static const auto deviceName = u"SomeDevice"_s;
+    QFETCH(QString, mxId);
     const auto escapedMxId = Settings::escapedForSettings(mxId);
-    const auto homeserverUrl = QUrl(u"https://example.org"_s);
 
+    QVERIFY(SettingsGroup(AccountsGroupName).childGroups().empty()); // Pre-requisite
     qSettings.beginGroup(AccountsGroupName);
-    {
+    { // Test writing to account settings
         AccountSettings accSettings(mxId);
+        QCOMPARE(accSettings.userId(), mxId);
+        QCOMPARE(accSettings.group(), AccountsGroupName % u'/' % escapedMxId);
+        accSettings.setDeviceName(deviceName);
+        QCOMPARE(accSettings.deviceName(), deviceName);
         accSettings.setHomeserver(homeserverUrl);
-        QVERIFY(accSettings.homeserver() == homeserverUrl);
-        // Bypass SettingsGroup::get() that prepends the group name and check that the group name
-        // has actually been prepended.
-        QVERIFY(accSettings.Settings::get<QUrl>(AccountsGroupName % u'/' % escapedMxId % u'/'
-                                                % u"homeserver"_s)
-                == homeserverUrl);
+        QCOMPARE(accSettings.homeserver(), homeserverUrl);
     }
 
     qSettings.sync();
@@ -48,7 +58,15 @@ void TestSettings::accountSettings()
     auto childGroups = qSettings.childGroups();
     QVERIFY(childGroups.contains(escapedMxId));
     QVERIFY(SettingsGroup(AccountsGroupName).childGroups().contains(mxId));
-    SettingsGroup(AccountsGroupName).remove(mxId);
+    { // Test reading what was previously written
+        SettingsGroup allAccountNames(AccountsGroupName);
+        QCOMPARE(allAccountNames.childGroups().size(), 1);
+        AccountSettings accSettings(allAccountNames.childGroups().back());
+        QCOMPARE(accSettings.userId(), mxId);
+        QCOMPARE(accSettings.deviceName(), deviceName);
+        QCOMPARE(accSettings.homeserver(), homeserverUrl);
+    }
+    SettingsGroup(AccountsGroupName).remove(mxId); // Finally, test removal
     qSettings.sync();
     childGroups = qSettings.childGroups();
     QVERIFY(!childGroups.contains(escapedMxId));
