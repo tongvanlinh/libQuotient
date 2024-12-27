@@ -11,6 +11,9 @@ using Quotient::Settings, Quotient::SettingsGroup, Quotient::AccountSettings;
 class TestSettings : public QObject {
     Q_OBJECT
 
+public:
+    static void initMain();
+
 private slots:
     void initTestCase();
     void accountSettings_data() const;
@@ -20,6 +23,8 @@ private:
     static inline const auto AccountsGroupName = u"Accounts"_s;
     QSettings qSettings{};
 };
+
+void TestSettings::initMain() { QCoreApplication::setOrganizationName(u"Quotient"_s); }
 
 void TestSettings::initTestCase()
 {
