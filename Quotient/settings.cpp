@@ -3,6 +3,8 @@
 
 #include "settings.h"
 
+#include "ranges_extras.h"
+
 #include <QtCore/QUrl>
 
 using namespace Quotient;
@@ -15,6 +17,20 @@ void Settings::setLegacyNames(const QString& organizationName,
 {
     legacyOrganizationName = organizationName;
     legacyApplicationName = applicationName;
+}
+
+QString Settings::escapedForSettings(QString key)
+{
+    key.replace(u'/', u"%2F"_s);
+    key.replace(u'\\', u"%5C"_s);
+    return key;
+}
+
+QString Settings::unescapedFromSettings(QString key)
+{
+    key.replace(u"%2F"_s, u"/"_s);
+    key.replace(u"%5C"_s, u"\\"_s);
+    return key;
 }
 
 Settings::Settings(QObject* parent) : QSettings(parent)
@@ -57,6 +73,8 @@ QStringList Settings::childGroups() const
     for (const auto& g: legacyGroups)
         if (!groups.contains(g))
             groups.push_back(g);
+    if (group() == u"Accounts")
+        std::ranges::for_each(groups, [](QString& g) { g = unescapedFromSettings(g); }); // See #842
     return groups;
 }
 
@@ -78,7 +96,7 @@ QStringList SettingsGroup::childGroups() const
 {
     const_cast<SettingsGroup*>(this)->beginGroup(groupPath);
     const_cast<QSettings&>(legacySettings).beginGroup(groupPath);
-    QStringList l = Settings::childGroups();
+    auto l = Settings::childGroups();
     const_cast<SettingsGroup*>(this)->endGroup();
     const_cast<QSettings&>(legacySettings).endGroup();
     return l;
@@ -88,7 +106,7 @@ void SettingsGroup::remove(const QString& key)
 {
     QString fullKey { groupPath };
     if (!key.isEmpty())
-        fullKey += u'/' + key;
+        fullKey += u'/' + escapedForSettings(key);
     Settings::remove(fullKey);
 }
 
@@ -114,7 +132,7 @@ void AccountSettings::setHomeserver(const QUrl& url)
     setValue(HomeserverKey, url.toString());
 }
 
-QString AccountSettings::userId() const { return group().section(u'/', -1); }
+QString AccountSettings::userId() const { return unescapedFromSettings(group().section(u'/', -1)); }
 
 QByteArray AccountSettings::encryptionAccountPickle()
 {
