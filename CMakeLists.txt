@@ -4,7 +4,7 @@ cmake_policy(SET CMP0092 NEW)
 endif()
 
 set(API_VERSION "0.9")
-project(Quotient VERSION "${API_VERSION}.1" LANGUAGES CXX)
+project(Quotient VERSION "${API_VERSION}.2" LANGUAGES CXX)
 set(PRE_STAGE "")
 string(JOIN ~ FULL_VERSION ${PROJECT_VERSION} ${PRE_STAGE})
 
