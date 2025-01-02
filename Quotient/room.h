@@ -870,6 +870,9 @@ Q_SIGNALS:
      */
     void messageSent(QString txnId, QString eventId);
 
+    //! A new thread has been created/added in the room
+    void newThread(const Thread& newThread);
+
     /** A common signal for various kinds of changes in the room
      * Aside from all changes in the room state
      * @param changes a set of flags describing what changes occurred
