@@ -434,7 +434,7 @@ Qt Creator in addition knows about clazy, a Qt-aware static analysis tool that
 hunts for Qt-specific issues that are easy to overlook otherwise, such as
 possible unintended copying of a Qt container. Most of clazy checks are relevant
 to our code; here's the configuration line the author of this text is using:
-`level2,no-foreach,no-non-pod-global-static,no-range-loop-reference,no-ctor-missing-parent-argument,no-missing-qobject-macro,no-jni-signatures,no-qt-keywords,no-qt4-qstring-from-array`
+`level2,no-foreach,no-non-pod-global-static,no-range-loop-reference,no-ctor-missing-parent-argument,no-function-args-by-ref,no-missing-qobject-macro,no-jni-signatures,no-qt-keywords,no-qt4-qstring-from-array`
 
 ### Continuous Integration
 
