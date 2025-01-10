@@ -36,6 +36,7 @@ public:
     ~SsoSession() override = default;
 
     QUrl ssoUrl() const;
+    QUrl ssoUrlForRegistration() const;
     QUrl callbackUrl() const;
 
 private:
