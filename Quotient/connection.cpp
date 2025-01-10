@@ -156,8 +156,8 @@ void Connection::loginWithPassword(const QString& userId,
                                    const QString& initialDeviceName,
                                    const QString& deviceId)
 {
-    d->ensureHomeserver(userId, LoginFlows::Password).then([=, this] {
-        d->loginToServer(LoginFlows::Password.type, makeUserIdentifier(userId),
+    d->ensureHomeserver(userId, LoginFlowTypes::Password).then([=, this] {
+        d->loginToServer(LoginFlowTypes::Password, makeUserIdentifier(userId),
                          password, /*token*/ QString(), deviceId, initialDeviceName);
     });
 }
@@ -172,8 +172,8 @@ void Connection::loginWithToken(const QString& loginToken,
                                 const QString& initialDeviceName,
                                 const QString& deviceId)
 {
-    Q_ASSERT(d->data->baseUrl().isValid() && d->loginFlows.contains(LoginFlows::Token));
-    d->loginToServer(LoginFlows::Token.type, std::nullopt /*user is encoded in loginToken*/,
+    Q_ASSERT(d->data->baseUrl().isValid() && d->supportsLoginFlow(LoginFlowTypes::Token));
+    d->loginToServer(LoginFlowTypes::Token, std::nullopt /*user is encoded in loginToken*/,
                      QString() /*password*/, loginToken, deviceId, initialDeviceName);
 }
 
@@ -355,28 +355,28 @@ void Connection::Private::completeSetup(const QString& mxId, bool newLogin,
 }
 
 QFuture<void> Connection::Private::ensureHomeserver(const QString& userId,
-                                                    const std::optional<LoginFlow>& flow)
+                                                    const LoginFlowType& flowType)
 {
     QPromise<void> promise;
     auto result = promise.future();
     promise.start();
-    if (data->baseUrl().isValid() && (!flow || loginFlows.contains(*flow))) {
+    if (data->baseUrl().isValid() && (flowType.isEmpty() || supportsLoginFlow(flowType))) {
         q->setObjectName(userId % u"(?)");
         promise.finish(); // Perfect, we're already good to go
     } else if (userId.startsWith(u'@') && userId.indexOf(u':') != -1) {
         // Try to ascertain the homeserver URL and flows
         q->setObjectName(userId % u"(?)");
         q->resolveServer(userId);
-        if (flow)
+        if (!flowType.isEmpty())
             QtFuture::connect(q, &Connection::loginFlowsChanged)
-                .then([this, flow, p = std::move(promise)]() mutable {
-                    if (loginFlows.contains(*flow))
+                .then([this, flowType, p = std::move(promise)]() mutable {
+                    if (supportsLoginFlow(flowType))
                         p.finish();
                     else // Leave the promise unfinished and emit the error
                         emit q->loginError(tr("Unsupported login flow"),
                                            tr("The homeserver at %1 does not support"
-                                              " the login flow '%2'")
-                                               .arg(data->baseUrl().toDisplayString(), flow->type));
+                                              " login flows of type '%2'")
+                                               .arg(data->baseUrl().toDisplayString(), flowType));
                 });
         else // Any flow is fine, just wait until the homeserver is resolved
             return QFuture<void>(QtFuture::connect(q, &Connection::homeserverChanged));
@@ -960,14 +960,22 @@ QVector<GetLoginFlowsJob::LoginFlow> Connection::loginFlows() const
     return d->loginFlows;
 }
 
+std::optional<LoginFlow> Connection::getLoginFlow(const QString& flowType) const
+{
+    if (auto it = std::ranges::find(d->loginFlows, flowType, &LoginFlow::type);
+        it != d->loginFlows.cend())
+        return *it;
+    return std::nullopt;
+}
+
 bool Connection::supportsPasswordAuth() const
 {
-    return d->loginFlows.contains(LoginFlows::Password);
+    return d->supportsLoginFlow(LoginFlowTypes::Password);
 }
 
 bool Connection::supportsSso() const
 {
-    return d->loginFlows.contains(LoginFlows::SSO);
+    return d->supportsLoginFlow(LoginFlowTypes::SSO);
 }
 
 Room* Connection::room(const QString& roomId, JoinStates states) const

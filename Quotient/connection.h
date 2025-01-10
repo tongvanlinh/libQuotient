@@ -57,21 +57,34 @@ class QOlmAccount;
 class QOlmInboundGroupSession;
 
 using LoginFlow = GetLoginFlowsJob::LoginFlow;
+using LoginFlowType = QString;
+
+//! Predefined login flow types
+namespace LoginFlowTypes {
+    inline constexpr auto Password = "m.login.password"_L1, SSO = "m.login.sso"_L1,
+                          Token = "m.login.token"_L1;
+}
 
 //! Predefined login flows
-namespace LoginFlows {
-    inline const LoginFlow Password { "m.login.password"_L1 };
-    inline const LoginFlow SSO { "m.login.sso"_L1 };
-    inline const LoginFlow Token { "m.login.token"_L1 };
+namespace LoginFlows
+#ifndef Q_MOC_RUN
+    [[deprecated("Use login flow types and Connection::getLoginFlow() instead")]]
+#endif
+{
+    inline const LoginFlow Password { LoginFlowTypes::Password };
+    inline const LoginFlow SSO { LoginFlowTypes::SSO };
+    inline const LoginFlow Token { LoginFlowTypes::Token };
 }
 
 // To simplify comparisons of LoginFlows
 
+[[deprecated("Compare login flow types instead")]]
 inline bool operator==(const LoginFlow& lhs, const LoginFlow& rhs)
 {
     return lhs.type == rhs.type;
 }
 
+[[deprecated("Compare login flow types instead")]]
 inline bool operator!=(const LoginFlow& lhs, const LoginFlow& rhs)
 {
     return !(lhs == rhs);
@@ -297,6 +310,8 @@ public:
     bool isUsable() const;
     //! Get the list of supported login flows
     QVector<GetLoginFlowsJob::LoginFlow> loginFlows() const;
+    //! Get the login flow of a given type
+    Q_INVOKABLE std::optional<LoginFlow> getLoginFlow(const QString& flowType) const;
     //! Check whether the current homeserver supports password auth
     bool supportsPasswordAuth() const;
     //! Check whether the current homeserver supports SSO
