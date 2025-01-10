@@ -970,6 +970,9 @@ std::optional<LoginFlow> Connection::getLoginFlow(const QString& flowType) const
 
 bool Connection::supportsPasswordAuth() const
 {
+    if (auto ssoFlow = getLoginFlow(LoginFlowTypes::SSO);
+        ssoFlow && ssoFlow->delegatedOidcCompatibility)
+        return false; // See MSC3824
     return d->supportsLoginFlow(LoginFlowTypes::Password);
 }
 
