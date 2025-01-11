@@ -48,4 +48,13 @@ template <template <typename> class TargetT, typename SourceT>
 #endif
 }
 
+#ifdef __cpp_lib_ranges_contains
+constexpr auto rangeContains = std::ranges::contains;
+#else
+[[nodiscard]] constexpr auto rangeContains(const auto& c, const auto& v, auto proj)
+{
+    return std::ranges::find(c, v, std::move(proj)) != std::ranges::end(c);
+}
+#endif
+
 }
