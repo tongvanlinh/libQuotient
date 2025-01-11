@@ -66,11 +66,11 @@ namespace LoginFlowTypes {
 }
 
 //! Predefined login flows
-namespace LoginFlows
+namespace
 #ifndef Q_MOC_RUN
     [[deprecated("Use login flow types and Connection::getLoginFlow() instead")]]
 #endif
-{
+    LoginFlows {
     inline const LoginFlow Password { LoginFlowTypes::Password };
     inline const LoginFlow SSO { LoginFlowTypes::SSO };
     inline const LoginFlow Token { LoginFlowTypes::Token };
