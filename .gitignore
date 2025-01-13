@@ -29,6 +29,9 @@ CMakeUserPresets.json
 .cache/
 compile_commands.json
 
+# QML integration generated files
+Quotient/.qmlls.ini
+
 # Created by doxygen
 html/
 latex/
