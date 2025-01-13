@@ -24,6 +24,7 @@
 #include <QtCore/QObject>
 #include <QtCore/QSize>
 #include <QtCore/QUrl>
+#include <QtQmlIntegration/QtQmlIntegration>
 
 #include <functional>
 
@@ -124,6 +125,7 @@ using DirectChatsMap = QMultiHash<const User*, QString>;
 using IgnoredUsersList = IgnoredUsersEvent::value_type;
 
 class QUOTIENT_API Connection : public QObject {
+    QML_ELEMENT
     Q_OBJECT
 
     Q_PROPERTY(User* localUser READ user NOTIFY stateChanged)

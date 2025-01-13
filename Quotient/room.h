@@ -28,6 +28,7 @@
 
 #include <QtCore/QJsonObject>
 #include <QtGui/QImage>
+#include <QtQmlIntegration/QtQmlIntegration>
 
 #include <deque>
 #include <utility>
@@ -51,6 +52,8 @@ class Thread;
  * Q_PROPERTY values.
  */
 class QUOTIENT_API FileTransferInfo {
+    QML_ELEMENT
+    QML_UNCREATABLE("Only libQuotient can create FileTransferInfo objects")
     Q_GADGET
     Q_PROPERTY(bool isUpload MEMBER isUpload CONSTANT)
     Q_PROPERTY(bool active READ active CONSTANT)
@@ -116,6 +119,7 @@ private:
 };
 
 class QUOTIENT_API Room : public QObject {
+    QML_ELEMENT
     Q_OBJECT
     Q_PROPERTY(Connection* connection READ connection CONSTANT)
     Q_PROPERTY(RoomMember localMember READ localMember CONSTANT)

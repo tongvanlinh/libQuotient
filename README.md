@@ -63,7 +63,8 @@ development libraries for the dependencies listed above.
 Just install the prerequisites using your preferred package manager. If your Qt package base is
 fine-grained you might want to run CMake and look at error messages. The library is entirely
 offscreen; however, aside from QtCore and QtNetwork it also depends on QtGui in order to handle
-avatar thumbnails, without any on-screen drawing.
+avatar thumbnails, without any on-screen drawing; and on QtQmlIntegration to expose the library
+as a QML module.
 
 #### macOS
 
