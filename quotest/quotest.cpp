@@ -905,7 +905,7 @@ TEST_IMPL(visitResources)
 
 TEST_IMPL(thread)
 {
-    auto rootTxnId = targetRoom->postPlainText("Threadroot"_L1);
+    auto rootTxnId = targetRoom->postText("Threadroot"_L1);
     connect(targetRoom, &Room::pendingEventAboutToMerge, this, [this, thisTest, rootTxnId](Quotient::RoomEvent* rootEvt) {
         if (rootEvt->transactionId() == rootTxnId) {
             const auto relation = EventRelation::replyInThread(rootEvt->id(), true, rootEvt->id());
