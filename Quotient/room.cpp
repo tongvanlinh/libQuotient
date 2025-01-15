@@ -2160,29 +2160,6 @@ void Room::discardMessage(const QString& txnId)
     emit pendingEventDiscarded();
 }
 
-QString Room::postMessage(const QString& plainText, MessageEventType type)
-{
-    return post<RoomMessageEvent>(plainText, type)->transactionId();
-}
-
-QString Room::postPlainText(const QString& plainText)
-{
-    return postMessage(plainText, MessageEventType::Text);
-}
-
-QString Room::postHtmlMessage(const QString& plainText, const QString& html,
-                              MessageEventType type)
-{
-    return post<RoomMessageEvent>(plainText, type,
-                                  std::make_unique<EventContent::TextContent>(html, u"text/html"_s))
-        ->transactionId();
-}
-
-QString Room::postHtmlText(const QString& plainText, const QString& html)
-{
-    return postHtmlMessage(plainText, html);
-}
-
 QString Room::postReaction(const QString& eventId, const QString& key)
 {
     return post<ReactionEvent>(eventId, key)->transactionId();
@@ -2237,7 +2214,8 @@ QString Room::Private::doPostFile(event_ptr_tt<RoomMessageEvent> fileEvent, cons
 }
 
 QString Room::postFile(const QString& plainText,
-                       std::unique_ptr<EventContent::FileContentBase> fileContent)
+                       std::unique_ptr<EventContent::FileContentBase> fileContent,
+                       std::optional<EventRelation> relatesTo)
 {
     Q_ASSERT(fileContent != nullptr);
     const auto url = fileContent->url();
@@ -2247,13 +2225,9 @@ QString Room::postFile(const QString& plainText,
 
     return d->doPostFile(makeEvent<RoomMessageEvent>(plainText,
                                                      RoomMessageEvent::rawMsgTypeForFile(localFile),
-                                                     std::move(fileContent)),
+                                                     std::move(fileContent),
+                                                     relatesTo),
                          url);
-}
-
-QString Room::postEvent(RoomEvent* event)
-{
-    return d->sendEvent(RoomEventPtr(event))->transactionId();
 }
 
 const PendingEventItem& Room::post(RoomEventPtr event)

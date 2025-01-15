@@ -726,8 +726,37 @@ public:
         return post(makeEvent<EvT>(std::forward<ArgTs>(args)...));
     }
 
+    //! \brief Send a text type message
+    //!
+    //! This means MessageEventType Text, Emote or Notice.
+    template<MessageEventType type = MessageEventType::Text>
+    QString postText(const QString& plainText,
+                     const std::optional<QString>& html = std::nullopt,
+                     const std::optional<EventRelation>& relatesTo = std::nullopt)
+    {
+        static_assert(type == MessageEventType::Text ||
+                      type == MessageEventType::Emote ||
+                      type == MessageEventType::Notice ,
+                      "MessageEvent type is not a text message"
+        );
+
+        std::unique_ptr<EventContent::TextContent> content = nullptr;
+        if (html) {
+            content = std::make_unique<EventContent::TextContent>(*html, u"text/html"_s);
+        }
+        return post<RoomMessageEvent>(plainText, type, std::move(content), relatesTo)->transactionId();
+    }
+
+    //! Send a file with the given content
     QString postFile(const QString& plainText,
-                     std::unique_ptr<EventContent::FileContentBase> fileContent);
+                     std::unique_ptr<EventContent::FileContentBase> fileContent,
+                     std::optional<EventRelation> relatesTo = std::nullopt);
+
+    //! Send the given Json as a message
+    QString postJson(const QString& matrixType, const QJsonObject& eventContent);
+
+    //! Send a reaction on a given event with a given key
+    QString postReaction(const QString& eventId, const QString& key);
 
     PendingEventItem::future_type whenMessageMerged(QString txnId) const;
 
@@ -754,23 +783,6 @@ public Q_SLOTS:
     /** Check whether the room should be upgraded */
     void checkVersion();
 
-    QString postMessage(const QString& plainText, MessageEventType type);
-    QString postPlainText(const QString& plainText);
-    QString postHtmlMessage(const QString& plainText, const QString& html,
-                            MessageEventType type = MessageEventType::Text);
-    QString postHtmlText(const QString& plainText, const QString& html);
-    /// Send a reaction on a given event with a given key
-    QString postReaction(const QString& eventId, const QString& key);
-
-    /** Post a pre-created room message event
-     *
-     * Takes ownership of the event, deleting it once the matching one
-     * arrives with the sync
-     * \return transaction id associated with the event.
-     */
-    [[deprecated("Use post() instead")]]
-    QString postEvent(RoomEvent* event);
-    QString postJson(const QString& matrixType, const QJsonObject& eventContent);
     QString retryMessage(const QString& txnId);
     void discardMessage(const QString& txnId);
 
