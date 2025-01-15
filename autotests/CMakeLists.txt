@@ -6,6 +6,8 @@ include(CMakeParseArguments)
 
 add_custom_target(autotests ALL)
 
+add_definitions(-DDATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data" )
+
 function(QUOTIENT_ADD_TEST)
     cmake_parse_arguments(ARG "" "NAME" "" ${ARGN})
     add_executable(${ARG_NAME} ${ARG_NAME}.cpp testutils.h testutils.cpp)
@@ -27,3 +29,5 @@ quotient_add_test(NAME testcryptoutils)
 quotient_add_test(NAME testkeyverification)
 quotient_add_test(NAME testcrosssigning)
 quotient_add_test(NAME testkeyimport)
+quotient_add_test(NAME testsettings)
+quotient_add_test(NAME testthread)

@@ -9,6 +9,7 @@
 
 #include <Quotient/connection.h>
 #include <Quotient/e2ee/qolmaccount.h>
+#include <Quotient/e2ee/cryptoutils.h>
 
 using namespace Quotient;
 
@@ -26,7 +27,8 @@ private Q_SLOTS:
         QVERIFY(session->state() == KeyVerificationSession::WAITINGFORREADY);
         session->handleEvent(KeyVerificationReadyEvent(transactionId, "ABCDEF"_L1, {SasV1Method}));
         QVERIFY(session->state() == KeyVerificationSession::WAITINGFORACCEPT);
-        session->handleEvent(KeyVerificationAcceptEvent(transactionId, "commitment_TODO"_L1));
+        session->handleEvent(KeyVerificationAcceptEvent(
+            transactionId, QString::fromLatin1("commitment_TODO"_ba.toBase64())));
         QVERIFY(session->state() == KeyVerificationSession::WAITINGFORKEY);
         // Since we can't get the events sent by the session, we're limited by what we can test. This means that continuing here would force us to test
         // the exact same path as the other test, which is useless.
@@ -51,8 +53,8 @@ private Q_SLOTS:
         auto sas = olm_sas(new std::byte[olm_sas_size()]);
         const auto randomLength = olm_create_sas_random_length(sas);
         olm_create_sas(sas, getRandom(randomLength).data(), randomLength);
-        QByteArray keyBytes(olm_sas_pubkey_length(sas), '\0');
-        olm_sas_get_pubkey(sas, keyBytes.data(), keyBytes.size());
+        auto keyBytes = byteArrayForOlm(olm_sas_pubkey_length(sas));
+        olm_sas_get_pubkey(sas, keyBytes.data(), unsignedSize(keyBytes));
         session->handleEvent(KeyVerificationKeyEvent(transactionId, QString::fromLatin1(keyBytes)));
         QVERIFY(session->state() == KeyVerificationSession::WAITINGFORVERIFICATION);
         session->sendMac();

@@ -15,7 +15,7 @@ template <>
 struct JsonObjectConverter<HomeserverInformation> {
     static void dumpTo(QJsonObject& jo, const HomeserverInformation& pod)
     {
-        addParam<>(jo, "base_url"_L1, pod.baseUrl);
+        addParam(jo, "base_url"_L1, pod.baseUrl);
     }
     static void fillFrom(const QJsonObject& jo, HomeserverInformation& pod)
     {

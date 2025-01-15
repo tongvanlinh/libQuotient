@@ -23,6 +23,14 @@ class ConnectionData;
 
 enum class HttpVerb { Get, Put, Post, Delete };
 
+struct JobBackoffStrategy {
+    using duration_t = std::chrono::seconds;
+    QVector<duration_t> jobTimeouts;
+    QVector<duration_t> nextRetryIntervals;
+    //! How many times a network request should be tried; std::nullopt means keep trying forever
+    std::optional<decltype(jobTimeouts)::size_type> maxRetries = jobTimeouts.size();
+};
+
 class QUOTIENT_API BaseJob : public QObject {
     Q_OBJECT
     Q_PROPERTY(QUrl requestUrl READ requestUrl CONSTANT)
@@ -206,14 +214,28 @@ public:
     //! A URL to help/clarify the error, if provided by the server
     QUrl errorUrl() const;
 
+    [[deprecated("Use currentBackoffStrategy().maxRetries instead")]]
     int maxRetries() const;
+    [[deprecated("Use setBackoffStrategy() instead")]]
     void setMaxRetries(int newMaxRetries);
+
+    //! Get the back-off strategy for this job instance
+    JobBackoffStrategy currentBackoffStrategy() const;
+    //! Set the back-off strategy for this specific job instance
+    void setBackoffStrategy(JobBackoffStrategy strategy);
+
+    //! Get the default back-off strategy used for any newly created job
+    static JobBackoffStrategy defaultBackoffStrategy();
+    //! \brief Set the default back-off strategy to use for any newly created job
+    //! \note This back-off strategy does not apply to SyncJob; it has a separate default but you
+    //!       can still override it per job instance after creating it
+    static void setDefaultBackoffStrategy(JobBackoffStrategy defaultStrategy);
 
     using duration_ms_t = std::chrono::milliseconds::rep; // normally int64_t
 
-    std::chrono::seconds getCurrentTimeout() const;
+    JobBackoffStrategy::duration_t getCurrentTimeout() const;
     Q_INVOKABLE Quotient::BaseJob::duration_ms_t getCurrentTimeoutMs() const;
-    std::chrono::seconds getNextRetryInterval() const;
+    JobBackoffStrategy::duration_t getNextRetryInterval() const;
     Q_INVOKABLE Quotient::BaseJob::duration_ms_t getNextRetryMs() const;
     std::chrono::milliseconds timeToRetry() const;
     Q_INVOKABLE Quotient::BaseJob::duration_ms_t millisToRetry() const;
@@ -255,9 +277,9 @@ Q_SIGNALS:
     void statusChanged(Quotient::BaseJob::Status newStatus);
 
     //! \brief A retry of the network request is scheduled after the previous request failed
-    //! \param nextAttempt the 1-based number of attempt (will always be more than 1)
+    //! \param nextRetryNumber the number of the next retry, starting from 1
     //! \param inMilliseconds the interval after which the next attempt will be taken
-    void retryScheduled(int nextAttempt, Quotient::BaseJob::duration_ms_t inMilliseconds);
+    void retryScheduled(int nextRetryNumber, Quotient::BaseJob::duration_ms_t inMilliseconds);
 
     //! \brief The job has been rate-limited
     //!

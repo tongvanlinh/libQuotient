@@ -28,9 +28,9 @@ template <>
 struct JsonObjectConverter<CrossSigningKey> {
     static void dumpTo(QJsonObject& jo, const CrossSigningKey& pod)
     {
-        addParam<>(jo, "user_id"_L1, pod.userId);
-        addParam<>(jo, "usage"_L1, pod.usage);
-        addParam<>(jo, "keys"_L1, pod.keys);
+        addParam(jo, "user_id"_L1, pod.userId);
+        addParam(jo, "usage"_L1, pod.usage);
+        addParam(jo, "keys"_L1, pod.keys);
         addParam<IfNotEmpty>(jo, "signatures"_L1, pod.signatures);
     }
     static void fillFrom(const QJsonObject& jo, CrossSigningKey& pod)

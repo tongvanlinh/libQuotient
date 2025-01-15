@@ -22,6 +22,7 @@
 #include "roommember.h"
 #include "roomstateview.h"
 #include "syncdata.h"
+#include "thread.h"
 #include "user.h"
 
 #include "csapi/account-data.h"
@@ -74,7 +75,6 @@
 #include <functional>
 
 using namespace Quotient;
-using namespace std::placeholders;
 using std::llround;
 
 enum EventsPlacement : int { Older = -1, Newer = 1 };
@@ -122,6 +122,8 @@ public:
     // Starting up with estimate event statistics as there's zero knowledge
     // about the timeline.
     EventStats partiallyReadStats {}, unreadStats {};
+
+    ThreadView threads;
 
     // For storing a list of current member names for the purpose of disambiguation.
     QMultiHash<QString, QString> memberNameMap;
@@ -269,6 +271,8 @@ public:
      */
     Timeline::size_type moveEventsToTimeline(RoomEventsRange events,
                                              EventsPlacement placement);
+
+    void updateThread(const RoomEvent* event);
 
     /**
      * Remove events from the passed container that are already in the timeline
@@ -554,6 +558,8 @@ const Room::PendingEvents& Room::pendingEvents() const
 {
     return d->unsyncedEvents;
 }
+
+const Room::ThreadView& Room::threads() const { return d->threads; }
 
 int Room::requestedHistorySize() const
 {
@@ -1102,12 +1108,12 @@ Room::rev_iter_t Room::findInTimeline(const QString& evtId) const
 
 Room::PendingEvents::iterator Room::findPendingEvent(const QString& txnId)
 {
-    return findIndirect(d->unsyncedEvents, txnId, &RoomEvent::transactionId);
+    return std::ranges::find(d->unsyncedEvents, txnId, &RoomEvent::transactionId);
 }
 
 Room::PendingEvents::const_iterator Room::findPendingEvent(const QString& txnId) const
 {
-    return findIndirect(d->unsyncedEvents, txnId, &RoomEvent::transactionId);
+    return std::ranges::find(d->unsyncedEvents, txnId, &RoomEvent::transactionId);
 }
 
 const Room::RelatedEvents Room::relatedEvents(
@@ -1686,7 +1692,7 @@ void Room::Private::removeMemberFromMap(const QString& memberId)
         // (for release builds) if there's one. That search is O(n), which
         // may come rather expensive for larger rooms.
         QElapsedTimer et;
-        auto it = std::find(memberNameMap.cbegin(), memberNameMap.cend(), memberId);
+        auto it = std::ranges::find(memberNameMap, memberId);
         if (et.nsecsElapsed() > ProfilerMinNsecs / 10)
             qCDebug(MEMBERS) << "...done in" << et;
         if (it != memberNameMap.cend()) {
@@ -1727,15 +1733,16 @@ Room::Private::moveEventsToTimeline(RoomEventsRange events,
                                           : timeline.back().index();
     auto baseIndex = index;
     for (auto&& e : events) {
-        Q_ASSERT_X(e, __FUNCTION__, "Attempt to add nullptr to timeline");
+        if (QUO_ALARM_X(e == nullptr, "Attempt to add nullptr to timeline"))
+            continue;
         const auto eId = e->id();
-        Q_ASSERT_X(
-            !eId.isEmpty(), __FUNCTION__,
-            makeErrorStr(*e, "Event with empty id cannot be in the timeline"));
-        Q_ASSERT_X(
-            !eventsIndex.contains(eId), __FUNCTION__,
-            makeErrorStr(*e, "Event is already in the timeline; "
-                             "incoming events were not properly deduplicated"));
+        if (QUO_ALARM_X(eId.isEmpty(),
+                        makeErrorStr(*e, "An event with empty id cannot be in the timeline")))
+            continue;
+        if (QUO_ALARM_X(eventsIndex.contains(eId),
+                        makeErrorStr(*e, "Event is already in the timeline; "
+                                         "incoming events were not properly deduplicated")))
+            continue;
         const auto& ti = placement == Older
                              ? timeline.emplace_front(std::move(e), --index)
                              : timeline.emplace_back(std::move(e), ++index);
@@ -1752,10 +1759,45 @@ Room::Private::moveEventsToTimeline(RoomEventsRange events,
         if (auto n = q->checkForNotifications(ti); n.type != Notification::None)
             notifications.insert(eId, n);
         Q_ASSERT(q->findInTimeline(eId)->event()->id() == eId);
+        updateThread(ti.event());
     }
     const auto insertedSize = (index - baseIndex) * placement;
-    Q_ASSERT(insertedSize == int(events.size()));
+    QUO_CHECK(insertedSize == int(events.size()));
     return Timeline::size_type(insertedSize);
+}
+
+void Room::Private::updateThread(const RoomEvent* event)
+{
+    const auto rme = eventCast<const RoomMessageEvent>(event);
+    if (rme == nullptr) {
+        return;
+    }
+    if (!rme->isThreaded()) {
+        return;
+    }
+
+    auto& thread = threads[rme->threadRootEventId()];
+    if (thread.threadRootId.isEmpty()) {
+        thread.threadRootId = rme->threadRootEventId();
+        // If we can't find the root we assume it's a historical event and will be loaded later.
+        if (auto rootIt = q->findInTimeline(thread.threadRootId); rootIt != historyEdge()) {
+            thread.addEvent(rootIt->viewAs<RoomMessageEvent>(), true,
+                            (*rootIt)->senderId() == connection->userId());
+        }
+    }
+
+    const auto threadLatestIndex = eventsIndex.constFind(thread.latestEventId);
+    const auto eventIndexIt = eventsIndex.constFind(rme->id());
+    if (QUO_ALARM_X(
+            eventIndexIt == eventsIndex.cend(),
+            rme->id()
+                + u"not in the timeline. Update a thread after moving the event to timeline."_s)) {
+        return;
+    }
+
+    thread.addEvent(rme,
+                    (threadLatestIndex == eventsIndex.cend() || *eventIndexIt > *threadLatestIndex),
+                    rme->senderId() == connection->userId());
 }
 
 const Avatar& Room::memberAvatarObject(const QString& memberId) const
@@ -2097,10 +2139,7 @@ auto FileTransferCancelledMsg() { return Room::tr("File transfer cancelled"); }
 
 void Room::discardMessage(const QString& txnId)
 {
-    auto it = std::find_if(d->unsyncedEvents.begin(), d->unsyncedEvents.end(),
-                           [txnId](const auto& evt) {
-                               return evt->transactionId() == txnId;
-                           });
+    auto it = std::ranges::find(d->unsyncedEvents, txnId, &RoomEvent::transactionId);
     Q_ASSERT(it != d->unsyncedEvents.end());
     qCDebug(EVENTS) << "Discarding transaction" << txnId;
     const auto& transferIt = d->fileTransfers.find(txnId);
@@ -2474,8 +2513,7 @@ void Room::downloadFile(const QString& eventId, const QUrl& localFilename)
             eventId, fileUrl, QUrl::fromLocalFile(job->targetFileName()));
     });
     connect(job, &BaseJob::failure, this,
-            std::bind(&Private::failedTransfer, d, eventId,
-                      job->errorString()));
+            std::bind_front(&Private::failedTransfer, d, eventId, job->errorString()));
     emit newFileTransfer(eventId, localFilename);
 }
 
@@ -2733,25 +2771,27 @@ void Room::Private::addRelation(const ReactionEvent& reactionEvt)
     };
 
     auto& thisEventReactions = relations[{ content.eventId, content.type }];
-    if (std::any_of(thisEventReactions.cbegin(), thisEventReactions.cend(),
-                    isSameReaction)) {
+    if (std::ranges::any_of(thisEventReactions, isSameReaction)) {
         qDebug(MESSAGES) << "Skipping a duplicate reaction from"
                          << reactionEvt.senderId();
         return;
     }
     thisEventReactions << &reactionEvt;
-    emit q->updatedEvent(content.eventId);
+    if (q->findInTimeline(content.eventId) != historyEdge())
+        emit q->updatedEvent(content.eventId);
 }
 
+namespace {
 /// Whether the event is a redaction or a replacement
 inline bool isEditing(const RoomEventPtr& ep)
 {
-    Q_ASSERT(ep);
-    return ep->switchOnType([](const RedactionEvent&) { return true; },
-                     [](const RoomMessageEvent& rme) {
-                         return !rme.replacedEvent().isEmpty();
-                     },
-                     false);
+    return QUO_CHECK(ep != nullptr)
+           && ep->switchOnType([](const RedactionEvent&) { return true; },
+                               [](const RoomMessageEvent& rme) {
+                                   return !rme.replacedEvent().isEmpty();
+                               },
+                               false);
+}
 }
 
 Room::Timeline::size_type Room::Private::mergePendingEvent(PendingEvents::iterator localEchoIt,
@@ -2772,9 +2812,9 @@ Room::Timeline::size_type Room::Private::mergePendingEvent(PendingEvents::iterat
     // unsyncedEvents (see #286). Fortunately, unsyncedEvents only grows at
     // its back so we can rely on the index staying valid at least.
     localEchoIt = unsyncedEvents.begin() + pendingEvtIdx;
+    const auto insertedSize = moveEventsToTimeline({ remoteEchoIt, remoteEchoIt + 1 }, Newer);
     localEchoIt->setMerged(*remoteEcho);
     unsyncedEvents.erase(localEchoIt);
-    const auto insertedSize = moveEventsToTimeline({ remoteEchoIt, remoteEchoIt + 1 }, Newer);
     if (insertedSize > 0)
         q->onAddNewTimelineEvents(syncEdge() - insertedSize);
 
@@ -2794,18 +2834,19 @@ Room::Changes Room::Private::addNewMessageEvents(RoomEvents&& events)
     et.start();
 
     {
+        using namespace std::ranges;
         // Pre-process redactions and edits so that events that get
         // redacted/replaced in the same batch landed in the timeline already
         // treated.
         // NB: We have to store redacting/replacing events to the timeline too -
         // see #220.
-        auto it = std::find_if(events.begin(), events.end(), isEditing);
-        for (const auto& eptr : std::ranges::subrange(it, events.end())) {
+        auto it = find_if(events, isEditing);
+        for (const auto& eptr : subrange(it, events.end())) {
             if (auto* r = eventCast<RedactionEvent>(eptr)) {
                 // Try to find the target in the timeline, then in the batch.
                 if (processRedaction(*r))
                     continue;
-                if (auto targetIt = findIndirect(events, r->redactedEvent(), &RoomEvent::id);
+                if (auto targetIt = find(events, r->redactedEvent(), &RoomEvent::id);
                     targetIt != events.end())
                     *targetIt = makeRedacted(**targetIt, *r);
                 else
@@ -2818,8 +2859,7 @@ Room::Changes Room::Private::addNewMessageEvents(RoomEvents&& events)
                     msg && !msg->replacedEvent().isEmpty()) {
                 if (processReplacement(*msg))
                     continue;
-                if (auto targetIt =
-                        findIndirect(events.begin(), it, msg->replacedEvent(), &RoomEvent::id);
+                if (auto targetIt = find(events.begin(), it, msg->replacedEvent(), &RoomEvent::id);
                     targetIt != it)
                     *targetIt = makeReplaced(**targetIt, *msg);
                 else // FIXME: hide the replacing event when target arrives later
@@ -3272,13 +3312,10 @@ Room::Private::buildShortlist(const QStringList& userIds) const
     // the name of the room. The below code selects 3 topmost users,
     // slightly extending the spec.
     users_shortlist_t shortlist {}; // Prefill with nullptrs
-    std::partial_sort_copy(
-        userIds.begin(), userIds.end(), shortlist.begin(), shortlist.end(),
-        [this](const QString& u1, const QString& u2) {
-            // localUser(), if it's in the list, is sorted
-            // below all others
-            return isLocalMember(u2) || (!isLocalMember(u1) && u1 < u2);
-        });
+    std::ranges::partial_sort_copy(userIds, shortlist, [this](const QString& u1, const QString& u2) {
+        // localUser(), if it's in the list, is sorted below all others
+        return isLocalMember(u2) || (!isLocalMember(u1) && u1 < u2);
+    });
     return shortlist;
 }
 

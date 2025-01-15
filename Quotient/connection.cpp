@@ -12,6 +12,7 @@
 #include "database.h"
 #include "logging_categories_p.h"
 #include "qt_connection_util.h"
+#include "ranges_extras.h"
 #include "room.h"
 #include "settings.h"
 #include "user.h"
@@ -32,7 +33,6 @@
 #include "events/encryptionevent.h"
 #include "jobs/downloadfilejob.h"
 #include "jobs/mediathumbnailjob.h"
-#include "jobs/syncjob.h"
 
 // moc needs fully defined deps, see https://www.qt.io/blog/whats-new-in-qmetatype-qvariant
 #include "moc_connection.cpp" // NOLINT(bugprone-suspicious-include)
@@ -47,6 +47,8 @@
 #include <QtCore/QStringBuilder>
 #include <QtNetwork/QDnsLookup>
 #include <qt6keychain/keychain.h>
+
+#include <ranges>
 
 using namespace Quotient;
 
@@ -154,8 +156,8 @@ void Connection::loginWithPassword(const QString& userId,
                                    const QString& initialDeviceName,
                                    const QString& deviceId)
 {
-    d->ensureHomeserver(userId, LoginFlows::Password).then([=, this] {
-        d->loginToServer(LoginFlows::Password.type, makeUserIdentifier(userId),
+    d->ensureHomeserver(userId, LoginFlowTypes::Password).then([=, this] {
+        d->loginToServer(LoginFlowTypes::Password, makeUserIdentifier(userId),
                          password, /*token*/ QString(), deviceId, initialDeviceName);
     });
 }
@@ -170,8 +172,8 @@ void Connection::loginWithToken(const QString& loginToken,
                                 const QString& initialDeviceName,
                                 const QString& deviceId)
 {
-    Q_ASSERT(d->data->baseUrl().isValid() && d->loginFlows.contains(LoginFlows::Token));
-    d->loginToServer(LoginFlows::Token.type, std::nullopt /*user is encoded in loginToken*/,
+    Q_ASSERT(d->data->baseUrl().isValid() && d->supportsLoginFlow(LoginFlowTypes::Token));
+    d->loginToServer(LoginFlowTypes::Token, std::nullopt /*user is encoded in loginToken*/,
                      QString() /*password*/, loginToken, deviceId, initialDeviceName);
 }
 
@@ -189,7 +191,8 @@ void Connection::assumeIdentity(const QString& mxId, const QString& deviceId,
                         << ") is different from passed MXID (" << mxId << ")!";
                 return;
             case BaseJob::NetworkError:
-                emit networkError(job->errorString(), job->rawDataSample(), job->maxRetries(), -1);
+                QT_IGNORE_DEPRECATIONS(emit networkError(job->errorString(), job->rawDataSample(),
+                                                         job->maxRetries(), -1);)
                 return;
             default: emit loginError(job->errorString(), job->rawDataSample());
             }
@@ -238,7 +241,7 @@ bool Connection::capabilitiesReady() const
     return d->capabilities.roomVersions.has_value();
 }
 
-QStringList Connection::supportedMatrixSpecVersions() const { return d->apiVersions.versions; }
+QStringList Connection::supportedMatrixSpecVersions() const { return d->data->homeserverData().supportedSpecVersions; }
 
 void Connection::Private::saveAccessTokenToKeychain() const
 {
@@ -352,28 +355,28 @@ void Connection::Private::completeSetup(const QString& mxId, bool newLogin,
 }
 
 QFuture<void> Connection::Private::ensureHomeserver(const QString& userId,
-                                                    const std::optional<LoginFlow>& flow)
+                                                    const LoginFlowType& flowType)
 {
     QPromise<void> promise;
     auto result = promise.future();
     promise.start();
-    if (data->baseUrl().isValid() && (!flow || loginFlows.contains(*flow))) {
+    if (data->baseUrl().isValid() && (flowType.isEmpty() || supportsLoginFlow(flowType))) {
         q->setObjectName(userId % u"(?)");
         promise.finish(); // Perfect, we're already good to go
     } else if (userId.startsWith(u'@') && userId.indexOf(u':') != -1) {
         // Try to ascertain the homeserver URL and flows
         q->setObjectName(userId % u"(?)");
         q->resolveServer(userId);
-        if (flow)
+        if (!flowType.isEmpty())
             QtFuture::connect(q, &Connection::loginFlowsChanged)
-                .then([this, flow, p = std::move(promise)]() mutable {
-                    if (loginFlows.contains(*flow))
+                .then([this, flowType, p = std::move(promise)]() mutable {
+                    if (supportsLoginFlow(flowType))
                         p.finish();
                     else // Leave the promise unfinished and emit the error
                         emit q->loginError(tr("Unsupported login flow"),
                                            tr("The homeserver at %1 does not support"
-                                              " the login flow '%2'")
-                                               .arg(data->baseUrl().toDisplayString(), flow->type));
+                                              " login flows of type '%2'")
+                                               .arg(data->baseUrl().toDisplayString(), flowType));
                 });
         else // Any flow is fine, just wait until the homeserver is resolved
             return QFuture<void>(QtFuture::connect(q, &Connection::homeserverChanged));
@@ -835,7 +838,7 @@ QFuture<Room*> Connection::getDirectChat(const QString& otherUserId)
                 continue;
             qCDebug(MAIN) << "Requested direct chat with" << otherUserId
                           << "is already available as" << r->id();
-            return QtFuture::makeReadyFuture(r);
+            return makeReadyValueFuture(r);
         }
         if (auto ir = invitation(roomId)) {
             Q_ASSERT(ir->id() == roomId);
@@ -957,14 +960,25 @@ QVector<GetLoginFlowsJob::LoginFlow> Connection::loginFlows() const
     return d->loginFlows;
 }
 
+std::optional<LoginFlow> Connection::getLoginFlow(const QString& flowType) const
+{
+    if (auto it = std::ranges::find(d->loginFlows, flowType, &LoginFlow::type);
+        it != d->loginFlows.cend())
+        return *it;
+    return std::nullopt;
+}
+
 bool Connection::supportsPasswordAuth() const
 {
-    return d->loginFlows.contains(LoginFlows::Password);
+    if (auto ssoFlow = getLoginFlow(LoginFlowTypes::SSO);
+        ssoFlow && ssoFlow->delegatedOidcCompatibility)
+        return false; // See MSC3824
+    return d->supportsLoginFlow(LoginFlowTypes::Password);
 }
 
 bool Connection::supportsSso() const
 {
-    return d->loginFlows.contains(LoginFlows::SSO);
+    return d->supportsLoginFlow(LoginFlowTypes::SSO);
 }
 
 Room* Connection::room(const QString& roomId, JoinStates states) const
@@ -1123,7 +1137,7 @@ QVector<Room*> Connection::allRooms() const
 {
     QVector<Room*> result;
     result.resize(d->roomMap.size());
-    std::copy(d->roomMap.cbegin(), d->roomMap.cend(), result.begin());
+    std::ranges::copy(d->roomMap, result.begin());
     return result;
 }
 
@@ -1203,9 +1217,8 @@ QStringList Connection::tagNames() const
 QVector<Room*> Connection::roomsWithTag(const QString& tagName) const
 {
     QVector<Room*> rooms;
-    std::copy_if(d->roomMap.cbegin(), d->roomMap.cend(),
-                 std::back_inserter(rooms),
-                 [&tagName](Room* r) { return r->tags().contains(tagName); });
+    std::ranges::copy_if(d->roomMap, std::back_inserter(rooms),
+                         [&tagName](Room* r) { return r->tags().contains(tagName); });
     return rooms;
 }
 
@@ -1657,31 +1670,29 @@ void Connection::enableDirectChatEncryption(bool enable)
     emit directChatsEncryptionChanged(enable);
 }
 
-inline bool roomVersionLess(const Connection::SupportedRoomVersion& v1,
-                            const Connection::SupportedRoomVersion& v2)
-{
-    bool ok1 = false, ok2 = false;
-    const auto vNum1 = v1.id.toFloat(&ok1);
-    const auto vNum2 = v2.id.toFloat(&ok2);
-    return ok1 && ok2 ? vNum1 < vNum2 : v1.id < v2.id;
-}
-
 QVector<Connection::SupportedRoomVersion> Connection::availableRoomVersions() const
 {
-    QVector<SupportedRoomVersion> result;
-    if (d->capabilities.roomVersions) {
-        const auto& allVersions = d->capabilities.roomVersions->available;
-        result.reserve(allVersions.size());
-        for (auto it = allVersions.begin(); it != allVersions.end(); ++it)
-            result.push_back({ it.key(), it.value() });
-        // Put stable versions over unstable; within each group,
-        // sort numeric versions as numbers, the rest as strings.
-        const auto mid =
-            std::partition(result.begin(), result.end(),
-                           std::mem_fn(&SupportedRoomVersion::isStable));
-        std::sort(result.begin(), mid, roomVersionLess);
-        std::sort(mid, result.end(), roomVersionLess);
-    }
+    if (!d->capabilities.roomVersions)
+        return {};
+
+    // Can't stuff QKeyValueRange in a std:: view directly because it's not move-assignable and
+    // most views require that - using std::views::all to go around this
+    const auto allVersions = d->capabilities.roomVersions->available.asKeyValueRange();
+    auto result =
+        rangeTo<QVector>(std::views::all(allVersions) | std::views::transform([](const auto& p) {
+                             return SupportedRoomVersion{ p.first, p.second };
+                         }));
+    // Put stable versions over unstable
+    std::ranges::sort(result, [](const SupportedRoomVersion& v1, const SupportedRoomVersion& v2) {
+        if (const auto stable1 = v1.isStable(), stable2 = v2.isStable(); stable1 != stable2)
+            return stable1 && !stable2; // Put all stable versions over unstable
+        // For two versions with the same stability, if both versions are numeric order them as
+        // numbers, otherwise compare strings.
+        bool ok1 = false, ok2 = false;
+        const auto vNum1 = v1.id.toFloat(&ok1);
+        const auto vNum2 = v2.id.toFloat(&ok2);
+        return ok1 && ok2 ? vNum1 < vNum2 : v1.id < v2.id;
+    });
     return result;
 }
 

@@ -3,6 +3,8 @@
 
 #include <Quotient/connection.h>
 #include <Quotient/room.h>
+#include <Quotient/settings.h>
+#include <Quotient/thread.h>
 #include <Quotient/user.h>
 #include <Quotient/uriresolver.h>
 #include <Quotient/networkaccessmanager.h>
@@ -110,6 +112,7 @@ private slots:
     TEST_DECL(addAndRemoveTag)
     TEST_DECL(markDirectChat)
     TEST_DECL(visitResources)
+    TEST_DECL(thread)
     // Add more tests above here
 
 public:
@@ -127,8 +130,8 @@ private:
     template <EventClass<RoomEvent> EventT>
     [[nodiscard]] bool validatePendingEvent(const QString& txnId);
     [[nodiscard]] bool checkDirectChat() const;
-    void finishTest(const TestToken& token, bool condition, const char* file,
-                    int line);
+    void finishTest(const TestToken& token, bool condition,
+                    std::source_location loc = std::source_location::current());
 
 private:
     Room* targetRoom;
@@ -140,10 +143,23 @@ private:
 // Returning true (rather than a void) allows to reuse the convention with
 // connectUntil() to break the QMetaObject::Connection upon finishing the test
 // item.
-#define FINISH_TEST(Condition) \
-    return (finishTest(thisTest, (Condition), __FILE__, __LINE__), true)
+#define FINISH_TEST(Condition) return (finishTest(thisTest, (Condition)), true)
+
+#define FINISH_TEST_IF(Condition) \
+    do {                          \
+        if (Condition)            \
+            FINISH_TEST(true);    \
+    } while (false)
 
 #define FAIL_TEST() FINISH_TEST(false)
+
+#define FAIL_TEST_IF(Condition, ...)                           \
+    do {                                                       \
+        if (Condition) {                                       \
+            __VA_OPT__(clog << QUO_CSTR(__VA_ARGS__) << endl;) \
+            FAIL_TEST();                                       \
+        }                                                      \
+    } while (false)
 
 void TestSuite::doTest(const QByteArray& testName)
 {
@@ -162,8 +178,7 @@ bool TestSuite::validatePendingEvent(const QString& txnId)
            && (*it)->matrixType() == EventT::TypeId;
 }
 
-void TestSuite::finishTest(const TestToken& token, bool condition,
-                           const char* file, int line)
+void TestSuite::finishTest(const TestToken& token, bool condition, std::source_location loc)
 {
     const auto& item = testName(token);
     if (condition) {
@@ -171,10 +186,11 @@ void TestSuite::finishTest(const TestToken& token, bool condition,
         if (targetRoom)
             targetRoom->postText<MessageEventType::Notice>(origin % ": "_L1 % QString::fromUtf8(item) % " successful"_L1);
     } else {
-        clog << item << " FAILED at " << file << ":" << line << endl;
+        clog << item << " FAILED at " << loc.file_name() << ":" << loc.line() << endl;
         if (targetRoom)
             targetRoom->postText(origin % ": "_L1 % QString::fromUtf8(item) % " FAILED at "_L1
-                                      % QString::fromUtf8(file) % ", line "_L1 % QString::number(line));
+                                 % QString::fromUtf8(loc.file_name()) % ", line "_L1
+                                 % QString::number(loc.line()));
     }
 
     emit finishedItem(item, condition);
@@ -382,44 +398,43 @@ TEST_IMPL(sendMessage)
 
 TEST_IMPL(sendReaction)
 {
-    clog << "Reacting to the newest message in the room" << endl;
-    Q_ASSERT(targetRoom->timelineSize() > 0);
-    const auto targetEvtId = targetRoom->messageEvents().back()->id();
+    return targetRoom->post<RoomMessageEvent>(u"Reaction target"_s)
+        .whenMerged()
+        .then([this, thisTest](const RoomEvent& targetEvt) {
+            const auto targetEvtId = targetEvt.id();
+            clog << "Reacting to the message just sent to the room: " << targetEvtId.toStdString()
+                 << endl;
 
-    // TODO: a separate test unit for reactionevent.h
-    if (loadEvent<ReactionEvent>(RoomEvent::basicJson(
-            ReactionEvent::TypeId,
-            { { RelatesToKey, toJson(EventRelation::replace(targetEvtId)) } }))) {
-        clog << "ReactionEvent can be created with an invalid relation type"
-             << endl;
-        FAIL_TEST();
-    }
-
-    const auto key = u"+1"_s;
-    const auto txnId = targetRoom->postReaction(targetEvtId, key);
-    if (!validatePendingEvent<ReactionEvent>(txnId)) {
-        clog << "Invalid pending event right after submitting" << endl;
-        FAIL_TEST();
-    }
-
-    connectUntil(targetRoom, &Room::updatedEvent, this,
-        [this, thisTest, txnId, key, targetEvtId](const QString& actualTargetEvtId) {
-            if (actualTargetEvtId != targetEvtId)
-                return false;
-            const auto reactions = targetRoom->relatedEvents(
-                targetEvtId, EventRelation::AnnotationType);
-            // It's a test room, assuming no interference there should
-            // be exactly one reaction
-            if (reactions.size() != 1)
+            // TODO: a separate test unit for reactionevent.h
+            if (loadEvent<ReactionEvent>(RoomEvent::basicJson(
+                    ReactionEvent::TypeId,
+                    { { RelatesToKey, toJson(EventRelation::replace(targetEvtId)) } }))) {
+                clog << "ReactionEvent can be created with an invalid relation type" << endl;
                 FAIL_TEST();
+            }
 
-            const auto* evt =
-                eventCast<const ReactionEvent>(reactions.back());
-            FINISH_TEST(is<ReactionEvent>(*evt) && !evt->id().isEmpty()
-                        && evt->key() == key && evt->transactionId() == txnId);
-            // TODO: Test removing the reaction
-        });
-    return false;
+            const auto key = u"+"_s;
+            const auto txnId = targetRoom->postReaction(targetEvtId, key);
+            FAIL_TEST_IF(!validatePendingEvent<ReactionEvent>(txnId),
+                         "Invalid pending event right after submitting");
+
+            connectUntil(targetRoom, &Room::updatedEvent, this,
+                         [this, thisTest, txnId, key, targetEvtId](const QString& actualTargetEvtId) {
+                             if (actualTargetEvtId != targetEvtId)
+                                 return false;
+                             const auto reactions =
+                                 targetRoom->relatedEvents(targetEvtId,
+                                                           EventRelation::AnnotationType);
+                             FAIL_TEST_IF(reactions.size() != 1);
+
+                             const auto* evt = eventCast<const ReactionEvent>(reactions.back());
+                             FINISH_TEST(is<ReactionEvent>(*evt) && !evt->id().isEmpty()
+                                         && evt->key() == key && evt->transactionId() == txnId);
+                             // TODO: Test removing the reaction
+                         });
+            return false;
+        })
+        .isRunning();
 }
 
 TEST_IMPL(sendFile)
@@ -469,12 +484,13 @@ TEST_IMPL(sendFile)
     return false;
 }
 
-void getResource(const QUrl& url, QScopedPointer<QNetworkReply, QScopedPointerDeleteLater>& r,
-                 QEventLoop& el)
+using NetworkReplyPtr = QObjectHolder<QNetworkReply>;
+
+void getResource(const QUrl& url, NetworkReplyPtr& r, QEventLoop& el)
 {
     r.reset(NetworkAccessManager::instance()->get(QNetworkRequest(url)));
     QObject::connect(
-        r.data(), &QNetworkReply::finished, &el,
+        r.get(), &QNetworkReply::finished, &el,
         [url, &r, &el] {
             if (r->error() != QNetworkReply::NoError)
                 getResource(url, r, el);
@@ -489,7 +505,7 @@ bool testDownload(const QUrl& url)
     // The actual test is separate from the download invocation to help debugging
     const auto results = QtConcurrent::blockingMapped(QVector<int>{ 1, 2, 3 }, [url](int) {
         thread_local QEventLoop el;
-        thread_local QScopedPointer<QNetworkReply, QScopedPointerDeleteLater> reply{};
+        thread_local NetworkReplyPtr reply{};
         getResource(url, reply, el);
         el.exec();
         return reply->error();
@@ -571,6 +587,18 @@ TEST_IMPL(setTopic)
     return false;
 }
 
+// TODO: maybe move it to Room?..
+QFuture<void> ensureEvent(Room* room, const QString& evtId, QPromise<void>&& p = QPromise<void>{})
+{
+    auto future = p.future();
+    if (room->findInTimeline(evtId) == room->historyEdge()) {
+        clog << "Loading a page of history, " << room->timelineSize() << " events so far\n";
+        room->getPreviousContent().then(std::bind_front(ensureEvent, room, evtId, std::move(p)));
+    } else
+        p.finish();
+    return future;
+}
+
 TEST_IMPL(redactEvent)
 {
     using TargetEventType = RoomMemberEvent;
@@ -585,20 +613,25 @@ TEST_IMPL(redactEvent)
     Q_ASSERT(memberEventToRedact); // ...or the room state is totally screwed
     const auto& evtId = memberEventToRedact->id();
 
-    clog << "Redacting the latest member event" << endl;
-    targetRoom->redactEvent(evtId, origin);
-    connectUntil(targetRoom, &Room::addedMessages, this, [this, thisTest, evtId] {
-        auto it = targetRoom->findInTimeline(evtId);
-        if (it == targetRoom->historyEdge())
-            return false; // Waiting for the next sync
-
-        FINISH_TEST((*it)->switchOnType([this](const TargetEventType& e) {
-            return e.redactionReason() == origin
-                   && e.membership() == Membership::Join;
-            // The second condition above tests MSC2176 - if it's violated (pre
-            // 0.8 beta), membership() ends up being Membership::Undefined
-        }));
+    // Make sure the event is loaded in the timeline before proceeding with the test, to make sure
+    // the replacement tracked below actually occurs
+    ensureEvent(targetRoom, evtId).then([this, thisTest, evtId] {
+        clog << "Redacting the latest member event" << endl;
+        targetRoom->redactEvent(evtId, origin);
+        connectUntil(targetRoom, &Room::replacedEvent, this,
+                     [this, thisTest, evtId](const RoomEvent* evt) {
+                         // Concurrent replacement/redaction shouldn't happen as of now; but if/when
+                         // event editing is added to the test suite, this may become a thing
+                         if (evt->id() != evtId)
+                             return false;
+                         FINISH_TEST(evt->switchOnType([this](const TargetEventType& e) {
+                             return e.redactionReason() == origin && e.membership() == Membership::Join;
+                             // The second condition above tests MSC2176 - if it's violated (pre 0.8
+                             // beta), membership() ends up being Membership::Undefined
+                         }));
+                     });
     });
+
     return false;
 }
 
@@ -839,41 +872,61 @@ TEST_IMPL(visitResources)
     static const auto joinRoomAlias = u"##/?.@\"unjoined:example.org"_s;
     static const auto& encodedRoomAliasNoSigil =
         QString::fromLatin1(QUrl::toPercentEncoding(joinRoomAlias.mid(1), ":"_ba));
-    static const QString joinQuery { "?action=join"_L1 };
+    static const auto joinQuery = u"?action=join"_s;
     // These URIs are not supposed to be actually joined (and even exist,
     // as yet) - only to be syntactically correct
-    static const QStringList joinByAliasUris {
+    static const QStringList joinByAliasUris{
         Uri(joinRoomAlias.toUtf8(), {}, joinQuery.mid(1)).toDisplayString(),
-        "matrix:room/"_L1 + encodedRoomAliasNoSigil + joinQuery,
-        "matrix:r/"_L1 + encodedRoomAliasNoSigil + joinQuery,
-        "https://matrix.to/#/%23"_L1/*`#`*/ + encodedRoomAliasNoSigil + joinQuery,
-        "https://matrix.to/#/%23"_L1 + joinRoomAlias.mid(1) /* unencoded */ + joinQuery
+        "matrix:room/"_L1 % encodedRoomAliasNoSigil % joinQuery,
+        "matrix:r/"_L1 % encodedRoomAliasNoSigil % joinQuery,
+        "https://matrix.to/#/%23"_L1 /*`#`*/ % encodedRoomAliasNoSigil % joinQuery,
+        "https://matrix.to/#/%23"_L1 % joinRoomAlias.mid(1) /* unencoded */ % joinQuery
     };
     static const auto joinRoomId = u"!anyid:example.org"_s;
-    static const QStringList viaServers { "matrix.org"_L1, "example.org"_L1 };
-    static const auto viaQuery =
-        std::accumulate(viaServers.cbegin(), viaServers.cend(), joinQuery,
-                        [](const QString& q, const QString& s) {
-                            return q + "&via="_L1 + s;
-                        });
-    static const QStringList joinByIdUris {
-        "matrix:roomid/"_L1 + joinRoomId.mid(1) + viaQuery,
-        "https://matrix.to/#/"_L1 + joinRoomId + viaQuery
-    };
+    static constexpr auto viaServers = std::to_array({ "matrix.org"_L1, "example.org"_L1 });
+    static const auto viaQuery = std::apply(
+        [](const auto&... servers) { return QString((joinQuery % ... % (u"&via="_s % servers))); },
+        viaServers);
+    static const QStringList joinByIdUris{ "matrix:roomid/"_L1 % joinRoomId.mid(1) % viaQuery,
+                                           "https://matrix.to/#/"_L1 % joinRoomId % viaQuery };
     // If any test breaks, the breaking call will return true, and further
     // execution will be cut by ||'s short-circuiting
     if (testResourceResolver(roomUris, &UriDispatcher::roomAction, room())
-        || testResourceResolver(userUris, &UriDispatcher::userAction,
-                                connection()->user())
-        || testResourceResolver(eventUris, &UriDispatcher::roomAction,
-                                room(), { eventId })
-        || testResourceResolver(joinByAliasUris, &UriDispatcher::joinAction,
-                                connection(), { joinRoomAlias })
-        || testResourceResolver(joinByIdUris, &UriDispatcher::joinAction,
-                                connection(), { joinRoomId, viaServers }))
+        || testResourceResolver(userUris, &UriDispatcher::userAction, connection()->user())
+        || testResourceResolver(eventUris, &UriDispatcher::roomAction, room(), { eventId })
+        || testResourceResolver(joinByAliasUris, &UriDispatcher::joinAction, connection(),
+                                { joinRoomAlias })
+        || testResourceResolver(joinByIdUris, &UriDispatcher::joinAction, connection(),
+                                { joinRoomId, QStringList(viaServers.cbegin(), viaServers.cend()) }))
         return true;
     // TODO: negative cases
     FINISH_TEST(true);
+}
+
+TEST_IMPL(thread)
+{
+    auto rootTxnId = targetRoom->postPlainText("Threadroot"_L1);
+    connect(targetRoom, &Room::pendingEventAboutToMerge, this, [this, thisTest, rootTxnId](Quotient::RoomEvent* rootEvt) {
+        if (rootEvt->transactionId() == rootTxnId) {
+            const auto relation = EventRelation::replyInThread(rootEvt->id(), true, rootEvt->id());
+            targetRoom->post<Quotient::RoomMessageEvent>(u"Thread reply 1"_s, Quotient::RoomMessageEvent::MsgType::Text, nullptr, relation)
+                .whenMerged()
+                .then([this, thisTest](const RoomEvent& replyEvt) {
+                    replyEvt.switchOnType(
+                        [&](const RoomMessageEvent& rmReplyEvt) {
+                            const auto thread = targetRoom->threads()[rmReplyEvt.threadRootEventId()];
+                            FINISH_TEST(thread.threadRootId == rmReplyEvt.threadRootEventId() &&
+                                        thread.latestEventId == rmReplyEvt.id() &&
+                                        thread.size == 2
+                            );
+                        },
+                        [this, thisTest](const RoomEvent&) { FAIL_TEST(); }
+                    );
+                });
+        }
+    });
+
+    return false;
 }
 
 bool checkPrettyPrint(
@@ -924,23 +977,22 @@ void TestManager::conclude()
 
     auto txnId = room->postText(plainReport, htmlReport);
     // Now just wait until all the pending events reach the server
-    connectUntil(room, &Room::messageSent, this,
-        [this, txnId, room, plainReport] {
-            const auto& pendingEvents = room->pendingEvents();
-            if (auto stillFlyingCount = std::count_if(pendingEvents.cbegin(), pendingEvents.cend(),
-                                                      [](const PendingEventItem& pe) {
-                                                          return pe.deliveryStatus()
-                                                                 < EventStatus::ReachedServer;
-                                                      });
-                stillFlyingCount > 0) {
-                clog << "Events to reach the server: " << stillFlyingCount << ", not leaving yet\n";
-                return false;
-            }
+    connectUntil(room, &Room::messageSent, this, [this, txnId, room, plainReport] {
+        const auto& pendingEvents = room->pendingEvents();
+        if (const auto stillFlyingCount =
+                std::ranges::count_if(pendingEvents,
+                                      [](const PendingEventItem& pe) {
+                                          return pe.deliveryStatus() < EventStatus::ReachedServer;
+                                      });
+            stillFlyingCount > 0) {
+            clog << "Events to reach the server: " << stillFlyingCount << ", not leaving yet\n";
+            return false;
+        }
 
-            clog << "Leaving the room" << endl;
-            room->leaveRoom().then(this, std::bind_front(&TestManager::finalize, this, plainReport));
-            return true;
-        });
+        clog << "Leaving the room" << endl;
+        room->leaveRoom().then(this, std::bind_front(&TestManager::finalize, this, plainReport));
+        return true;
+    });
 }
 
 void TestManager::finalize(const QString& lastWords)

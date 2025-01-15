@@ -20,7 +20,7 @@ struct JsonObjectConverter<UserIdentifier> {
     static void dumpTo(QJsonObject& jo, const UserIdentifier& pod)
     {
         fillJson(jo, pod.additionalProperties);
-        addParam<>(jo, "type"_L1, pod.type);
+        addParam(jo, "type"_L1, pod.type);
     }
     static void fillFrom(QJsonObject jo, UserIdentifier& pod)
     {

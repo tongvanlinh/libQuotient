@@ -187,9 +187,7 @@ void TestOlmAccount::uploadIdentityKey()
             QFAIL("upload failed");
         const auto& oneTimeKeyCounts = request->oneTimeKeyCounts();
         // Allow the response to have entries with zero counts
-        QCOMPARE(std::accumulate(oneTimeKeyCounts.begin(),
-                                 oneTimeKeyCounts.end(), 0),
-                 0);
+        QVERIFY(std::ranges::all_of(oneTimeKeyCounts, std::bind_front(std::equal_to{}, 0)));
     });
     conn->run(request);
     QSignalSpy spy3(request, &BaseJob::result);
@@ -216,7 +214,7 @@ void TestOlmAccount::uploadOneTimeKeys()
                                           QCOMPARE(oneTimeKeyCounts.value(Curve25519Key), 5);
                                       },
                                       [] { QFAIL("upload failed"); });
-    QVERIFY(waitForFuture(uploadFuture));
+    QVERIFY(waitForJob(uploadFuture));
 }
 
 void TestOlmAccount::uploadSignedOneTimeKeys()
@@ -235,7 +233,7 @@ void TestOlmAccount::uploadSignedOneTimeKeys()
                     QCOMPARE(oneTimeKeyCounts.value(SignedCurve25519Key), nKeys);
                 },
                 [] { QFAIL("upload failed"); });
-    QVERIFY(waitForFuture(uploadFuture));
+    QVERIFY(waitForJob(uploadFuture));
 }
 
 void TestOlmAccount::uploadKeys()
@@ -251,7 +249,7 @@ void TestOlmAccount::uploadKeys()
                                QCOMPARE(oneTimeKeyCounts.value(SignedCurve25519Key), 1);
                            },
                            [] { QFAIL("upload failed"); });
-    QVERIFY(waitForFuture(request));
+    QVERIFY(waitForJob(request));
 }
 
 void TestOlmAccount::queryTest()
@@ -267,7 +265,7 @@ void TestOlmAccount::queryTest()
             .then([](const QHash<QString, int>& aliceOneTimeKeyCounts) {
                 QCOMPARE(aliceOneTimeKeyCounts.value(SignedCurve25519Key), 1);
             });
-    QVERIFY(waitForFuture(aliceUploadKeysRequest));
+    QVERIFY(waitForJob(aliceUploadKeysRequest));
 
     auto bobOlm = bob->olmAccount();
     bobOlm->generateOneTimeKeys(1);
@@ -276,7 +274,7 @@ void TestOlmAccount::queryTest()
             .then([](const QHash<QString, int>& bobOneTimeKeyCounts) {
                 QCOMPARE(bobOneTimeKeyCounts.value(SignedCurve25519Key), 1);
             });
-    QVERIFY(waitForFuture(bobUploadKeysRequest));
+    QVERIFY(waitForJob(bobUploadKeysRequest));
 
     // Each user is requests each other's keys.
     const QHash<QString, QStringList> deviceKeysForBob{ { bob->userId(), {} } };
@@ -294,7 +292,7 @@ void TestOlmAccount::queryTest()
                 QCOMPARE(aliceDevKeys.keys, bobOlm->deviceKeys().keys);
                 QCOMPARE(aliceDevKeys.signatures, bobOlm->deviceKeys().signatures);
             });
-    QVERIFY(waitForFuture(queryBobKeysResult));
+    QVERIFY(waitForJob(queryBobKeysResult));
 
     const QHash<QString, QStringList> deviceKeysForAlice{ { alice->userId(), {} } };
     const auto queryAliceKeysResult =
@@ -311,7 +309,7 @@ void TestOlmAccount::queryTest()
                 QCOMPARE(devKeys.keys, aliceOlm->deviceKeys().keys);
                 QCOMPARE(devKeys.signatures, aliceOlm->deviceKeys().signatures);
             });
-    QVERIFY(waitForFuture(queryAliceKeysResult));
+    QVERIFY(waitForJob(queryAliceKeysResult));
 }
 
 void TestOlmAccount::claimKeys()
@@ -326,7 +324,7 @@ void TestOlmAccount::claimKeys()
                        .then([bob](const QHash<QString, int>& oneTimeKeyCounts) {
                            QCOMPARE(oneTimeKeyCounts.value(SignedCurve25519Key), 1);
                        });
-    QVERIFY(waitForFuture(request));
+    QVERIFY(waitForJob(request));
 
     // Alice retrieves bob's keys & claims one signed one-time key.
     const QHash<QString, QStringList> deviceKeysToQuery{ { bob->userId(), {} } };
@@ -338,7 +336,7 @@ void TestOlmAccount::claimKeys()
             QVERIFY(verifyIdentitySignature(bobDevices.value(bob->deviceId()), bob->deviceId(),
                                             bob->userId()));
         });
-    QVERIFY(waitForFuture(queryKeysJob));
+    QVERIFY(waitForJob(queryKeysJob));
 
     // Retrieve the identity key for the current device to check after claiming
     // const auto& bobEd25519 =
@@ -365,7 +363,7 @@ void TestOlmAccount::claimKeys()
                     }
                 },
                 [] { QFAIL("Claim job failed"); });
-    QVERIFY(waitForFuture(claimKeysJob));
+    QVERIFY(waitForJob(claimKeysJob));
 }
 
 void TestOlmAccount::claimMultipleKeys()
@@ -382,7 +380,7 @@ void TestOlmAccount::claimMultipleKeys()
             .then([](const QHash<QString, int>& oneTimeKeyCounts) {
                 QCOMPARE(oneTimeKeyCounts.value(SignedCurve25519Key), 10);
             });
-    QVERIFY(waitForFuture(aliceUploadKeyRequest));
+    QVERIFY(waitForJob(aliceUploadKeyRequest));
 
     auto olm1 = alice1->olmAccount();
     olm1->generateOneTimeKeys(10);
@@ -391,7 +389,7 @@ void TestOlmAccount::claimMultipleKeys()
             .then([](const QHash<QString, int>& oneTimeKeyCounts) {
                 QCOMPARE(oneTimeKeyCounts.value(SignedCurve25519Key), 10);
             });
-    QVERIFY(waitForFuture(alice1UploadKeyRequest));
+    QVERIFY(waitForJob(alice1UploadKeyRequest));
 
     auto olm2 = alice2->olmAccount();
     olm2->generateOneTimeKeys(10);
@@ -400,7 +398,7 @@ void TestOlmAccount::claimMultipleKeys()
             .then([](const QHash<QString, int>& oneTimeKeyCounts) {
                 QCOMPARE(oneTimeKeyCounts.value(SignedCurve25519Key), 10);
             });
-    QVERIFY(waitForFuture(alice2UploadKeyRequest));
+    QVERIFY(waitForJob(alice2UploadKeyRequest));
 
     // Bob will claim keys from all Alice's devices
     CREATE_CONNECTION(bob, "bob3"_L1, "secret"_L1, "BobPhone"_L1)
@@ -414,22 +412,24 @@ void TestOlmAccount::claimMultipleKeys()
         bob->callApi<ClaimKeysJob>(oneTimeKeys).then([alice](const ClaimKeysJob::Response& r) {
             QCOMPARE(r.oneTimeKeys.value(alice->userId()).size(), 3);
         });
-    QVERIFY(waitForFuture(claimResult));
+    QVERIFY(waitForJob(claimResult));
 }
 
 void TestOlmAccount::enableEncryption()
 {
     CREATE_CONNECTION(alice, "alice9"_L1, "secret"_L1, "AlicePhone"_L1)
 
-    const auto futureRoom = alice->createRoom(Connection::PublishRoom, {}, {}, {}, {})
-                                .then([alice](const QString& roomId) {
-                                    auto room = alice->room(roomId);
-                                    room->activateEncryption();
-                                    return room;
-                                });
-    QVERIFY(waitForFuture(futureRoom));
+    auto createRoomJob = alice->createRoom(Connection::PublishRoom, {}, {}, {}, {});
+    auto futureEncryptedRoom = createRoomJob.then([alice](const QString& roomId) {
+        auto room = alice->room(roomId);
+        room->activateEncryption();
+        return room;
+    });
+    QVERIFY(waitForJob(createRoomJob));
     alice->syncLoop();
-    QVERIFY(QTest::qWaitFor([room = futureRoom.result()] { return room->usesEncryption(); }, 40000));
+    // Give extra 5 seconds for the network roundtrip
+    QVERIFY(QTest::qWaitFor(std::bind_front(&Room::usesEncryption, futureEncryptedRoom.result()),
+                            SyncJob::defaultTimeoutMillis * 2 + 5000));
 }
 
 QTEST_GUILESS_MAIN(TestOlmAccount)

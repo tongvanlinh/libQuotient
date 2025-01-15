@@ -8,6 +8,7 @@
 #include "connection.h"
 #include "connectiondata.h"
 #include "connectionencryptiondata_p.h"
+#include "ranges_extras.h"
 #include "settings.h"
 #include "syncdata.h"
 
@@ -52,7 +53,6 @@ public:
     QMetaObject::Connection syncLoopConnection {};
     int syncTimeout = -1;
 
-    GetVersionsJob::Response apiVersions{};
     GetCapabilitiesJob::Capabilities capabilities{};
 
     QVector<GetLoginFlowsJob::LoginFlow> loginFlows;
@@ -77,21 +77,27 @@ public:
         != "json"_L1;
     bool lazyLoading = false;
 
+    bool supportsLoginFlow(const LoginFlowType& flowType) const
+    {
+        return rangeContains(loginFlows, flowType, &LoginFlow::type);
+    }
+
     //! \brief Check the homeserver and resolve it if needed, before connecting
     //!
     //! A single entry for functions that need to check whether the homeserver is valid before
     //! running. Emits resolveError() if the homeserver URL is not valid and cannot be resolved
-    //! from \p userId; loginError() if the homeserver is accessible but doesn't support \p flow.
+    //! from \p userId; loginError() if the homeserver is accessible but doesn't support \p
+    //! flowType.
     //!
     //! \param userId    fully-qualified MXID to resolve HS from
-    //! \param flow      optionally, a login flow that should be supported;
-    //!                  `std::nullopt`, if there are no login flow requirements
+    //! \param flowType      optionally, a login flowType that should be supported;
+    //!                  `std::nullopt`, if there are no login flowType requirements
     //! \return a future that becomes ready once the homeserver is available; if the homeserver
     //!         URL is incorrect or other problems occur, the future is never resolved and is
     //!         deleted (along with associated continuations) as soon as the problem becomes
     //!         apparent
     //! \sa resolveServer, resolveError, loginError
-    QFuture<void> ensureHomeserver(const QString& userId, const std::optional<LoginFlow>& flow = {});
+    QFuture<void> ensureHomeserver(const QString& userId, const LoginFlowType& flowType = {});
     template <typename... LoginArgTs>
     void loginToServer(LoginArgTs&&... loginArgs);
     void completeSetup(const QString& mxId, bool newLogin = true,

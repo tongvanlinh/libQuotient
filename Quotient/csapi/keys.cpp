@@ -21,7 +21,7 @@ QueryKeysJob::QueryKeysJob(const QHash<UserId, QStringList>& deviceKeys, std::op
 {
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "timeout"_L1, timeout);
-    addParam<>(_dataJson, "device_keys"_L1, deviceKeys);
+    addParam(_dataJson, "device_keys"_L1, deviceKeys);
     setRequestData({ _dataJson });
 }
 
@@ -31,7 +31,7 @@ ClaimKeysJob::ClaimKeysJob(const QHash<UserId, QHash<QString, QString>>& oneTime
 {
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "timeout"_L1, timeout);
-    addParam<>(_dataJson, "one_time_keys"_L1, oneTimeKeys);
+    addParam(_dataJson, "one_time_keys"_L1, oneTimeKeys);
     setRequestData({ _dataJson });
     addExpectedKey(u"one_time_keys"_s);
 }
@@ -39,8 +39,8 @@ ClaimKeysJob::ClaimKeysJob(const QHash<UserId, QHash<QString, QString>>& oneTime
 auto queryToGetKeysChanges(const QString& from, const QString& to)
 {
     QUrlQuery _q;
-    addParam<>(_q, u"from"_s, from);
-    addParam<>(_q, u"to"_s, to);
+    addParam(_q, u"from"_s, from);
+    addParam(_q, u"to"_s, to);
     return _q;
 }
 

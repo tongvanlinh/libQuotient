@@ -156,7 +156,7 @@ void FixedBufferBase::fillFrom(QByteArray&& source)
     }
 
     data_ = allocate(size_);
-    std::copy(source.cbegin(), source.cend(), std::bit_cast<char*>(data_));
+    std::ranges::copy(source, std::bit_cast<char*>(data_));
     if (source.isDetached())
         source.clear();
     else

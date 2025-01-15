@@ -67,7 +67,16 @@ public:
     }
 
     Q_INVOKABLE bool contains(const QString& key) const;
+    //! \brief Obtain the list of child groups from the current or, if missing, legacy settings
+    //! \note Group names under `Accounts` group will be automatically unescaped
+    //! \sa AccountSettings
     Q_INVOKABLE QStringList childGroups() const;
+
+    //! Escape forward- and backslashes in keys because QSettings doesn't (see #842)
+    static QString escapedForSettings(QString key);
+
+    //! Unescape `\` and `/` in keys stored with escapedForSettings()
+    static QString unescapedFromSettings(QString key);
 
 private:
     static QString legacyOrganizationName;
@@ -94,6 +103,9 @@ public:
         return qv.isValid() && qv.canConvert<T>() ? qv.value<T>() : defaultValue;
     }
 
+    //! \brief Get the path for this settings group
+    //! \note Unlike Settings::childGroups(), this function will not unescape group names under
+    //!       `Accounts`
     Q_INVOKABLE QString group() const;
     Q_INVOKABLE QStringList childGroups() const;
     Q_INVOKABLE void setValue(const QString& key, const QVariant& value);
@@ -118,6 +130,12 @@ private:
     type classname::propname() const { return get<type>(qsettingname##_L1, defaultValue); } \
     void classname::setter(type newValue) { setValue(qsettingname##_L1, std::move(newValue)); }
 
+//! \brief A group of settings for one Matrix account
+//!
+//! This class provides typesafe accessors to common account settings such as user and device id.
+//! User id (aka MXID) is stored as a group name. Although QSettings does not protect forward- and
+//! backslashes inside group names, AccountSettings covers for that, percent-encoding the user id
+//! before passing it to QSettings.
 class QUOTIENT_API AccountSettings : public SettingsGroup {
     Q_OBJECT
     Q_PROPERTY(QString userId READ userId CONSTANT)
@@ -128,7 +146,7 @@ class QUOTIENT_API AccountSettings : public SettingsGroup {
                    WRITE setEncryptionAccountPickle)
 public:
     explicit AccountSettings(const QString& accountId, QObject* parent = nullptr)
-        : SettingsGroup("Accounts/"_L1 + accountId, parent)
+        : SettingsGroup("Accounts/"_L1 + escapedForSettings(accountId), parent)
     {}
 
     QString userId() const;

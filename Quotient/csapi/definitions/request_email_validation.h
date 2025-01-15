@@ -51,9 +51,9 @@ template <>
 struct JsonObjectConverter<EmailValidationData> {
     static void dumpTo(QJsonObject& jo, const EmailValidationData& pod)
     {
-        addParam<>(jo, "client_secret"_L1, pod.clientSecret);
-        addParam<>(jo, "email"_L1, pod.email);
-        addParam<>(jo, "send_attempt"_L1, pod.sendAttempt);
+        addParam(jo, "client_secret"_L1, pod.clientSecret);
+        addParam(jo, "email"_L1, pod.email);
+        addParam(jo, "send_attempt"_L1, pod.sendAttempt);
         addParam<IfNotEmpty>(jo, "next_link"_L1, pod.nextLink);
         addParam<IfNotEmpty>(jo, "id_server"_L1, pod.idServer);
         addParam<IfNotEmpty>(jo, "id_access_token"_L1, pod.idAccessToken);

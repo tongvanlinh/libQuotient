@@ -10,7 +10,7 @@ SetTypingJob::SetTypingJob(const QString& userId, const QString& roomId, bool ty
               makePath("/_matrix/client/v3", "/rooms/", roomId, "/typing/", userId))
 {
     QJsonObject _dataJson;
-    addParam<>(_dataJson, "typing"_L1, typing);
+    addParam(_dataJson, "typing"_L1, typing);
     addParam<IfNotEmpty>(_dataJson, "timeout"_L1, timeout);
     setRequestData({ _dataJson });
 }

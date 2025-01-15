@@ -39,9 +39,7 @@ constexpr std::array SupportedAlgorithms { OlmV1Curve25519AesSha2AlgoKey,
 
 inline bool isSupportedAlgorithm(const QString& algorithm)
 {
-    return std::find(SupportedAlgorithms.cbegin(), SupportedAlgorithms.cend(),
-                     algorithm)
-           != SupportedAlgorithms.cend();
+    return std::ranges::find(SupportedAlgorithms, algorithm) != SupportedAlgorithms.cend();
 }
 
 #define QOLM_INTERNAL_ERROR_X(Message_, LastError_) \

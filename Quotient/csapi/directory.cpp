@@ -9,7 +9,7 @@ SetRoomAliasJob::SetRoomAliasJob(const QString& roomAlias, const QString& roomId
               makePath("/_matrix/client/v3", "/directory/room/", roomAlias))
 {
     QJsonObject _dataJson;
-    addParam<>(_dataJson, "room_id"_L1, roomId);
+    addParam(_dataJson, "room_id"_L1, roomId);
     setRequestData({ _dataJson });
 }
 

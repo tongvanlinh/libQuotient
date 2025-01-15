@@ -12,12 +12,14 @@
 #include <QtCore/QStringBuilder>
 #include <QtCore/QtEndian>
 
-static const auto RegExpOptions =
+namespace Quotient { // To avoid having to prepend Quotient:: to all the free functions below
+
+inline constexpr auto RegExpOptions =
     QRegularExpression::CaseInsensitiveOption
     | QRegularExpression::UseUnicodePropertiesOption;
 
 // Converts all that looks like a URL into HTML links
-void Quotient::linkifyUrls(QString& htmlEscapedText)
+void linkifyUrls(QString& htmlEscapedText)
 {
     // Note: outer parentheses are a part of C++ raw string delimiters, not of
     // the regex (see http://en.cppreference.com/w/cpp/language/string_literal).
@@ -48,7 +50,7 @@ void Quotient::linkifyUrls(QString& htmlEscapedText)
     htmlEscapedText.replace(MxIdRegExp, uR"(\1<a href='https://matrix.to/#/\2'>\2</a>)"_s);
 }
 
-QString Quotient::sanitized(const QString& plainText)
+QString sanitized(const QString& plainText)
 {
     auto text = plainText;
     text.remove(QChar(0x202e)); // RLO
@@ -57,7 +59,7 @@ QString Quotient::sanitized(const QString& plainText)
     return text;
 }
 
-QString Quotient::prettyPrint(const QString& plainText)
+QString prettyPrint(const QString& plainText)
 {
     auto pt = plainText.toHtmlEscaped();
     linkifyUrls(pt);
@@ -65,7 +67,7 @@ QString Quotient::prettyPrint(const QString& plainText)
     return "<span style='white-space:pre-wrap'>"_L1 % pt % "</span>"_L1;
 }
 
-QString Quotient::cacheLocation(QStringView dirName)
+QString cacheLocation(QStringView dirName)
 {
     const QString cachePath =
         QStandardPaths::writableLocation(QStandardPaths::CacheLocation) % u'/'
@@ -75,7 +77,7 @@ QString Quotient::cacheLocation(QStringView dirName)
     return cachePath;
 }
 
-qreal Quotient::stringToHueF(const QString& s)
+qreal stringToHueF(const QString& s)
 {
     Q_ASSERT(!s.isEmpty());
     const auto hash =
@@ -89,13 +91,11 @@ qreal Quotient::stringToHueF(const QString& s)
     return hueF;
 }
 
-namespace {
 inline constexpr auto ServerPartRegEx =
-    QLatin1StringView("(\\[[^][:space:]]+]|[-[:alnum:].]+)" // IPv6 address or hostname/IPv4 address
-                      "(?::(\\d{1,5}))?"); // Optional port
-}
+    "(\\[[^][:space:]]+]|[-[:alnum:].]+)" // IPv6 address or hostname/IPv4 address
+    "(?::(\\d{1,5}))?"_L1; // Optional port
 
-QString Quotient::serverPart(const QString& mxId)
+QString serverPart(const QString& mxId)
 {
     static const QString re("^[@!#$+].*?:("_L1 // Localpart and colon
                             % ServerPartRegEx % ")$"_L1);
@@ -106,34 +106,26 @@ QString Quotient::serverPart(const QString& mxId)
     return parser.match(mxId).captured(1);
 }
 
-QString Quotient::versionString()
-{
-    return QStringLiteral(Quotient_VERSION_STRING);
-}
+QString versionString() { return QStringLiteral(Quotient_VERSION_STRING); }
 
-int Quotient::majorVersion()
-{
-    return Quotient_VERSION_MAJOR;
-}
+int majorVersion() { return Quotient_VERSION_MAJOR; }
 
-int Quotient::minorVersion()
-{
-    return Quotient_VERSION_MINOR;
-}
+int minorVersion() { return Quotient_VERSION_MINOR; }
 
-int Quotient::patchVersion() { return Quotient_VERSION_PATCH; }
+int patchVersion() { return Quotient_VERSION_PATCH; }
 
-bool Quotient::isGuestUserId(const UserId& uId)
+bool isGuestUserId(const UserId& uId)
 {
     static const QRegularExpression guestMxIdRe{ u"^@\\d+:"_s };
     return guestMxIdRe.match(uId).hasMatch();
 }
 
-bool Quotient::HomeserverData::checkMatrixSpecVersion(QStringView targetVersion) const
+bool HomeserverData::checkMatrixSpecVersion(QStringView targetVersion) const
 {
     // TODO: Replace this naïve implementation with something smarter that can check things like
     //   1.12 > 1.11 and maybe even 1.10 > 1.9
     return std::ranges::any_of(supportedSpecVersions, [targetVersion](const QString& v) {
         return v.startsWith(targetVersion);
     });
+}
 }

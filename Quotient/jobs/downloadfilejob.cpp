@@ -23,15 +23,16 @@ public:
     explicit Private(QString serverName, QString mediaId, const QString& localFilename)
         : serverName(std::move(serverName))
         , mediaId(std::move(mediaId))
-        , targetFile(!localFilename.isEmpty() ? new QFile(localFilename) : nullptr)
-        , tempFile(!localFilename.isEmpty() ? new QFile(targetFile->fileName() + ".qtntdownload"_L1)
-                                            : new QTemporaryFile())
+        , targetFile(!localFilename.isEmpty() ? std::make_unique<QFile>(localFilename) : nullptr)
+        , tempFile(!localFilename.isEmpty()
+                       ? std::make_unique<QFile>(targetFile->fileName() + ".qtntdownload"_L1)
+                       : std::make_unique<QTemporaryFile>())
     {}
 
     QString serverName;
     QString mediaId;
-    QScopedPointer<QFile> targetFile;
-    QScopedPointer<QFile> tempFile;
+    std::unique_ptr<QFile> targetFile;
+    std::unique_ptr<QFile> tempFile;
 
     std::optional<EncryptedFileMetadata> encryptedFileMetadata;
 };
@@ -156,19 +157,15 @@ BaseJob::Status DownloadFileJob::prepareResult()
         }
     } else {
         if (d->encryptedFileMetadata.has_value()) {
-            QTemporaryFile tempTempFile; // Assuming it to be next to tempFile
-            decryptFile(*d->tempFile, *d->encryptedFileMetadata, tempTempFile);
+            std::unique_ptr<QFile> tempTempFile = std::make_unique<QTemporaryFile>();
+            if (!tempTempFile->isWritable()) {
+                qCWarning(JOBS) << "Failed to open temporary file for decryption"
+                                << tempTempFile->errorString();
+                return { FileError, "Couldn't open temporary file for decryption"_L1 };
+            }
+            decryptFile(*d->tempFile, *d->encryptedFileMetadata, *tempTempFile);
+            d->tempFile.swap(tempTempFile);
             d->tempFile->close();
-            if (!d->tempFile->remove()) {
-                qWarning(JOBS)
-                    << "Failed to remove the decrypted file placeholder";
-                return { FileError, "Couldn't finalise the download"_L1 };
-            }
-            if (!tempTempFile.rename(d->tempFile->fileName())) {
-                qWarning(JOBS) << "Failed to rename" << tempTempFile.fileName()
-                                << "to" << d->tempFile->fileName();
-                return { FileError, "Couldn't finalise the download"_L1 };
-            }
         } else {
             d->tempFile->close();
         }

@@ -4,7 +4,7 @@ cmake_policy(SET CMP0092 NEW)
 endif()
 
 set(API_VERSION "0.9")
-project(Quotient VERSION "${API_VERSION}.0" LANGUAGES CXX)
+project(Quotient VERSION "${API_VERSION}.2" LANGUAGES CXX)
 set(PRE_STAGE "")
 string(JOIN ~ FULL_VERSION ${PROJECT_VERSION} ${PRE_STAGE})
 
@@ -190,6 +190,7 @@ target_sources(${QUOTIENT_LIB_NAME} PUBLIC FILE_SET HEADERS BASE_DIRS .
         Quotient/events/keyverificationevent.h
         Quotient/keyimport.h
         Quotient/qt_connection_util.h
+        Quotient/thread.h
     PRIVATE
         Quotient/function_traits.cpp
         Quotient/networkaccessmanager.cpp
@@ -247,6 +248,7 @@ target_sources(${QUOTIENT_LIB_NAME} PUBLIC FILE_SET HEADERS BASE_DIRS .
         Quotient/e2ee/cryptoutils.cpp
         Quotient/e2ee/sssshandler.cpp
         Quotient/keyimport.cpp
+        Quotient/thread.cpp
         libquotientemojis.qrc
 )
 

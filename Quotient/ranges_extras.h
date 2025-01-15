@@ -4,39 +4,57 @@
 
 namespace Quotient {
 
-//! Same as std::projected but Proj is checked against the reference under the iterator
-template <std::indirectly_readable IterT,
-          std::indirectly_regular_unary_invocable<std::iter_reference_t<IterT>> Proj>
-using IndirectlyProjected = std::projected<std::iter_reference_t<IterT>, Proj>;
-
-//! \brief Find a value in a container of (smart) pointers
+//! \brief An indexOf() alternative for any range
 //!
-//! This is a replica of std::ranges::find that automatically applies dereferencing projection
-//! before applying the provided projection. Quotient has a few containers with pointers or wrappers
-//! for other types - think of timeline items or `event_ptr_tt<>`s. This is meant to streamline
-//! searching for events that match a specific simple criterion; e.g., to find an event with a given
-//! id in a container you can now write `findIndirect(events, eventId, &RoomEvent::id);` instead
-//! of having to supply your own lambda to dereference the timeline item and check the event id.
-template <std::input_iterator IterT, typename ValT, typename Proj = std::identity>
-    requires std::indirect_binary_predicate<std::ranges::equal_to,
-                                            IndirectlyProjected<IterT, Proj>, const ValT*>
-// Most of constraints here (including IndirectlyProjected) are based on the definition of
-// std::ranges::find and things around it
-inline constexpr auto findIndirect(IterT from, IterT to, const ValT& value, Proj proj = {})
+//! Unlike QList::indexOf(), returns `range.size()` if \p value is not found
+template <typename RangeT, typename ValT, typename ProjT = std::identity>
+    requires std::indirectly_comparable<std::ranges::iterator_t<RangeT>, const ValT*,
+                                        std::ranges::equal_to, ProjT>
+inline auto findIndex(const RangeT& range, const ValT& value, ProjT proj = {})
 {
-    return std::ranges::find(from, to, value, [p = std::move(proj)](auto& itemPtr) {
-        return std::invoke(p, *itemPtr);
-    });
+    using namespace std::ranges;
+    return distance(begin(range), find(range, value, std::move(proj)));
 }
 
-//! The overload of findIndirect for ranges
-template <typename RangeT, typename ValT, typename Proj = std::identity>
-    requires std::indirect_binary_predicate<
-        std::ranges::equal_to, IndirectlyProjected<std::ranges::iterator_t<RangeT>, Proj>,
-        const ValT*>
-inline constexpr auto findIndirect(RangeT&& range, const ValT& value, Proj proj = {})
+//! \brief A replacement of std::ranges::to() while toolchains catch up
+//!
+//! Returns a container of type \p TargetT created from \p sourceRange. Unlike std::ranges::to(),
+//! you have to pass the range to it (e.g. `rangeTo<TargetT>(someRange)`); using it in a pipeline
+//! (`someRange | rangeTo<TargetT>()`) won't compile. Internally calls std::ranges::to() if it's
+//! available; otherwise, returns the result of calling
+//! `TargetT(ranges::begin(sourceRange), ranges::end(sourceRange))`.
+template <class TargetT, typename SourceT>
+[[nodiscard]] constexpr auto rangeTo(SourceT&& sourceRange)
 {
-    return findIndirect(std::ranges::begin(range), std::ranges::end(range), value, std::move(proj));
+#if defined(__cpp_lib_ranges_to_container)
+    return std::ranges::to<TargetT>(std::forward<SourceT>(sourceRange));
+#else
+    using std::begin, std::end;
+    return TargetT(begin(sourceRange), end(sourceRange));
+#endif
 }
+
+//! An overload that accepts unspecialised container template
+template <template <typename> class TargetT, typename SourceT>
+[[nodiscard]] constexpr auto rangeTo(SourceT&& sourceRange)
+{
+    // Avoid template argument deduction because Xcode still can't do it when TargetT is an alias
+#if defined(__cpp_lib_ranges_to_container)
+    return std::ranges::to<TargetT<std::ranges::range_value_t<SourceT>>>(
+        std::forward<SourceT>(sourceRange));
+#else
+    using std::begin, std::end;
+    return TargetT<std::ranges::range_value_t<SourceT>>(begin(sourceRange), end(sourceRange));
+#endif
+}
+
+#ifdef __cpp_lib_ranges_contains
+constexpr auto rangeContains = std::ranges::contains;
+#else
+[[nodiscard]] constexpr auto rangeContains(const auto& c, const auto& v, auto proj)
+{
+    return std::ranges::find(c, v, std::move(proj)) != std::ranges::end(c);
+}
+#endif
 
 }

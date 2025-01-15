@@ -21,9 +21,9 @@ template <>
 struct JsonObjectConverter<ThirdPartyUser> {
     static void dumpTo(QJsonObject& jo, const ThirdPartyUser& pod)
     {
-        addParam<>(jo, "userid"_L1, pod.userid);
-        addParam<>(jo, "protocol"_L1, pod.protocol);
-        addParam<>(jo, "fields"_L1, pod.fields);
+        addParam(jo, "userid"_L1, pod.userid);
+        addParam(jo, "protocol"_L1, pod.protocol);
+        addParam(jo, "fields"_L1, pod.fields);
     }
     static void fillFrom(const QJsonObject& jo, ThirdPartyUser& pod)
     {
