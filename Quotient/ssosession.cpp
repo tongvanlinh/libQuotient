@@ -77,7 +77,19 @@ SsoSession::SsoSession(Connection* connection, const QString& initialDeviceName,
     , d(makeImpl<Private>(this, initialDeviceName, deviceId, connection))
 {}
 
-QUrl SsoSession::ssoUrl() const { return d->ssoUrl; }
+namespace {
+QUrl withAction(QUrl url, const QString& value)
+{
+    QUrlQuery q{ url.query() };
+    q.addQueryItem(u"action"_s, value);
+    url.setQuery(q);
+    return url;
+}
+}
+
+QUrl SsoSession::ssoUrl() const { return withAction(d->ssoUrl, u"login"_s); }
+
+QUrl SsoSession::ssoUrlForRegistration() const { return withAction(d->ssoUrl, u"register"_s); }
 
 QUrl SsoSession::callbackUrl() const { return QUrl(d->callbackUrl); }
 

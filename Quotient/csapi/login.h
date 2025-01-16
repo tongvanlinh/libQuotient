@@ -29,6 +29,8 @@ public:
         //! necessarily indicate that the user attempting to log in will
         //! be able to generate such a token.
         bool getLoginToken{ false };
+
+        bool delegatedOidcCompatibility{ false };
     };
 
     // Construction/destruction
@@ -55,6 +57,8 @@ struct QUOTIENT_API JsonObjectConverter<GetLoginFlowsJob::LoginFlow> {
     {
         fillFromJson(jo.value("type"_L1), result.type);
         fillFromJson(jo.value("get_login_token"_L1), result.getLoginToken);
+        fillFromJson(jo.value("org.matrix.msc3824.delegated_oidc_compatibility"_L1),
+                     result.delegatedOidcCompatibility);
     }
 };
 
