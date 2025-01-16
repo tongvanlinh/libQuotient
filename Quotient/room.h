@@ -726,8 +726,31 @@ public:
         return post(makeEvent<EvT>(std::forward<ArgTs>(args)...));
     }
 
+    //! \brief Send a text type message
+    //!
+    //! This means MessageEventType Text, Emote or Notice.
+    template<MessageEventType type = MessageEventType::Text>
+    QString postText(const QString& plainText,
+                     const std::optional<QString>& html = std::nullopt,
+                     const std::optional<EventRelation>& relatesTo = std::nullopt)
+    {
+        static_assert(type == MessageEventType::Text || type == MessageEventType::Emote
+                          || type == MessageEventType::Notice,
+                      "MessageEvent type is not a text message");
+
+        return post<RoomMessageEvent>(
+                   plainText, type,
+                   html ? std::make_unique<EventContent::TextContent>(*html, u"text/html"_s)
+                        : nullptr,
+                   relatesTo)
+            ->transactionId();
+    }
+
     QString postFile(const QString& plainText,
                      std::unique_ptr<EventContent::FileContentBase> fileContent);
+    QString postFile(const QString& plainText,
+                     std::unique_ptr<EventContent::FileContentBase> fileContent,
+                     std::optional<EventRelation> relatesTo);
 
     PendingEventItem::future_type whenMessageMerged(QString txnId) const;
 
@@ -754,11 +777,16 @@ public Q_SLOTS:
     /** Check whether the room should be upgraded */
     void checkVersion();
 
+    [[deprecated("Use postText() instead")]]
     QString postMessage(const QString& plainText, MessageEventType type);
+    [[deprecated("Use postText() instead")]]
     QString postPlainText(const QString& plainText);
+    [[deprecated("Use postText() instead")]]
     QString postHtmlMessage(const QString& plainText, const QString& html,
                             MessageEventType type = MessageEventType::Text);
+    [[deprecated("Use postText() instead")]]
     QString postHtmlText(const QString& plainText, const QString& html);
+
     /// Send a reaction on a given event with a given key
     QString postReaction(const QString& eventId, const QString& key);
 

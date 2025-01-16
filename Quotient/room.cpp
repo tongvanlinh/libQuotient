@@ -2239,6 +2239,13 @@ QString Room::Private::doPostFile(event_ptr_tt<RoomMessageEvent> fileEvent, cons
 QString Room::postFile(const QString& plainText,
                        std::unique_ptr<EventContent::FileContentBase> fileContent)
 {
+    return postFile(plainText, std::move(fileContent), std::nullopt);
+}
+
+QString Room::postFile(const QString& plainText,
+                       std::unique_ptr<EventContent::FileContentBase> fileContent,
+                       std::optional<EventRelation> relatesTo)
+{
     Q_ASSERT(fileContent != nullptr);
     const auto url = fileContent->url();
     // toLocalFile() doesn't work on Android and toString() doesn't work on the desktop
@@ -2247,7 +2254,7 @@ QString Room::postFile(const QString& plainText,
 
     return d->doPostFile(makeEvent<RoomMessageEvent>(plainText,
                                                      RoomMessageEvent::rawMsgTypeForFile(localFile),
-                                                     std::move(fileContent)),
+                                                     std::move(fileContent), relatesTo),
                          url);
 }
 

@@ -184,14 +184,14 @@ void TestSuite::finishTest(const TestToken& token, bool condition, std::source_l
     if (condition) {
         clog << item << " successful" << endl;
         if (targetRoom)
-            targetRoom->postMessage(origin % ": "_L1 % QString::fromUtf8(item) % " successful"_L1,
-                                    MessageEventType::Notice);
+            targetRoom->postText<MessageEventType::Notice>(
+                origin % ": "_L1 % QString::fromUtf8(item) % " successful"_L1);
     } else {
         clog << item << " FAILED at " << loc.file_name() << ":" << loc.line() << endl;
         if (targetRoom)
-            targetRoom->postPlainText(origin % ": "_L1 % QString::fromUtf8(item) % " FAILED at "_L1
-                                      % QString::fromUtf8(loc.file_name()) % ", line "_L1
-                                      % QString::number(loc.line()));
+            targetRoom->postText(origin % ": "_L1 % QString::fromUtf8(item) % " FAILED at "_L1
+                                 % QString::fromUtf8(loc.file_name()) % ", line "_L1
+                                 % QString::number(loc.line()));
     }
 
     emit finishedItem(item, condition);
@@ -380,7 +380,7 @@ TEST_IMPL(loadMembers)
 
 TEST_IMPL(sendMessage)
 {
-    auto txnId = targetRoom->postPlainText("Hello, "_L1 % origin % " is here"_L1);
+    auto txnId = targetRoom->postText("Hello, "_L1 % origin % " is here"_L1);
     if (!validatePendingEvent<RoomMessageEvent>(txnId)) {
         clog << "Invalid pending event right after submitting" << endl;
         FAIL_TEST();
@@ -478,7 +478,7 @@ TEST_IMPL(sendFile)
             if (id != txnId)
                 return false;
 
-            targetRoom->postPlainText(origin % ": File upload failed: "_L1 % error);
+            targetRoom->postText(origin % ": File upload failed: "_L1 % error);
             tf->deleteLater();
             FAIL_TEST();
         });
@@ -906,7 +906,7 @@ TEST_IMPL(visitResources)
 
 TEST_IMPL(thread)
 {
-    auto rootTxnId = targetRoom->postPlainText("Threadroot"_L1);
+    auto rootTxnId = targetRoom->postText("Threadroot"_L1);
     connect(targetRoom, &Room::pendingEventAboutToMerge, this, [this, thisTest, rootTxnId](Quotient::RoomEvent* rootEvt) {
         if (rootEvt->transactionId() == rootTxnId) {
             const auto relation = EventRelation::replyInThread(rootEvt->id(), true, rootEvt->id());
@@ -976,7 +976,7 @@ void TestManager::conclude()
         htmlReport += "<br><strong>Did not finish:</strong>"_L1 + QString::fromUtf8(dnfList);
     }
 
-    auto txnId = room->postHtmlText(plainReport, htmlReport);
+    auto txnId = room->postText(plainReport, htmlReport);
     // Now just wait until all the pending events reach the server
     connectUntil(room, &Room::messageSent, this, [this, txnId, room, plainReport] {
         const auto& pendingEvents = room->pendingEvents();
