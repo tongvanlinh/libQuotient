@@ -62,7 +62,7 @@ public:
     RoomEvents eventsBefore() { return takeFromJson<RoomEvents>("events_before"_L1); }
 
     //! Details of the requested event.
-    RoomEventPtr event() { return takeFromJson<RoomEventPtr>("event"_L1); }
+    RoomEventPtr requestedEvent() { return takeFromJson<RoomEventPtr>("event"_L1); }
 
     //! A list of room events that happened just after the
     //! requested event, in chronological order.
@@ -83,7 +83,7 @@ public:
         RoomEvents eventsBefore{};
 
         //! Details of the requested event.
-        RoomEventPtr event{};
+        RoomEventPtr requestedEvent{};
 
         //! A list of room events that happened just after the
         //! requested event, in chronological order.
@@ -96,7 +96,8 @@ public:
 
 template <std::derived_from<GetEventContextJob> JobT>
 constexpr inline auto doCollectResponse<JobT> = [](JobT* j) -> GetEventContextJob::Response {
-    return { j->begin(), j->end(), j->eventsBefore(), j->event(), j->eventsAfter(), j->state() };
+    return { j->begin(),          j->end(),         j->eventsBefore(),
+             j->requestedEvent(), j->eventsAfter(), j->state() };
 };
 
 } // namespace Quotient

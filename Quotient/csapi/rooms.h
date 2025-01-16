@@ -31,10 +31,10 @@ public:
     // Result properties
 
     //! The full event.
-    RoomEventPtr event() { return fromJson<RoomEventPtr>(jsonData()); }
+    RoomEventPtr requestedEvent() { return fromJson<RoomEventPtr>(jsonData()); }
 };
 
-inline auto collectResponse(GetOneRoomEventJob* job) { return job->event(); }
+inline auto collectResponse(GetOneRoomEventJob* job) { return job->requestedEvent(); }
 
 //! \brief Get the state identified by the type and key.
 //!
