@@ -9,6 +9,8 @@
 #include <QtCore/QUrl>
 #include <QtCore/QStringBuilder>
 
+#include <ranges>
+
 class QVariant;
 
 namespace Quotient {
@@ -24,8 +26,7 @@ public:
      * the organisation/application. Values in legacy locations are _removed_
      * when setValue() or remove() is called.
      */
-    static void setLegacyNames(const QString& organizationName,
-                               const QString& applicationName = {});
+    static void setLegacyNames(const QString& organizationName, const QString& applicationName = {});
 
     explicit Settings(QObject* parent = nullptr);
 
@@ -67,16 +68,15 @@ public:
     }
 
     Q_INVOKABLE bool contains(const QString& key) const;
-    //! \brief Obtain the list of child groups from the current or, if missing, legacy settings
-    //! \note Group names under `Accounts` group will be automatically unescaped
-    //! \sa AccountSettings
+
     Q_INVOKABLE QStringList childGroups() const;
+    Q_INVOKABLE QStringList childGroups(bool decodeSlashes) const;
 
     //! Escape forward- and backslashes in keys because QSettings doesn't (see #842)
-    static QString escapedForSettings(QString key);
+    static QString toEncoded(QString key);
 
     //! Unescape `\` and `/` in keys stored with escapedForSettings()
-    static QString unescapedFromSettings(QString key);
+    static QString fromEncoded(QString key);
 
 private:
     static QString legacyOrganizationName;
@@ -87,35 +87,9 @@ protected:
 };
 
 class QUOTIENT_API SettingsGroup : public Settings {
+    Q_OBJECT
 public:
-    explicit SettingsGroup(QString path, QObject* parent = nullptr)
-        : Settings(parent)
-        , groupPath(std::move(path))
-    {}
-
-    Q_INVOKABLE bool contains(const QString& key) const;
-    Q_INVOKABLE QVariant value(const QString& key, const QVariant& defaultValue = {}) const;
-
-    template <typename T>
-    T get(const QString& key, const T& defaultValue = {}) const
-    {
-        const auto qv = value(key);
-        return qv.isValid() && qv.canConvert<T>() ? qv.value<T>() : defaultValue;
-    }
-
-    //! \brief Get the path for this settings group
-    //! \note Unlike Settings::childGroups(), this function will not unescape group names under
-    //!       `Accounts`
-    Q_INVOKABLE QString group() const;
-    Q_INVOKABLE QStringList childGroups() const;
-    Q_INVOKABLE void setValue(const QString& key, const QVariant& value);
-
-    Q_INVOKABLE void remove(const QString& key);
-
-private:
-    QString fullPath(QAnyStringView key) const { return groupPath % u'/' % key.toString(); }
-
-    QString groupPath;
+    explicit SettingsGroup(const QString& path, QObject* parent = nullptr);
 };
 
 #define QUO_DECLARE_SETTING(type, propname, setter)      \
@@ -145,9 +119,7 @@ class QUOTIENT_API AccountSettings : public SettingsGroup {
     Q_PROPERTY(QByteArray encryptionAccountPickle READ encryptionAccountPickle
                    WRITE setEncryptionAccountPickle)
 public:
-    explicit AccountSettings(const QString& accountId, QObject* parent = nullptr)
-        : SettingsGroup("Accounts/"_L1 + escapedForSettings(accountId), parent)
-    {}
+    explicit AccountSettings(const QString& accountId, QObject* parent = nullptr);
 
     QString userId() const;
 
@@ -158,4 +130,24 @@ public:
     void setEncryptionAccountPickle(const QByteArray& encryptionAccountPickle);
     Q_INVOKABLE void clearEncryptionAccountPickle();
 };
+
+class QUOTIENT_API AccountSettingsGroup : public SettingsGroup {
+    Q_OBJECT
+public:
+    static auto name() { return u"Accounts"_s; }
+
+    explicit AccountSettingsGroup(QObject* parent = nullptr);
+
+    auto asRange() const
+    {
+        return std::views::transform(accountNames(),
+                                     [](const QString& mxid) { return AccountSettings(mxid); });
+    }
+
+    //! \brief Obtain the list of child groups from the current or, if missing, legacy settings
+    //! \note Slashes in account names will be automatically unescaped
+    //! \sa AccountSettings
+    Q_INVOKABLE QStringList accountNames() const;
+};
+
 } // namespace Quotient

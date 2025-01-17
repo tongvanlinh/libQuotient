@@ -3,6 +3,8 @@
 
 #include "settings.h"
 
+#include "logging_categories_p.h"
+
 #include "ranges_extras.h"
 
 #include <QtCore/QUrl>
@@ -19,14 +21,14 @@ void Settings::setLegacyNames(const QString& organizationName,
     legacyApplicationName = applicationName;
 }
 
-QString Settings::escapedForSettings(QString key)
+QString Settings::toEncoded(QString key)
 {
     key.replace(u'/', u"%2F"_s);
     key.replace(u'\\', u"%5C"_s);
     return key;
 }
 
-QString Settings::unescapedFromSettings(QString key)
+QString Settings::fromEncoded(QString key)
 {
     key.replace(u"%2F"_s, u"/"_s);
     key.replace(u"%5C"_s, u"\\"_s);
@@ -45,9 +47,9 @@ void Settings::setValue(const QString& key, const QVariant& value)
 
 void Settings::remove(const QString& key)
 {
-    QSettings::remove(key);
-    if (legacySettings.contains(key))
-        legacySettings.remove(key);
+    auto safeKey = group() == u"Accounts"_s ? toEncoded(key) : key;
+    QSettings::remove(safeKey);
+    legacySettings.remove(safeKey);
 }
 
 QVariant Settings::value(const QString& key, const QVariant& defaultValue) const
@@ -66,48 +68,28 @@ bool Settings::contains(const QString& key) const
     return QSettings::contains(key) || legacySettings.contains(key);
 }
 
-QStringList Settings::childGroups() const
+QStringList Settings::childGroups() const { return childGroups(true); }
+
+QStringList Settings::childGroups(bool decodeSlashes) const
 {
     auto groups = QSettings::childGroups();
     const auto& legacyGroups = legacySettings.childGroups();
     for (const auto& g: legacyGroups)
         if (!groups.contains(g))
             groups.push_back(g);
-    if (group() == u"Accounts")
-        std::ranges::for_each(groups, [](QString& g) { g = unescapedFromSettings(g); }); // See #842
+    if (group() == u"Accounts" && decodeSlashes) {
+        qWarning(MAIN)
+            << "Developers, use AccountSettingsGroup to work with the Accounts/ group of settings";
+        std::ranges::for_each(groups, [](QString& g) { g = fromEncoded(g); }); // See #842
+    }
     return groups;
 }
 
-void SettingsGroup::setValue(const QString& key, const QVariant& value)
+SettingsGroup::SettingsGroup(const QString& path, QObject* parent)
+    : Settings(parent)
 {
-    Settings::setValue(fullPath(key), value);
-}
-
-bool SettingsGroup::contains(const QString& key) const { return Settings::contains(fullPath(key)); }
-
-QVariant SettingsGroup::value(const QString& key, const QVariant& defaultValue) const
-{
-    return Settings::value(fullPath(key), defaultValue);
-}
-
-QString SettingsGroup::group() const { return groupPath; }
-
-QStringList SettingsGroup::childGroups() const
-{
-    const_cast<SettingsGroup*>(this)->beginGroup(groupPath);
-    const_cast<QSettings&>(legacySettings).beginGroup(groupPath);
-    auto l = Settings::childGroups();
-    const_cast<SettingsGroup*>(this)->endGroup();
-    const_cast<QSettings&>(legacySettings).endGroup();
-    return l;
-}
-
-void SettingsGroup::remove(const QString& key)
-{
-    QString fullKey { groupPath };
-    if (!key.isEmpty())
-        fullKey += u'/' + escapedForSettings(key);
-    Settings::remove(fullKey);
+    beginGroup(path);
+    legacySettings.beginGroup(path);
 }
 
 QUO_DEFINE_SETTING(AccountSettings, QString, deviceId, "device_id", {},
@@ -132,7 +114,11 @@ void AccountSettings::setHomeserver(const QUrl& url)
     setValue(HomeserverKey, url.toString());
 }
 
-QString AccountSettings::userId() const { return unescapedFromSettings(group().section(u'/', -1)); }
+AccountSettings::AccountSettings(const QString& accountId, QObject* parent)
+    : SettingsGroup(AccountSettingsGroup::name() % u'/' % toEncoded(accountId), parent)
+{}
+
+QString AccountSettings::userId() const { return fromEncoded(group().section(u'/', -1)); }
 
 QByteArray AccountSettings::encryptionAccountPickle()
 {
@@ -148,4 +134,11 @@ void AccountSettings::setEncryptionAccountPickle(
 void AccountSettings::clearEncryptionAccountPickle()
 {
     remove(EncryptionAccountPickleKey); // TODO: Force to re-issue it?
+}
+
+AccountSettingsGroup::AccountSettingsGroup(QObject* parent) : SettingsGroup(name(), parent) {}
+
+QStringList AccountSettingsGroup::accountNames() const
+{
+    return rangeTo<QStringList>(std::views::transform(childGroups(false), fromEncoded)); // See #842
 }
