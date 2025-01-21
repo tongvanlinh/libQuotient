@@ -1416,8 +1416,10 @@ QUrl Room::makeMediaUrl(const QString& eventId, const QUrl& mxcUrl) const
     auto url = connection()->makeMediaUrl(mxcUrl);
     QUrlQuery q(url.query());
     Q_ASSERT(q.hasQueryItem("user_id"_L1));
-    q.addQueryItem("room_id"_L1, id());
-    q.addQueryItem("event_id"_L1, eventId);
+    q.removeAllQueryItems(u"room_id"_s);
+    q.addQueryItem(u"room_id"_s, id());
+    q.removeAllQueryItems(u"event_id"_s);
+    q.addQueryItem(u"event_id"_s, eventId);
     url.setQuery(q);
     return url;
 }
