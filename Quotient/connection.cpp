@@ -711,6 +711,7 @@ QUrl Connection::makeMediaUrl(QUrl mxcUrl) const
 {
     Q_ASSERT(mxcUrl.scheme() == "mxc"_L1);
     QUrlQuery q(mxcUrl.query());
+    q.removeAllQueryItems(u"user_id"_s);
     q.addQueryItem(u"user_id"_s, userId());
     mxcUrl.setQuery(q);
     return mxcUrl;
