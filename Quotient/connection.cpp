@@ -404,6 +404,7 @@ QFuture<void> Connection::logout()
     emit stateChanged();
 
     QFutureInterface<void> p;
+    p.reportStarted();
     connect(d->logoutJob.get(), &BaseJob::finished, this, [this, wasSyncing, p]() mutable {
         if (d->logoutJob->status().good()
             || d->logoutJob->error() == BaseJob::Unauthorised
