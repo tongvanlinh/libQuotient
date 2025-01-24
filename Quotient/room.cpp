@@ -3477,8 +3477,6 @@ QJsonObject Room::Private::toJson() const
 
 QJsonObject Room::toJson() const { return d->toJson(); }
 
-MemberSorter Room::memberSorter() const { return MemberSorter(); }
-
 void Room::activateEncryption()
 {
     if(usesEncryption()) {

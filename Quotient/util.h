@@ -111,6 +111,8 @@ inline auto makeReadyValueFuture(T&& value)
 #endif
 }
 
+inline namespace Literals { using namespace Qt::Literals; }
+
 #if Quotient_VERSION_MAJOR == 0 && Quotient_VERSION_MINOR < 10
 /// This is only to make UnorderedMap alias work until we get rid of it
 template <typename T>
@@ -124,16 +126,6 @@ struct HashQ {
 template <typename KeyT, typename ValT>
 using UnorderedMap
     [[deprecated("Use std::unordered_map directly")]] = std::unordered_map<KeyT, ValT, HashQ<KeyT>>;
-
-inline namespace Literals { using namespace Qt::Literals; }
-
-#if Quotient_VERSION_MAJOR == 0 && Quotient_VERSION_MINOR > 9
-[[deprecated("Use operators from Qt::Literals (aka Quotient::Literals) instead")]]
-#endif
-constexpr auto operator""_ls(const char* s, std::size_t size)
-{
-    return operator""_L1(s, size);
-}
 
 template <typename ArrayT>
 class [[deprecated("Use std::ranges::subrange instead")]] Range {

@@ -664,11 +664,6 @@ public:
      */
     Q_INVOKABLE QString prettyPrint(const QString& plainText) const;
 
-#if Quotient_VERSION_MAJOR == 0 && Quotient_VERSION_MINOR < 10
-    [[deprecated("Create MemberSorter objects directly instead")]]
-    MemberSorter memberSorter() const;
-#endif
-
     Q_INVOKABLE bool supportsCalls() const;
 
     /// Whether the current user is allowed to upgrade the room
