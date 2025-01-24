@@ -306,7 +306,7 @@ bool RoomMessageEvent::isThreaded() const
 {
     const auto relation = relatesTo();
     return (relation && relation.value().type == EventRelation::ThreadType)
-            || unsignedPart<QJsonObject>("m.relations"_ls).contains(EventRelation::ThreadType);
+            || unsignedPart<QJsonObject>("m.relations"_L1).contains(EventRelation::ThreadType);
 }
 
 QString RoomMessageEvent::threadRootEventId() const

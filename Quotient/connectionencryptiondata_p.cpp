@@ -411,7 +411,7 @@ void ConnectionEncryptionData::handleEncryptedToDeviceEvent(const EncryptedEvent
 
 void ConnectionEncryptionData::handleMasterKeys(const QHash<QString, CrossSigningKey>& masterKeys)
 {
-    for (const auto &[userId, key] : asKeyValueRange(masterKeys)) {
+    for (const auto &[userId, key] : masterKeys.asKeyValueRange()) {
         if (key.userId != userId) {
             qCWarning(E2EE) << "Master key: userId mismatch" << key.userId << userId;
             continue;
@@ -459,7 +459,7 @@ QString getEd25519Signature(const CrossSigningKey& keyObject, const QString& use
 
 void ConnectionEncryptionData::handleSelfSigningKeys(const QHash<QString, CrossSigningKey>& selfSigningKeys)
 {
-    for (const auto &[userId, key] : asKeyValueRange(selfSigningKeys)) {
+    for (const auto &[userId, key] : selfSigningKeys.asKeyValueRange()) {
         if (key.userId != userId) {
             qCWarning(E2EE) << "Self signing key: userId mismatch"<< key.userId << userId;
             continue;
@@ -505,7 +505,7 @@ void ConnectionEncryptionData::handleSelfSigningKeys(const QHash<QString, CrossS
 
 void ConnectionEncryptionData::handleUserSigningKeys(const QHash<QString, CrossSigningKey>& userSigningKeys)
 {
-    for (const auto &[userId, key] : asKeyValueRange(userSigningKeys)) {
+    for (const auto &[userId, key] : userSigningKeys.asKeyValueRange()) {
         if (key.userId != userId) {
             qWarning() << "User signing key: userId mismatch" << key.userId << userId;
             continue;
