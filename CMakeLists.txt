@@ -11,6 +11,12 @@ string(JOIN ~ FULL_VERSION ${PROJECT_VERSION} ${PRE_STAGE})
 message(STATUS)
 message(STATUS "Configuring ${PROJECT_NAME} ${FULL_VERSION} ==>")
 
+find_package(ECM NO_MODULE)
+if (ECM_FOUND)
+    set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
+    include(ECMEnableSanitizers)
+endif()
+
 include(FeatureSummary)
 include(CTest)
 
