@@ -2093,7 +2093,7 @@ void Room::Private::onEventSendingFailure(PendingEvents::iterator eventItemIter,
     emit q->pendingEventChanged(int(eventItemIter - unsyncedEvents.begin()));
 }
 
-PendingEventItem::future_type Room::whenMessageMerged(QString txnId) const
+PendingEventItem::merged_future_type Room::whenMessageMerged(QString txnId) const
 {
     if (auto it = findPendingEvent(txnId); it != d->unsyncedEvents.cend())
         return it->whenMerged();
@@ -2803,6 +2803,7 @@ Room::Timeline::size_type Room::Private::mergePendingEvent(PendingEvents::iterat
     auto* remoteEcho = remoteEchoIt->get();
     const auto pendingEvtIdx = int(localEchoIt - unsyncedEvents.begin());
     onEventReachedServer(localEchoIt, remoteEcho->id());
+    localEchoIt->setAboutToMerge(*remoteEcho, pendingEvtIdx);
     emit q->pendingEventAboutToMerge(remoteEcho, pendingEvtIdx);
     qCDebug(MESSAGES) << "Merging pending event from transaction" << remoteEcho->transactionId()
                       << "into" << remoteEcho->id();

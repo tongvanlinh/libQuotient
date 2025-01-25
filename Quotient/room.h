@@ -753,7 +753,7 @@ public:
     //! Send a reaction on a given event with a given key
     const PendingEventItem& postReaction(const QString& eventId, const QString& key);
 
-    PendingEventItem::future_type whenMessageMerged(QString txnId) const;
+    PendingEventItem::merged_future_type whenMessageMerged(QString txnId) const;
 
     //! Send a request to update the room state with the given event
     SetRoomStateWithKeyJob* setState(const StateEvent& evt);
