@@ -8,23 +8,43 @@
 namespace Quotient
 {
 namespace EventContent {
-    //! \brief Definition of an allow AllowCondition
-    //!
-    //! see https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules for the
-    //! full definition.
-    struct AllowCondition {
-        QString roomId;
-        QString type;
-    };
+Q_NAMESPACE_EXPORT(QUOTIENT_API)
 
-    //! \brief The content of a join rule event
-    //!
-    //! see https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules for the
-    //! full definition.
-    struct JoinRuleContent {
-        QString joinRule;
-        QList<AllowCondition> allow;
-    };
+//! \brief Definition of an allow AllowCondition
+//!
+//! \sa https://spec.matrix.org/latest/client-server-api/#mroomjoin_ruless
+struct AllowCondition {
+    QString roomId;
+    QString type;
+};
+
+//! Enum representing the available room join rules
+enum JoinRule {
+    Public,
+    Knock,
+    Invite,
+    Private,
+    Restricted,
+    KnockRestricted,
+};
+Q_ENUM_NS(JoinRule)
+
+[[maybe_unused]] constexpr std::array JoinRuleStrings {
+    "public"_L1,
+    "knock"_L1,
+    "invite"_L1,
+    "private"_L1,
+    "restricted"_L1,
+    "knock_restricted"_L1,
+};
+
+//! \brief The content of a join rule event
+//!
+//! \sa https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules
+struct JoinRuleContent {
+    JoinRule joinRule;
+    QList<AllowCondition> allow;
+};
 } // namespace EventContent
 
 template<>
@@ -49,7 +69,7 @@ template<>
 inline EventContent::JoinRuleContent fromJson(const QJsonObject& jo)
 {
     return EventContent::JoinRuleContent {
-        fromJson<QString>(jo["join_rule"_L1]),
+        enumFromJsonString<EventContent::JoinRule>(jo["join_rule"_L1].toString(), EventContent::JoinRuleStrings).value_or(EventContent::Public),
         fromJson<QList<EventContent::AllowCondition>>(jo["allow"_L1])
     };
 }
@@ -58,17 +78,14 @@ template<>
 inline auto toJson(const EventContent::JoinRuleContent& c)
 {
     QJsonObject jo;
-    addParam<IfNotEmpty>(jo, "join_rule"_L1, c.joinRule);
+    addParam<IfNotEmpty>(jo, "join_rule"_L1, enumToJsonString<EventContent::JoinRule>(c.joinRule, EventContent::JoinRuleStrings));
     addParam<IfNotEmpty>(jo, "allow"_L1, c.allow);
     return jo;
 }
 
 //! \brief Class to define a join rule state event.
 //!
-//! see https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules for the
-//! full definition.
-//!
-//! \sa Quotient::StateEvent
+//! \sa Quotient::StateEvent, https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules
 class JoinRulesEvent : public KeylessStateEventBase<JoinRulesEvent,
     EventContent::JoinRuleContent>
 {
@@ -78,14 +95,12 @@ public:
 
     //! \brief The join rule for the room.
     //!
-    //! see https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules for
-    //! the available join rules for a room.
-    QString joinRule() const { return content().joinRule; }
+    //! \sa https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules
+    EventContent::JoinRule joinRule() const { return content().joinRule; }
 
     //! \brief The allow rules for restricted rooms.
     //!
-    //! see https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules for
-    //! the full details on allow rules.
+    //! \sa https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules
     QList<EventContent::AllowCondition> allow() const { return content().allow; }
 };
 } // namespace Quotient
