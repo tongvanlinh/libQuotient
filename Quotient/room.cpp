@@ -1779,6 +1779,7 @@ void Room::Private::updateThread(const RoomEvent* event)
     }
 
     auto& thread = threads[rme->threadRootEventId()];
+    const auto isNew = thread.threadRootId.isEmpty();
     if (thread.threadRootId.isEmpty()) {
         thread.threadRootId = rme->threadRootEventId();
         // If we can't find the root we assume it's a historical event and will be loaded later.
@@ -1800,6 +1801,8 @@ void Room::Private::updateThread(const RoomEvent* event)
     thread.addEvent(rme,
                     (threadLatestIndex == eventsIndex.cend() || *eventIndexIt > *threadLatestIndex),
                     rme->senderId() == connection->userId());
+
+    if (isNew) { emit q->newThread(thread); }
 }
 
 const Avatar& Room::memberAvatarObject(const QString& memberId) const
