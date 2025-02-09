@@ -123,7 +123,7 @@ enum class EncryptionType : uint8_t {
 Q_ENUM_NS(EncryptionType)
 
 //! Enum representing the available room join rules
-enum JoinRule {
+enum JoinRule : uint16_t {
     Public,
     Knock,
     Invite,
