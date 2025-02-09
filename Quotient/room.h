@@ -166,7 +166,7 @@ class QUOTIENT_API Room : public QObject {
     Q_PROPERTY(QStringList tagNames READ tagNames NOTIFY tagsChanged)
     Q_PROPERTY(bool isFavourite READ isFavourite NOTIFY tagsChanged STORED false)
     Q_PROPERTY(bool isLowPriority READ isLowPriority NOTIFY tagsChanged STORED false)
-    Q_PROPERTY(EventContent::JoinRule joinRule READ joinRule WRITE setJoinRule NOTIFY joinRuleChanged)
+    Q_PROPERTY(JoinRule joinRule READ joinRule WRITE setJoinRule NOTIFY joinRuleChanged)
     Q_PROPERTY(QList<QString> allowIds READ allowIds NOTIFY joinRuleChanged)
 
     Q_PROPERTY(GetRoomEventsJob* eventsHistoryJob READ eventsHistoryJob NOTIFY eventsHistoryJobChanged)
@@ -678,7 +678,7 @@ public:
     //! \brief The current Join Rule for the room
     //!
     //! \sa https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules
-    EventContent::JoinRule joinRule() const;
+    JoinRule joinRule() const;
 
     //! \brief Set the Join Rule for the room
     //!
@@ -694,7 +694,7 @@ public:
     //!       input. I.e. only memebers of space `x` can join this room.
     //!
     //! \sa https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules
-    Q_INVOKABLE void setJoinRule(EventContent::JoinRule newRule, const QList<QString>& allowedRooms = {});
+    Q_INVOKABLE void setJoinRule(JoinRule newRule, const QList<QString>& allowedRooms = {});
 
     //! \brief The list of Room IDs for when the join rule is Restricted
     //!

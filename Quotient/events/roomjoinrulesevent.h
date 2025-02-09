@@ -3,12 +3,12 @@
 
 #pragma once
 
-#include <Quotient/events/stateevent.h>
+#include <Quotient/quotient_common.h>
+#include "stateevent.h"
 
 namespace Quotient
 {
 namespace EventContent {
-Q_NAMESPACE_EXPORT(QUOTIENT_API)
 
 //! \brief Definition of an allow AllowCondition
 //!
@@ -17,17 +17,6 @@ struct AllowCondition {
     QString roomId;
     QString type;
 };
-
-//! Enum representing the available room join rules
-enum JoinRule {
-    Public,
-    Knock,
-    Invite,
-    Private,
-    Restricted,
-    KnockRestricted,
-};
-Q_ENUM_NS(JoinRule)
 
 [[maybe_unused]] constexpr std::array JoinRuleStrings {
     "public"_L1,
@@ -69,7 +58,7 @@ template<>
 inline EventContent::JoinRuleContent fromJson(const QJsonObject& jo)
 {
     return EventContent::JoinRuleContent {
-        enumFromJsonString<EventContent::JoinRule>(jo["join_rule"_L1].toString(), EventContent::JoinRuleStrings).value_or(EventContent::Public),
+        enumFromJsonString<JoinRule>(jo["join_rule"_L1].toString(), EventContent::JoinRuleStrings).value_or(Public),
         fromJson<QList<EventContent::AllowCondition>>(jo["allow"_L1])
     };
 }
@@ -78,7 +67,7 @@ template<>
 inline auto toJson(const EventContent::JoinRuleContent& c)
 {
     QJsonObject jo;
-    addParam<IfNotEmpty>(jo, "join_rule"_L1, enumToJsonString<EventContent::JoinRule>(c.joinRule, EventContent::JoinRuleStrings));
+    addParam<IfNotEmpty>(jo, "join_rule"_L1, enumToJsonString<JoinRule>(c.joinRule, EventContent::JoinRuleStrings));
     addParam<IfNotEmpty>(jo, "allow"_L1, c.allow);
     return jo;
 }
@@ -96,7 +85,7 @@ public:
     //! \brief The join rule for the room.
     //!
     //! \sa https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules
-    EventContent::JoinRule joinRule() const { return content().joinRule; }
+    JoinRule joinRule() const { return content().joinRule; }
 
     //! \brief The allow rules for restricted rooms.
     //!

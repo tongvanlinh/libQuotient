@@ -1535,9 +1535,9 @@ RoomStateView Room::currentState() const
     return d->currentState;
 }
 
-EventContent::JoinRule Room::joinRule() const
+JoinRule Room::joinRule() const
 {
-    return currentState().queryOr(&JoinRulesEvent::joinRule, EventContent::Public);
+    return currentState().queryOr(&JoinRulesEvent::joinRule, Public);
 }
 
 QList<QString> Room::allowIds() const
@@ -1549,13 +1549,13 @@ QList<QString> Room::allowIds() const
     return allowIds;
 }
 
-void Room::setJoinRule(EventContent::JoinRule newRule, const QList<QString>& allowedRooms)
+void Room::setJoinRule(JoinRule newRule, const QList<QString>& allowedRooms)
 {
     if (memberEffectivePowerLevel() < powerLevelFor<JoinRulesEvent>()) {
         return;
     }
 
-    EventContent::JoinRule actualRule = (newRule == EventContent::Restricted || newRule == EventContent::KnockRestricted) && allowedRooms.isEmpty() ? EventContent::Invite : newRule;
+    JoinRule actualRule = (newRule == Restricted || newRule == KnockRestricted) && allowedRooms.isEmpty() ? Invite : newRule;
     QList<EventContent::AllowCondition> newAllow;
     for (const auto& room :allowedRooms) {
         newAllow.append({room, "m.room_membership"_L1});
