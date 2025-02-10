@@ -52,6 +52,7 @@
 #include "events/roomavatarevent.h"
 #include "events/roomcanonicalaliasevent.h"
 #include "events/roomcreateevent.h"
+#include "events/roomjoinrulesevent.h"
 #include "events/roommemberevent.h"
 #include "events/roompowerlevelsevent.h"
 #include "events/roomtombstoneevent.h"
@@ -1532,6 +1533,36 @@ bool Room::usesEncryption() const
 RoomStateView Room::currentState() const
 {
     return d->currentState;
+}
+
+JoinRule Room::joinRule() const
+{
+    return currentState().queryOr(&JoinRulesEvent::joinRule, Public);
+}
+
+QList<QString> Room::allowIds() const
+{
+    QList<QString> allowIds;
+    for (const auto& allowCondition : currentState().queryOr(&JoinRulesEvent::allow, QList<EventContent::AllowCondition>())) {
+        allowIds.append(allowCondition.roomId);
+    }
+    return allowIds;
+}
+
+void Room::setJoinRule(JoinRule newRule, const QList<QString>& allowedRooms)
+{
+    if (memberEffectivePowerLevel() < powerLevelFor<JoinRulesEvent>()) {
+        return;
+    }
+
+    JoinRule actualRule = (newRule == Restricted || newRule == KnockRestricted) && allowedRooms.isEmpty() ? Invite : newRule;
+    QList<EventContent::AllowCondition> newAllow;
+    for (const auto& room :allowedRooms) {
+        newAllow.append({room, "m.room_membership"_L1});
+    }
+    setState<JoinRulesEvent>(actualRule, newAllow);
+    // Not emitting joinRuleChanged() here, since that would override the change
+    // in the UI with the *current* value, which is not the *new* value.
 }
 
 int Room::memberEffectivePowerLevel(const UserId& memberId) const
@@ -3209,6 +3240,14 @@ Room::Change Room::Private::processStateEvent(const RoomEvent& curEvent,
                         return true;
                     });
 
+            return Change::Other;
+        },
+        [this, oldEvent](const JoinRulesEvent& evt) {
+            if (const auto* oldJRE = static_cast<const JoinRulesEvent*>(oldEvent);
+                oldJRE && oldJRE->content().joinRule != evt.content().joinRule
+            ) {
+                emit q->joinRuleChanged();
+            }
             return Change::Other;
         },
         Change::Other);

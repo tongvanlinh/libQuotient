@@ -25,6 +25,7 @@
 #include "events/roommessageevent.h"
 #include "events/roompowerlevelsevent.h"
 #include "events/roomtombstoneevent.h"
+#include "events/roomjoinrulesevent.h"
 
 #include <QtCore/QJsonObject>
 #include <QtGui/QImage>
@@ -165,6 +166,8 @@ class QUOTIENT_API Room : public QObject {
     Q_PROPERTY(QStringList tagNames READ tagNames NOTIFY tagsChanged)
     Q_PROPERTY(bool isFavourite READ isFavourite NOTIFY tagsChanged STORED false)
     Q_PROPERTY(bool isLowPriority READ isLowPriority NOTIFY tagsChanged STORED false)
+    Q_PROPERTY(JoinRule joinRule READ joinRule WRITE setJoinRule NOTIFY joinRuleChanged)
+    Q_PROPERTY(QList<QString> allowIds READ allowIds NOTIFY joinRuleChanged)
 
     Q_PROPERTY(GetRoomEventsJob* eventsHistoryJob READ eventsHistoryJob NOTIFY eventsHistoryJobChanged)
     Q_PROPERTY(int requestedHistorySize READ requestedHistorySize NOTIFY eventsHistoryJobChanged)
@@ -672,6 +675,35 @@ public:
     /// \brief Get the current room state
     RoomStateView currentState() const;
 
+    //! \brief The current Join Rule for the room
+    //!
+    //! \sa https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules
+    JoinRule joinRule() const;
+
+    //! \brief Set the Join Rule for the room
+    //!
+    //! If the local user does not have a high enough power level the request is rejected.
+    //!
+    //! \param newRule the new JoinRule to apply to the room
+    //! \param allowedRooms only required when the join rule is restricted. This is a
+    //!        list of room IDs that members of can join without an invite.
+    //!        If the rule is restricted and this list is empty it is treated as a join
+    //!        rule of invite instead.
+    //!
+    //! \note While any room ID is permitted it is designed to be only spaces that are
+    //!       input. I.e. only memebers of space `x` can join this room.
+    //!
+    //! \sa https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules
+    Q_INVOKABLE void setJoinRule(JoinRule newRule, const QList<QString>& allowedRooms = {});
+
+    //! \brief The list of Room IDs for when the join rule is Restricted
+    //!
+    //! This value will be empty when the Join Rule is not Restricted or
+    //! Knock-Restricted.
+    //!
+    //! \sa https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules
+    QList<QString> allowIds() const;
+
     //! \brief The effective power level of the given member in the room
     //!
     //! This is normally the same as calling `RoomPowerLevelEvent::powerLevelForUser(userId)` but
@@ -898,6 +930,9 @@ Q_SIGNALS:
     void pinnedEventsChanged();
     void topicChanged();
     void avatarChanged();
+
+    //! \brief The join rule for the room has changed
+    void joinRuleChanged();
 
     //! \brief A new member has joined the room
     //!

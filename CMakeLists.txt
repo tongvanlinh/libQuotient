@@ -156,6 +156,7 @@ target_sources(${QUOTIENT_LIB_NAME} PUBLIC FILE_SET HEADERS BASE_DIRS .
         Quotient/events/eventcontent.h
         Quotient/events/eventrelation.h
         Quotient/events/roomcreateevent.h
+        Quotient/events/roomjoinrulesevent.h
         Quotient/events/roomtombstoneevent.h
         Quotient/events/roommessageevent.h
         Quotient/events/roommemberevent.h
