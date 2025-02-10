@@ -25,7 +25,7 @@
 #include "events/roommessageevent.h"
 #include "events/roompowerlevelsevent.h"
 #include "events/roomtombstoneevent.h"
-#include <Quotient/events/roomjoinrulesevent.h>
+#include "events/roomjoinrulesevent.h"
 
 #include <QtCore/QJsonObject>
 #include <QtGui/QImage>
