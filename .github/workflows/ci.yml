@@ -60,7 +60,7 @@ jobs:
         gnome-keyring-daemon -d --unlock <<<'' # Create a login keyring with no password
 
     - name: Install dependencies (non-Linux)
-      uses: jurplel/install-qt-action@v3.0.0
+      uses: jurplel/install-qt-action@v4.1.1
       with:
         version: '${{ matrix.qt-version }}.*'
         cache: true
@@ -137,7 +137,7 @@ jobs:
     - name: Build and install QtKeychain
       run: |
         cd ..
-        git clone -b 0.14.3 https://github.com/frankosterfeld/qtkeychain.git
+        git clone -b 0.15.0 https://github.com/frankosterfeld/qtkeychain.git
         cmake -S qtkeychain -B qtkeychain/build -DBUILD_WITH_QT6=ON $CMAKE_ARGS
         cmake --build qtkeychain/build --target install
 
