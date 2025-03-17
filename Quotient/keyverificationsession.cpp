@@ -410,7 +410,6 @@ void KeyVerificationSession::sendStartSas()
 
 void KeyVerificationSession::handleReady(const KeyVerificationReadyEvent& event)
 {
-    setState(READY);
     m_remoteSupportedMethods = event.methods();
     auto methods = commonSupportedMethods(m_remoteSupportedMethods);
 
@@ -423,6 +422,8 @@ void KeyVerificationSession::handleReady(const KeyVerificationReadyEvent& event)
         cancelVerification(UNKNOWN_METHOD);
     else if (methods.size() == 1)
         sendStartSas(); // -> WAITINGFORACCEPT
+    else
+        setState(READY); // Not actually reachable yet because the library only supports one method
 }
 
 void KeyVerificationSession::handleStart(const KeyVerificationStartEvent& event)
