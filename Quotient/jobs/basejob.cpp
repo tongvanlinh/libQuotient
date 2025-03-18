@@ -125,6 +125,7 @@ public:
     QPointer<QNetworkReply> reply;
 
     QPromise<void> promise{};
+    bool futureGenerated = false;
 
     Status status = Unprepared;
     QByteArray rawResponse;
@@ -818,7 +819,7 @@ void BaseJob::abandon()
         d->reply->disconnect(this);
     emit finished(this);
     if (QLibraryInfo::version() < QVersionNumber(6, 5))
-        future().cancel(); // Qt 6.4 didn't do it on the promise destruction, see QTBUG-103992
+        d->promise.future().cancel(); // Cover for QTBUG-103992
 
     deleteLater(); // The promise will cancel itself on deletion
 }
@@ -834,4 +835,12 @@ void BaseJob::setLoggingCategory(QMessageLogger::CategoryFunction lcf)
     d->logCat = lcf;
 }
 
-QFuture<void> BaseJob::future() { return d->promise.future(); }
+QFuture<void> BaseJob::future()
+{
+    if (d->futureGenerated)
+        qWarning(JOBS) << "Attempt to get the second future from" << objectName()
+                       << "- a continuation on the previous future may be overwritten";
+
+    d->futureGenerated = true;
+    return d->promise.future();
+}
