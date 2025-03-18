@@ -39,8 +39,8 @@ public:
     mutable QSize largestRequestedSize{};
     enum ImageSource : quint8 { Unknown, Cache, Network, Invalid };
     mutable ImageSource imageSource = Invalid;
-    mutable JobHandle<MediaThumbnailJob> thumbnailRequest = nullptr;
-    mutable JobHandle<UploadContentJob> uploadRequest = nullptr;
+    mutable JobHandle<MediaThumbnailJob> thumbnailRequest{};
+    mutable JobHandle<UploadContentJob> uploadRequest{};
     mutable std::vector<get_callback_t> callbacks{};
 };
 

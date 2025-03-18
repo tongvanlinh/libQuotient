@@ -63,12 +63,12 @@ public:
     bool encryptDirectChats = directChatEncryptionDefault;
     std::unique_ptr<_impl::ConnectionEncryptionData> encryptionData;
 
-    JobHandle<GetWellknownJob> resolverJob = nullptr;
-    JobHandle<GetLoginFlowsJob> loginFlowsJob = nullptr;
+    JobHandle<GetWellknownJob> resolverJob{};
+    JobHandle<GetLoginFlowsJob> loginFlowsJob{};
 
     SyncJob* syncJob = nullptr;
     bool lastSyncSuccessful = true;
-    JobHandle<LogoutJob> logoutJob = nullptr;
+    JobHandle<LogoutJob> logoutJob{};
 
     bool cacheState = true;
     bool cacheToBinary =
