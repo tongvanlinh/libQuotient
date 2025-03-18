@@ -130,11 +130,9 @@ void KeyVerificationSession::setupTimeout(milliseconds timeout)
 
 void KeyVerificationSession::handleEvent(const KeyVerificationEvent& baseEvent)
 {
-    if (!switchOnType(
-            baseEvent,
+    if (!baseEvent.switchOnType( // true if state transition is correct; false otherwise
             [this](const KeyVerificationCancelEvent& event) {
-                setError(stringToError(event.code()));
-                setState(CANCELED);
+                handleCancel(stringToError(event.code()));
                 return true;
             },
             [this](const KeyVerificationStartEvent& event) {
@@ -162,13 +160,13 @@ void KeyVerificationSession::handleEvent(const KeyVerificationEvent& baseEvent)
                 }
                 if (m_commonMacCodes.isEmpty()) {
                     cancelVerification(UNKNOWN_METHOD);
-                    return false;
+                    return true;
                 }
                 m_commitment = event.commitment().toLatin1();
                 if (!QByteArray::fromBase64Encoding(m_commitment,
                                                     QByteArray::AbortOnBase64DecodingErrors)) {
                     cancelVerification(INVALID_MESSAGE);
-                    return false;
+                    return true;
                 }
                 sendKey();
                 setState(WAITINGFORKEY);
@@ -361,15 +359,13 @@ void KeyVerificationSession::sendKey()
                                m_encrypted);
 }
 
-
 void KeyVerificationSession::cancelVerification(Error error)
 {
-    sendEvent(m_remoteUserId, m_remoteDeviceId, KeyVerificationCancelEvent(m_transactionId,
-                                                          errorToString(error)), m_encrypted);
-    setState(CANCELED);
-    setError(error);
-    emit finished();
-    deleteLater();
+    if (QUO_ALARM(state() == CANCELED))
+        return; // Make sure not to overwrite previous error
+    sendEvent(m_remoteUserId, m_remoteDeviceId,
+              KeyVerificationCancelEvent(m_transactionId, errorToString(error)), m_encrypted);
+    handleCancel(error);
 }
 
 void KeyVerificationSession::sendReady()
@@ -497,6 +493,14 @@ void KeyVerificationSession::handleMac(const KeyVerificationMacEvent& event)
     if (m_verified) {
         trustKeys();
     }
+}
+
+void KeyVerificationSession::handleCancel(Error error)
+{
+    setState(CANCELED);
+    setError(error);
+    emit finished();
+    deleteLater();
 }
 
 void KeyVerificationSession::trustKeys()

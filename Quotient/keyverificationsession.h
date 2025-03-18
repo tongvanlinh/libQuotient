@@ -170,6 +170,7 @@ private:
     void handleStart(const KeyVerificationStartEvent& event);
     void handleKey(const KeyVerificationKeyEvent& event);
     void handleMac(const KeyVerificationMacEvent& event);
+    void handleCancel(Error error);
     void setupTimeout(std::chrono::milliseconds timeout);
     void setState(State state);
     void setError(Error error);
