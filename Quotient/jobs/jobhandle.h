@@ -3,6 +3,7 @@
 #include "basejob.h"
 
 #include <QtCore/QFuture>
+#include <QtCore/QPointer>
 
 namespace Quotient {
 
