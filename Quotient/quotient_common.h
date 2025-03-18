@@ -6,7 +6,7 @@
 #include "quotient_export.h"
 
 #include <qobjectdefs.h>
-#include "util.h"
+#include "util.h" // For Quotient::Literals::operator""_L1
 
 #include <array>
 
