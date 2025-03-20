@@ -720,7 +720,7 @@ QFuture<BaseJob::Status> Connection::leaveRoom(Room* room)
             }
         });
     }
-    return jh.onResult([](LeaveRoomJob* job) { return job->status(); });
+    return jh.onResult([](const LeaveRoomJob* job) { return job->status(); });
 }
 
 inline auto splitMediaId(const QString& mediaId)
@@ -941,21 +941,21 @@ QFuture<BaseJob::Status> Connection::forgetRoom(Room* room)
     // a ForgetRoomJob is created in advance and can be returned in a probably
     // not-yet-started state (it will start once /leave completes).
     return leaveRoom(room)
-        .then([this, room](BaseJob::Status leaveResult) -> QFuture<ForgetRoomJob*> {
+        .then([this, room](const BaseJob::Status& leaveResult) -> QFuture<ForgetRoomJob*> {
             if (leaveResult.code == BaseJob::Success || leaveResult.code == BaseJob::NotFound) {
                 // If the matching /sync response hasn't arrived yet,
                 // mark the room for explicit deletion
                 if (room->joinState() != JoinState::Leave)
                     d->roomIdsToForget.push_back(room->id());
-                return callApi<ForgetRoomJob>(room->id());
+                return SLICE(callApi<ForgetRoomJob>(room->id()), QFuture<ForgetRoomJob*>);
             }
             qCWarning(MAIN).nospace()
                 << "Error leaving room " << room->objectName() << ": " << leaveResult.message;
             return {};
         })
         .unwrap()
-        .then([this, room](ForgetRoomJob* forgetJob) {
-            const auto forgetResult = forgetJob->status();
+        .then([this, room](const ForgetRoomJob* forgetJob) {
+            const auto& forgetResult = forgetJob->status();
             if (forgetResult.code == BaseJob::Success || forgetResult.code == BaseJob::NotFound)
                 d->removeRoom(room->id()); // Delete the room from roomMap
             else
