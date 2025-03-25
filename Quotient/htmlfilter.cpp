@@ -4,6 +4,7 @@
 #include "htmlfilter.h"
 
 #include "logging_categories_p.h"
+#include "ranges_extras.h"
 #include "room.h"
 
 #include <QtCore/QXmlStreamReader>
@@ -11,40 +12,82 @@
 #include <QtGui/QFontDatabase>
 #include <QtGui/QTextDocument>
 
-#include <ranges>
 #include <stack>
 
-using namespace std;
-using namespace Qt::StringLiterals;
+using Quotient::HTMLFILTER;
 
 namespace {
-using namespace Quotient;
+using namespace std;
+using namespace Quotient::Literals;
 using namespace Quotient::HtmlFilter;
+using Quotient::rangeContains;
 
 enum Mode : unsigned char { QtToMatrix, MatrixToQt, GenericToQt };
 
-class Processor : public QXmlStreamEntityResolver {
+class ElementFilter {
 public:
-    [[nodiscard]] static Result process(QString html, Mode mode, const Context& context,
-                                        Options options = Default);
+    ElementFilter(Mode mode, const Context& context) : _mode(mode), _context(context) {}
+
+    using rewrite_t = vector<pair<QString, QXmlStreamAttributes>>;
+
+    [[nodiscard]] rewrite_t rewrite(QStringView tag, QXmlStreamAttributes attributes);
 
 private:
+    const Mode _mode;
+    const Context& _context;
+    rewrite_t _rewrite;
+
+    void addColorAttr(QStringView newAttrName, QStringView newAttrValue);
+    void convertStyleAttr(QStringView css);
+    [[nodiscard]] QXmlStreamAttribute enrichMxcUrl(QXmlStreamAttribute&& a) const;
+};
+
+class Processor : public QXmlStreamEntityResolver {
+public:
+    explicit Processor(const QString& html, Mode mode, Options options, const Context& context,
+                       QXmlStreamWriter& writer)
+        : mode(mode), options(options), context(context), writer(writer), reader(html)
+    {
+        reader.setEntityResolver(this);
+    }
+
+    tuple<decltype(Result::errorPos), QString, QString::size_type> run();
+
+private:
+    using open_tags_t = stack<QString, vector<QString>>;
+
+    //! \brief The current input elements stack and their correspondence to elements in the output
+    //!
+    //! The entry in the (outer) stack corresponds to each level in the source
+    //! document; the (inner) stack in each entry records open elements in the
+    //! target document.
+    using tags_stack_t = stack<open_tags_t, vector<open_tags_t>>;
+
     const Mode mode;
     const Options options;
     const Context& context;
     QXmlStreamWriter& writer;
+
+    QXmlStreamReader reader;
+    tags_stack_t tagsStack{};
+
+    //! \brief The buffer on the way to QXmlStreamWriter
+    //!
+    //! Accumulates characters and resolved entry references until the next
+    //! tag (opening or closing); used to linkify (or process Markdown in)
+    //! text parts.
+    QString textBuffer{};
+    decltype(declval<QXmlStreamReader>().characterOffset()) bodyOffset = 0;
+    bool firstElement = true;
+    bool inAnchor = false;
+
     qsizetype errorPos = -1;
     QString errorString {};
 
-    Processor(Mode mode, Options options, const Context& context, QXmlStreamWriter& writer)
-        : mode(mode), options(options), context(context), writer(writer)
-    {}
-    Q_DISABLE_COPY_MOVE(Processor)
-    void runOn(const QString& html);
-
-    using rewrite_t = vector<pair<QString, QXmlStreamAttributes>>;
-
-    [[nodiscard]] rewrite_t filterTag(QStringView tag, QXmlStreamAttributes attributes);
+    //! \brief Process the next XML token available from the reader
+    //! \return whether non-white-space was encountered under <body>
+    [[nodiscard]] bool processCurrentToken(QXmlStreamReader::TokenType tokenType);
+    [[nodiscard]] bool processStartElement();
     void filterText(QString& text);
 
     QString resolveUndeclaredEntity(const QString& name) override
@@ -53,30 +96,30 @@ private:
     }
 };
 
-constexpr auto permittedTags = std::to_array<QStringView>(
-  {u"font",       u"del", u"h1",    u"h2",     u"h3",      u"h4",  u"h5",   u"h6",
-   u"blockquote", u"p",   u"a",     u"ul",     u"ol",      u"sup", u"sub",  u"li",
-   u"b",          u"i",   u"u",     u"strong", u"em",      u"s",   u"code", u"hr",
-   u"br",         u"div", u"table", u"thead",  u"tbody",   u"tr",  u"th",   u"td",
-   u"caption",    u"pre", u"span",  u"img",    u"mx-reply"});
+constexpr auto permittedTags = to_array<QStringView>(
+    {u"font",       u"del", u"h1",    u"h2",     u"h3",      u"h4",  u"h5",   u"h6",
+     u"blockquote", u"p",   u"a",     u"ul",     u"ol",      u"sup", u"sub",  u"li",
+     u"b",          u"i",   u"u",     u"strong", u"em",      u"s",   u"code", u"hr",
+     u"br",         u"div", u"table", u"thead",  u"tbody",   u"tr",  u"th",   u"td",
+     u"caption",    u"pre", u"span",  u"img",    u"mx-reply"});
 
 struct PassList {
     QStringView tag;
     vector<QStringView> allowedAttrs;
 };
 
-// See filterTag() on special processing of commented out tags/attributes
-const auto passLists = std::to_array<PassList>({
-  {u"a", {u"name", u"target", /* u"href" - only from permittedSchemes */}},
-  {u"img", {u"width", u"height", u"alt", u"title", u"data-mx-emoticon", /* u"src" - only 'mxc:' */}},
-  {u"ol", {u"start"}},
-  {u"font", {u"color", u"data-mx-color", u"data-mx-bg-color"}},
-  {u"span", {u"color", u"data-mx-color", u"data-mx-bg-color"}},
-  // { u"code", { u"class" /* must start with 'language-' */ } }
+const auto passLists = to_array<PassList>({
+    {u"a", {u"name", u"target", /* u"href" - only from permittedSchemes */}},
+    {u"img",
+     {u"width", u"height", u"alt", u"title", u"data-mx-emoticon", /* u"src" - only 'mxc:' */}},
+    {u"ol", {u"start"}},
+    {u"font", {u"color", u"data-mx-color", u"data-mx-bg-color"}},
+    {u"span", {u"color", u"data-mx-color", u"data-mx-bg-color"}},
+    // { u"code", { u"class" /* must start with 'language-' */ } }
 });
 
-constexpr auto permittedSchemes = std::to_array<QStringView>({
-  u"http:", u"https:", u"ftp:", u"mailto:", u"magnet:", u"matrix:", u"mxc:" /* MSC2398 */
+constexpr auto permittedSchemes = to_array<QStringView>({
+    u"http:", u"https:", u"ftp:", u"mailto:", u"magnet:", u"matrix:", u"mxc:" /* MSC2398 */
 });
 
 constexpr auto htmlColorAttr = u"color";
@@ -84,24 +127,160 @@ constexpr auto htmlStyleAttr = u"style";
 constexpr auto mxColorAttr = u"data-mx-color";
 constexpr auto mxBgColorAttr = u"data-mx-bg-color";
 
-#ifdef __cpp_lib_ranges_contains
-constexpr auto rangeContains = ranges::contains;
-#else
-inline auto rangeContains(const auto& c, const auto& v)
+//! Find the first element in the rewrite that would accept colour attributes (`font` and, only in
+//! Matrix HTML, `span`), and add the passed attribute to it
+inline void ElementFilter::addColorAttr(QStringView newAttrName, QStringView newAttrValue)
 {
-    return std::ranges::find(c, v) != std::ranges::end(c);
+    auto colourableIt = ranges::find_if(_rewrite, [this](const rewrite_t::value_type& element) {
+        return element.first == u"font" || (_mode == QtToMatrix && element.first == u"span");
+    });
+    if (colourableIt == _rewrite.end())
+        colourableIt = _rewrite.insert(_rewrite.end(), {u"font"_s, {}});
+    colourableIt->second.append(newAttrName.toString(), newAttrValue.toString());
 }
-#endif
 
+template <size_t Len>
+inline QStringView cssValue(QStringView css, const char16_t (&propertyNameWithColon)[Len])
+{
+    return css.startsWith(propertyNameWithColon) ? css.mid(Len - 1).trimmed() : QStringView();
+}
+
+void ElementFilter::convertStyleAttr(QStringView css)
+{
+    // 'style' attribute is not allowed in Matrix; convert
+    // everything possible to tags and other attributes
+    const auto& cssProperties = css.split(u';');
+    for (auto p : cssProperties) {
+        p = p.trimmed();
+        if (p.isEmpty())
+            continue;
+        if (auto v = cssValue(p, u"color:"); !v.isEmpty()) {
+            addColorAttr(mxColorAttr, v);
+        } else if (v = cssValue(p, u"background-color:"); !v.isEmpty())
+            addColorAttr(mxBgColorAttr, v);
+        else if (v = cssValue(p, u"font-weight:");
+                 v == u"bold" || v == u"bolder" || v.toFloat() > 500)
+            _rewrite.emplace_back().first = u"b"_s;
+        else if (v = cssValue(p, u"font-style:"); v == u"italic" || v.startsWith(u"oblique"))
+            _rewrite.emplace_back().first = u"i"_s;
+        else if (cssValue(p, u"text-decoration:").contains(u"line-through"))
+            _rewrite.emplace_back().first = u"del"_s;
+        else {
+            const auto& fontFamilies = cssValue(p, u"font-family:").split(u',');
+            for (auto ff : views::transform(fontFamilies, &QStringView::trimmed)
+                               | views::filter(std::not_fn(&QStringView::empty))) {
+                if (ff.front() == u'\'' || ff.front() == u'"')
+                    ff = ff.mid(1, ff.size() - 2);
+                if (QFontDatabase::isFixedPitch(ff.toString())) {
+                    _rewrite.emplace_back().first = u"code"_s;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+//! Enrich mxc source URL for images with the context so that Quotient::NAM could resolve them
+QXmlStreamAttribute ElementFilter::enrichMxcUrl(QXmlStreamAttribute&& a) const
+{
+    const auto aName = a.qualifiedName().toString();
+    auto url = QUrl::fromUserInput(a.value().toString());
+    if (_mode == QtToMatrix) {
+        // Make sure the mxc URL is just that, with no internal extras
+        QUrlQuery q{url.query()};
+        for (const auto& k : {u"user_id"_s, u"room_id"_s, u"event_id"_s})
+            q.removeAllQueryItems(k);
+        url.setQuery(q);
+        return QXmlStreamAttribute(aName, url.toString(QUrl::FullyEncoded));
+    } else if (_context.room)
+        return QXmlStreamAttribute(
+            aName, _context.room->makeMediaUrl(_context.eventId, url).toString(QUrl::FullyEncoded));
+
+    return std::move(a);
+}
+
+ElementFilter::rewrite_t ElementFilter::rewrite(QStringView tag, QXmlStreamAttributes attributes)
+{
+    if (_mode == MatrixToQt) {
+        if (tag == u"del" || tag == u"strike") { // Qt doesn't support these...
+            QXmlStreamAttributes attrs;
+            attrs.append(u"style"_s, u"text-decoration:line-through"_s);
+            return {{u"font"_s, std::move(attrs)}};
+        }
+        if (tag == u"mx-reply")
+            return {{u"div"_s, {}}}; // The spec says that mx-reply is HTML div
+        // If `mx-reply` is encountered on the way to the wire, just pass it
+    }
+
+    if (tag == u"code" && _mode != GenericToQt) { // Special case
+        erase_if(attributes, [](const auto& a) {
+            return a.qualifiedName() != u"class" || !a.value().startsWith(u"language-");
+        });
+        return {{tag.toString(), std::move(attributes)}};
+    }
+
+    if (!rangeContains(permittedTags, tag))
+        return {}; // The tag is not allowed
+
+    _rewrite.push_back({tag.toString(), {}});
+    const auto it = ranges::find(passLists, tag, &PassList::tag);
+    if (it == end(passLists))
+        return _rewrite; // Drop all attributes, pass the tag
+
+    const auto& passList = it->allowedAttrs;
+    for (auto&& a : attributes) {
+        const auto aName = a.qualifiedName();
+        const auto aValue = a.value();
+
+        // Attribute conversions between Matrix and Qt subsets; generic HTML
+        // is treated as possibly-Matrix
+        if (_mode != QtToMatrix) {
+            if (aName == mxColorAttr) {
+                addColorAttr(htmlColorAttr, aValue.toString());
+                continue;
+            } else if (aName == mxBgColorAttr) {
+                _rewrite.front().second.append(QString::fromUtf16(htmlStyleAttr),
+                                               u"background-color:" % aValue.toString());
+                continue;
+            }
+        } else {
+            if (aName == htmlStyleAttr) {
+                convertStyleAttr(aValue);
+                continue;
+            } else if (aName == htmlColorAttr)
+                addColorAttr(mxColorAttr, aValue); // Add to 'color', so return false
+        }
+
+        if (tag == u"img" && aName == u"src" && aValue.startsWith(u"mxc:")) {
+            _rewrite.front().second.push_back(enrichMxcUrl(std::move(a)));
+            continue;
+        }
+
+        // Generic filtering for attributes
+        if ((_mode == GenericToQt && (aName == htmlStyleAttr || aName == u"class" || aName == u"id"))
+            || (tag == u"a" && aName == u"href"
+                && ranges::any_of(permittedSchemes,
+                                  [&aValue](QStringView s) { return aValue.startsWith(s); }))
+            || rangeContains(passList, a.qualifiedName()))
+            _rewrite.front().second.push_back(std::move(a));
+    }
+
+    // Remove <font> and <span> that ended up without attributes as these are no-op
+    erase_if(_rewrite, [](const rewrite_t::value_type& e) {
+        return e.second.empty() && (e.first == u"font" || e.first == u"span");
+    });
+
+    return _rewrite;
+}
+
+// The following function intends to merge user-entered Markdown+HTML markup (HTML-escaped at this
+// point) into HTML exported by QTextDocument. Unfortunately, Markdown engine of QTextDocument is
+// not dealing well with ampersands and &-escaped HTML entities inside HTML tags: see
+// https://bugreports.qt.io/browse/QTBUG-91222 for details. Instead, Processor::run() splits
+// segments between HTML tags and filterText() treats each of them as Markdown individually.
+#ifdef Quotient_ENABLE_MERGE_MARKDOWN
 [[nodiscard]] QString mergeMarkdown(const QString& html)
 {
-    // This code intends to merge user-entered Markdown+HTML markup
-    // (HTML-escaped at this point) into HTML exported by QTextDocument.
-    // Unfortunately, Markdown engine of QTextDocument is not dealing well
-    // with ampersands and &-escaped HTML entities inside HTML tags:
-    // see https://bugreports.qt.io/browse/QTBUG-91222
-    // Instead, Processor::runOn() splits segments between HTML tags and
-    // filterText() treats each of them as Markdown individually.
     QXmlStreamReader reader(html);
     QString mdWithHtml;
     QXmlStreamWriter writer(&mdWithHtml);
@@ -159,30 +338,79 @@ inline auto rangeContains(const auto& c, const auto& v)
     doc.setMarkdown(mdWithHtml);
     return doc.toHtml();
 }
+#endif
+
+struct IndexAndLength {
+    QString::size_type index;
+    QString::size_type length = 0;
+};
+
+//! Call QString::replace() and return the difference between the old and the new substring length
+[[nodiscard]] inline QString::size_type replace(QString& s, IndexAndLength at, const QString& with)
+{
+    s.replace(at.index, at.length, with);
+    return with.size() - at.length;
+}
+
+//! Turn minimized attributes between \p pos and \p gtPos to full-fledged ones by appending `=''`
+//! \return the new position of the tag's closing bracket (\p gtPos)
+//! \sa https://www.w3.org/TR/xhtml1/diffs.html#h-4.5
+[[nodiscard]] inline QString::size_type processMinimizedAttrs(QString& html, QString::size_type pos,
+                                                              QString::size_type gtPos)
+{
+    // There's no simple way to replace all occurrences within a string segment; so just go through
+    // the segment and insert `=''` after minimized attributes.
+    // This is not the place to _filter_ allowed/disallowed attributes - all filtering should
+    // happen in ElementFilter
+    static const auto MinAttrRE =
+        R"(([^[:space:]>/"'=]+)\s*(=\s*([^[:space:]>/"']|"[^"]*"|'[^']*')+)?)"_qre;
+    QRegularExpressionMatch m;
+    while ((m = MinAttrRE.match(html, pos)).hasMatch() && m.capturedEnd(1) < gtPos) {
+        pos = m.capturedEnd();
+        if (m.captured(2).isEmpty()) {
+            const auto d = replace(html, {m.capturedEnd(1)}, u"=''"_s);
+            gtPos += d;
+            pos += d;
+        }
+    }
+    return gtPos;
+}
+
+//! Close elements known to be empty in HTML (such as img or meta) if they are not self-closing
+[[nodiscard]] inline QString::size_type closeEmptyElements(const QString& tag, QString& html,
+                                                           QString::size_type gtPos)
+{
+    static const QRegularExpression EmptyElementRE{"^img|[hb]r|meta$"_L1,
+                                                   QRegularExpression::CaseInsensitiveOption};
+    if (html[gtPos - 1] != u'/' && EmptyElementRE.match(tag).hasMatch())
+        gtPos += replace(html, {gtPos}, u"/"_s);
+
+    return gtPos;
+}
+
+inline bool isBetween(auto v, const auto lo, const auto hi) { return v >= lo && v <= hi; }
 
 [[nodiscard]] inline bool isTagNameTerminator(QChar c)
 {
     return c.isSpace() || c == u'/' || c == u'>';
 }
 
-/*! \brief Massage user HTML to look more like XHTML
- *
- * Since Qt doesn't have an HTML parser (outside of QTextDocument)
- * Processor::runOn() uses QXmlStreamReader instead, and it's quite picky
- * about properly closed tags and escaped ampersands. Processor::process()
- * deals with the ampersands; this helper further tries to convert the passed
- * HTML to something more XHTML-like, so that the XML reader doesn't choke on,
- * e.g., unclosed `br` or `img` tags and minimised HTML attributes. It also
- * filters away tags that are not compliant with Matrix specification, where
- * appropriate.
- */
+//! \brief Massage user HTML to look more like XHTML
+//!
+//! Since Qt doesn't have an HTML parser (outside of QTextDocument) Processor::run() uses
+//! QXmlStreamReader instead, and it's quite picky about properly closed tags and escaped &'s.
+//! &'s are dealt with in process() as they have to be escaped regardless of the conversion type.
+//! This helper function further tries to convert the passed HTML to something more XHTML-like,
+//! so that the XML reader doesn't choke on, e.g., unclosed `br` or `img` tags and minimised HTML
+//! attributes. It also filters away tags that are not compliant with Matrix specification, where
+//! appropriate.
 [[nodiscard]] Result preprocess(QString html, Mode mode, Options options)
 {
     Q_ASSERT(mode != QtToMatrix);
     bool isFragment = options.testFlag(Fragment) || mode == MatrixToQt;
     bool inHead = false;
     for (auto pos = html.indexOf(u'<'); pos != -1; pos = html.indexOf(u'<', pos)) {
-        const auto tagNamePos = pos + 1 + (html[pos + 1] == u'/');
+        const auto tagNamePos = pos + 1 + static_cast<int>(html[pos + 1] == u'/');
         const auto uncheckedHtml = QStringView(html).mid(tagNamePos);
         static constexpr auto commentOpen = "!--"_L1;
         static constexpr auto commentClose = "-->"_L1;
@@ -192,13 +420,9 @@ inline auto rangeContains(const auto& c, const auto& v)
         }
         // Look ahead to detect stray < and escape it
         auto gtPos = html.indexOf(u'>', tagNamePos);
-        decltype(pos) nextLtPos;
         if (gtPos == tagNamePos /* <> or </> */ || gtPos == -1 /* no more > */
-            || ((nextLtPos = html.indexOf(u'<', tagNamePos)) != -1
-                && nextLtPos < gtPos) /* there's another < before > */) {
-            static const auto to = u"&lt;"_s;
-            html.replace(pos, 1, to);
-            pos += to.size(); // Put pos after the escaped sequence
+            || isBetween(html.indexOf(u'<', tagNamePos), 0, gtPos - 1) /* another < before > */) {
+            pos += replace(html, {pos, 1}, u"&lt;"_s); // Put pos after the escaped sequence
             continue;
         }
         if (uncheckedHtml.startsWith(u"head>", Qt::CaseInsensitive)) {
@@ -245,35 +469,8 @@ inline auto rangeContains(const auto& c, const auto& v)
             continue;
         }
 
-        // Treat minimised attributes
-        // (https://www.w3.org/TR/xhtml1/diffs.html#h-4.5)
-
-        // There's no simple way to replace all occurrences within
-        // a string segment; so just go through the segment and insert
-        // `=''` after minimized attributes.
-        // This is not the place to _filter_ allowed/disallowed attributes -
-        // filtering is left for filterTag()
-        static const auto MinAttrRE =
-          R"(([^[:space:]>/"'=]+)\s*(=\s*([^[:space:]>/"']|"[^"]*"|'[^']*')+)?)"_qre;
-        pos = tagNamePos + tag.size();
-        QRegularExpressionMatch m;
-        while ((m = MinAttrRE.match(html, pos)).hasMatch() && m.capturedEnd(1) < gtPos) {
-            pos = m.capturedEnd();
-            if (m.captured(2).isEmpty()) {
-                static const auto attrValue = u"=''"_s;
-                html.insert(m.capturedEnd(1), attrValue);
-                gtPos += attrValue.size();
-                pos += attrValue.size();
-            }
-        }
-        // Make sure empty elements are properly closed
-        static const QRegularExpression EmptyElementRE{"^img|[hb]r|meta$"_L1,
-                                                       QRegularExpression::CaseInsensitiveOption};
-        if (html[gtPos - 1] != u'/' && EmptyElementRE.match(tag).hasMatch()) {
-            html.insert(gtPos, u'/');
-            ++gtPos;
-        }
-        pos = gtPos + 1;
+        gtPos = processMinimizedAttrs(html, tagNamePos + tag.size(), gtPos);
+        pos = closeEmptyElements(tag, html, gtPos) + 1;
         Q_ASSERT(pos > 0);
     }
     // Wrap in a no-op tag to make the text look like valid XML if it's
@@ -286,40 +483,37 @@ inline auto rangeContains(const auto& c, const auto& v)
     return { html };
 }
 
-Result Processor::process(QString html, Mode mode, const Context& context, Options options)
+Result process(QString html, Mode mode, const Context& context, Options options)
 {
-    // Since Qt doesn't have an HTML parser (outside of QTextDocument; and
-    // the one in QTextDocument is opinionated and not configurable)
-    // Processor::runOn() uses QXmlStreamReader instead. Being an XML parser,
-    // this class is quite picky about properly closed tags and escaped
-    // ampersands. Before passing to runOn(), the following code tries to bring
-    // the passed HTML to something more XHTML-like, so that the XML parser
-    // doesn't choke on things HTML-but-not-XML. In QtToMatrix mode the only
-    // such thing is unescaped ampersands in attributes (especially `href`),
-    // since QTextDocument::toHtml() produces (otherwise) valid XHTML. In other
-    // modes no such assumption can be made so an attempt is taken to close
-    // elements that are normally empty (`br`, `hr` and `img`), turn minimised
-    // attributes to their full interpretations (`disabled -> disabled=''`)
-    // and remove things that are obvious non-tags around unescaped `<`
-    // characters.
+    // Since Qt doesn't have an HTML parser (outside of QTextDocument; and the one in QTextDocument
+    // is opinionated and not configurable) Processor::run() uses QXmlStreamReader instead. Being
+    // an XML parser, this class is quite picky about properly closed tags, escaped ampersands etc.
+    // Before passing to run(), the following code tries to bring the passed HTML to something more
+    // XHTML-like, so that the XML parser doesn't choke on things HTML-but-not-XML. In QtToMatrix
+    // mode the only such thing is unescaped ampersands in attributes (especially `href`), since
+    // QTextDocument::toHtml() produces (otherwise) valid XHTML. In other modes no such assumption
+    // can be made so an attempt is taken to close elements that are normally empty (`br`, `hr` and
+    // `img`), turn minimised attributes to their full interpretations (`disabled -> disabled=''`)
+    // and remove things that are obvious non-tags around unescaped `<` characters -
+    // see preprocess() for all the gory details.
 
-    // 1. Escape ampersands outside of character entities
+    // Escape ampersands outside of character entities
     static const auto freestandingAmps =
       "&(?!(#[0-9]+|#x[0-9a-fA-F]+|[[:alpha:]_][-[:alnum:]_:.]*);)"_qre;
     html.replace(freestandingAmps, QStringLiteral("&amp;"));
 
     if (mode != GenericToQt) {
         // Handling control codes (excluding, for this discussion, \n, \r, and \t) in HTML is
-        // somewhat messy. HTML 4 and XML 1.0 and XHTML 1.0 all disallow C0/C1 control codes in any
-        // form. XML 1.1 allows them as numeric character references (aka NCRs) but
-        // QXmlStreamReader only implements XML 1.0 and doesn't accept them even as NCRs.
-        // Meanwhile, QTextDocument emits control codes to HTML without any conversion, formally
-        // violating HTML 4 spec (https://bugreports.qt.io/browse/QTBUG-122466) and, more
-        // importantly for this code, upsetting QXmlStreamReader (#900). HTML 5 (which Matrix HTML
-        // is - assumed to be - based on) formally disallows control codes too, adding \f to the
-        // allowed exclusions (see https://dev.w3.org/html5/spec-LC/syntax.html#text-0) which gives
-        // us the right to eliminate control characters from Matrix payloads, even though the Web
-        // generally seems to admit them as NCRs.
+        // somewhat messy. HTML 4, XML 1.0, XHTML 1.0 all disallow C0/C1 control codes in any form.
+        // XML 1.1 allows them as numeric character references (aka NCRs) but QXmlStreamReader only
+        // implements XML 1.0 and doesn't accept them even as NCRs. Meanwhile, QTextDocument emits
+        // control codes to HTML without any conversion, formally violating HTML 4 spec
+        // (https://bugreports.qt.io/browse/QTBUG-122466) and, more importantly for this code,
+        // upsetting QXmlStreamReader (#900). HTML 5 (which Matrix HTML is - assumed to be -
+        // based on) formally disallows control codes too, adding \f to the allowed exclusions
+        // (see https://dev.w3.org/html5/spec-LC/syntax.html#text-0) which gives us the right to
+        // eliminate control characters from Matrix payloads, even though the Web generally seems
+        // to admit them as NCRs.
         // NB: [:cntrl:] doesn't work because it includes the allowed \n, \r, \t
         static const auto controlCharRE = R"([\x01-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f])"_qre;
         html.remove(controlCharRE);
@@ -327,9 +521,8 @@ Result Processor::process(QString html, Mode mode, const Context& context, Optio
 
     if (mode == QtToMatrix) {
         if (options.testFlag(ConvertMarkdown)) {
-            // The processor handles Markdown in chunks between HTML tags;
-            // <br /> breaks character sequences that are otherwise valid
-            // Markdown, leading to issues with, e.g., lists.
+            // The processor handles Markdown in chunks between HTML tags; <br /> breaks character
+            // sequences that are otherwise valid Markdown, leading to issues with, e.g., lists.
             html.replace(QStringLiteral("<br />"), QStringLiteral("\n"));
 #if 0
             html = mergeMarkdown(html);
@@ -348,344 +541,185 @@ Result Processor::process(QString html, Mode mode, const Context& context, Optio
     QString resultHtml;
     QXmlStreamWriter writer(&resultHtml);
     writer.setAutoFormatting(false);
-    Processor p { mode, options, context, writer };
-    p.runOn(html);
-    return { resultHtml.trimmed(), p.errorPos, p.errorString };
+    const auto [errorPos, errorString, rawOffset] =
+        Processor(html, mode, options, context, writer).run();
+    if (errorPos != -1) {
+        qCCritical(HTMLFILTER) << "Invalid XHTML:" << html;
+        qCCritical(HTMLFILTER).nospace() << "Error at char " << errorPos << ": " << errorString;
+        const auto remainder = QStringView(html).mid(rawOffset);
+        qCCritical(HTMLFILTER).nospace() << "Buffer at error: " << remainder << ", "
+                                         << remainder.size() << " character(s) remaining";
+    }
+
+    return { resultHtml.trimmed(), errorPos, errorString };
 }
 
-void Processor::runOn(const QString &html)
+tuple<decltype(Result::errorPos), QString, QString::size_type> Processor::run()
 {
-    QXmlStreamReader reader(html);
-    reader.setEntityResolver(this);
-
-    /// The entry in the (outer) stack corresponds to each level in the source
-    /// document; the (inner) stack in each entry records open elements in the
-    /// target document.
-    using open_tags_t = stack<QString, vector<QString>>;
-    stack<open_tags_t, vector<open_tags_t>> tagsStack;
-
-    /// Accumulates characters and resolved entry references until the next
-    /// tag (opening or closing); used to linkify (or process Markdown in)
-    /// text parts.
-    QString textBuffer;
-    decltype(reader.characterOffset()) bodyOffset = 0;
-    bool firstElement = true, inAnchor = false;
     while (!reader.atEnd()) {
         const auto tokenType = reader.readNext();
-        if (bodyOffset == -1) // See below in 'case StartElement:'
-            bodyOffset = reader.characterOffset();
+        if (bodyOffset == -1) // See 'case StartElement:' in processNextToken()
+            bodyOffset = reader.characterOffset(); // As of the token just read
 
         if (!textBuffer.isEmpty() && !reader.isCharacters() && !reader.isEntityReference())
             filterText(textBuffer);
 
-        switch (tokenType) {
-        case QXmlStreamReader::StartElement: {
-            const auto& tagName = reader.qualifiedName();
-            if (tagsStack.empty()) {
-                // These tags are invalid anywhere deeper, and we don't even
-                // care to put them to tagsStack
-                if (tagName == u"html") {
-                    if (mode == GenericToQt)
-                        writer.writeCurrentToken(reader);
-                    break; // Otherwise, just ignore, get to the content inside
-                }
-                if (tagName == u"head") {
-                    // <head> is only needed for Qt to import HTML more
-                    // accurately, and entirely uninteresting in other modes
-                    if (mode != GenericToQt) {
-                        reader.skipCurrentElement();
-                        break;
-                    }
-                    // Copy through the whole <head> element - having
-                    // QXmlStreamWriter::writeCurrentElement() would help
-                    // but there's none such
-                    do {
-                        writer.writeCurrentToken(reader);
-                        const auto nextTokenType = reader.readNext();
-                        if (nextTokenType == QXmlStreamReader::EndElement
-                            && reader.qualifiedName() == u"head") {
-                            writer.writeCurrentToken(reader);
-                            break;
-                        }
-                    } while (!reader.atEnd());
-                    continue;
-                }
-                if (tagName == u"body") {
-                    if (mode == GenericToQt)
-                        writer.writeCurrentToken(reader);
-                    // Except importing HTML into QTextDocument, skip just like
-                    // <html> but record the position for error reporting
-                    // (FIXME: this position is still not exactly related to
-                    // the original text...)
-                    bodyOffset = -1; // See the end of the while loop
+        if (processCurrentToken(tokenType))
+            firstElement &= (bodyOffset <= 0 || reader.isWhitespace());
+    }
+
+    return { errorPos, errorString, reader.characterOffset() };
+}
+
+bool Processor::processCurrentToken(QXmlStreamReader::TokenType tokenType)
+{
+    switch (tokenType) {
+    case QXmlStreamReader::StartElement:
+        return processStartElement();
+    case QXmlStreamReader::Characters:
+    case QXmlStreamReader::EntityReference: {
+        // Remove the line break Qt inserts after <body> because it adds an unnecessary whitespace
+        // in the HTML context and an unnecessary line break in the Markdown context.
+        if (firstElement && mode == QtToMatrix && reader.text().startsWith(u'\n')) {
+            textBuffer += reader.text().mid(1);
+            return false; // Maintain firstElement
+        }
+        // Outside of links, defer writing until the next non-character,
+        // non-entity reference token in order to pass the whole text
+        // piece to filterText() with all entity references resolved.
+        if (!inAnchor && !options.testFlag(Fragment))
+            textBuffer += reader.text();
+        else
+            writer.writeCurrentToken(reader);
+        break;
+    }
+    case QXmlStreamReader::EndElement:
+        if (tagsStack.empty()) {
+            if (const auto& tag = reader.qualifiedName(); tag != u"body" && tag != u"html")
+                qCWarning(HTMLFILTER) << "Empty tags stack, skipping" << (u'/' % tag.toString());
+            break;
+        }
+        // Close as many elements as were opened in case StartElement
+        for (auto& t = tagsStack.top(); !t.empty(); t.pop()) {
+            writer.writeEndElement();
+            if (t.top() == u"a")
+                inAnchor = false;
+        }
+        tagsStack.pop();
+        break;
+    case QXmlStreamReader::EndDocument:
+        if (!tagsStack.empty())
+            qCWarning(HTMLFILTER) << "Not all HTML tags closed at the document end";
+        if (mode == GenericToQt)
+            writer.writeEndDocument(); // </body></html>
+        break;
+    case QXmlStreamReader::NoToken:
+        QUO_ALARM("Unexpected NoToken received from QXmlStreamReader");
+        break;
+    case QXmlStreamReader::Invalid: {
+        errorPos = reader.characterOffset() - bodyOffset;
+        errorString = reader.errorString();
+        break;
+    }
+    case QXmlStreamReader::Comment:
+    case QXmlStreamReader::StartDocument:
+    case QXmlStreamReader::DTD:
+    case QXmlStreamReader::ProcessingInstruction:
+        return false; // All these should not affect firstElement state
+    }
+    return true;
+}
+
+bool Processor::processStartElement()
+{
+    const auto& tagName = reader.qualifiedName();
+    if (tagsStack.empty()) {
+        // These tags are invalid anywhere deeper, and we don't even care to put them to tagsStack
+        if (tagName == u"html") {
+            if (mode == GenericToQt)
+                writer.writeCurrentToken(reader);
+            return false; // Otherwise, just ignore, get to the content inside
+        } else if (tagName == u"head") {
+            // <head> is only needed for Qt to import HTML more accurately, and entirely
+            // uninteresting in other modes
+            if (mode != GenericToQt) {
+                reader.skipCurrentElement();
+                return false;
+            }
+            // Copy through the whole <head> element - having
+            // QXmlStreamWriter::writeCurrentElement() would help but there's none such
+            do {
+                writer.writeCurrentToken(reader);
+                const auto nextTokenType = reader.readNext();
+                if (nextTokenType == QXmlStreamReader::EndElement
+                    && reader.qualifiedName() == u"head") {
+                    writer.writeCurrentToken(reader);
                     break;
                 }
-            }
-            if (options.testFlag(StripMxReply) && tagName == u"mx-reply") {
-                reader.skipCurrentElement();
-                continue;
-            }
-
-            const auto& attrs = reader.attributes();
-            if (ranges::any_of(attrs, [](const auto& a) {
-                    return a.qualifiedName() == u"style"
-                           && a.value().contains(u"-qt-paragraph-type:empty");
-                })) { // Hidden text block, just skip it
-                reader.skipCurrentElement();
-                continue;
-            }
-
-            tagsStack.emplace();
-            if (tagsStack.size() > 100)
-                qCCritical(HTMLFILTER) << "CS API spec limits HTML tags depth at 100";
-
-            // Qt hardcodes the link style in a `<span>` under `<a>`.
-            // This breaks the looks on the receiving side if the sender
-            // uses a different style of links from that of the receiver.
-            // Since Qt decorates links when importing HTML anyway, we
-            // don't lose anything if we just strip away this span tag.
-            if (mode != MatrixToQt && inAnchor && textBuffer.isEmpty() && tagName == u"span"
-                && attrs.size() == 1 && attrs.front().qualifiedName() == u"style")
-                continue; // inAnchor == true ==> firstElement == false
-
-            // Skip the first top-level <p> and replace further top-level
-            // `<p>...</p>` with `<br/>...` - kinda controversial but
-            // there's no cleaner way to get rid of the single top-level <p>
-            // generated by Qt without assuming that it's the only <p>
-            // spanning the whole body (copy-pasting rich text from other
-            // editors can bring several legitimate paragraphs of text,
-            // e.g.). This is also a very special case where a converted tag
-            // is immediately closed, unlike the one in the source text;
-            // which is why it's checked here rather than in filterTag().
-            if (mode == QtToMatrix && tagName == u"p"
-                && tagsStack.size() == 1 /* top-level, just emplaced */) {
-                if (firstElement)
-                    continue; // Skip unsetting firstElement at the loop end
-                writer.writeEmptyElement(u"br"_s);
-                break;
-            }
-            if (tagName != u"mx-reply" || (firstElement && !options.testFlag(Fragment))) {
-                // ^ The spec only allows `<mx-reply>` at the very beginning
-                // and it's not supposed to be in the user input
-                const auto& rewrite = filterTag(tagName, attrs);
-                for (const auto& [rewrittenTag, rewrittenAttrs]: rewrite) {
-                    tagsStack.top().push(rewrittenTag);
-                    writer.writeStartElement(rewrittenTag);
-                    writer.writeAttributes(rewrittenAttrs);
-                    if (rewrittenTag == u"a")
-                        inAnchor = true;
-                }
-            }
-            break;
-        }
-        case QXmlStreamReader::Characters:
-        case QXmlStreamReader::EntityReference: {
-            if (firstElement && mode == QtToMatrix) {
-                // Remove the line break Qt inserts after <body> because it
-                // adds an unnecessary whitespace in the HTML context and
-                // an unnecessary line break in the Markdown context.
-                if (reader.text().startsWith(u'\n')) {
-                    textBuffer += reader.text().mid(1);
-                    continue; // Maintain firstElement
-                }
-            }
-            // Outside of links, defer writing until the next non-character,
-            // non-entity reference token in order to pass the whole text
-            // piece to filterText() with all entity references resolved.
-            if (!inAnchor && !options.testFlag(Fragment))
-                textBuffer += reader.text();
-            else
-                writer.writeCurrentToken(reader);
-            break;
-        }
-        case QXmlStreamReader::EndElement:
-            if (tagsStack.empty()) {
-                const auto& tagName = reader.qualifiedName();
-                if (tagName != u"body" && tagName != u"html")
-                    qCWarning(HTMLFILTER)
-                      << "Empty tags stack, skipping" << (u'/' % tagName.toString());
-                break;
-            }
-            // Close as many elements as were opened in case StartElement
-            for (auto& t = tagsStack.top(); !t.empty(); t.pop()) {
-                writer.writeEndElement();
-                if (t.top() == u"a")
-                    inAnchor = false;
-            }
-            tagsStack.pop();
-            break;
-        case QXmlStreamReader::EndDocument:
-            if (!tagsStack.empty())
-                qCWarning(HTMLFILTER) << "Not all HTML tags closed at the document end";
+            } while (!reader.atEnd());
+            return false; // Not in <body> yet
+        } else if (tagName == u"body") {
             if (mode == GenericToQt)
-                writer.writeEndDocument(); // </body></html>
-            break;
-        case QXmlStreamReader::NoToken:
-            Q_ASSERT(reader.tokenType() != QXmlStreamReader::NoToken /*false*/);
-            break;
-        case QXmlStreamReader::Invalid: {
-            errorPos = reader.characterOffset() - bodyOffset;
-            errorString = reader.errorString();
-            qCCritical(HTMLFILTER) << "Invalid XHTML:" << html;
-            qCCritical(HTMLFILTER).nospace() << "Error at char " << errorPos << ": " << errorString;
-            const auto remainder = QStringView(html).mid(reader.characterOffset());
-            qCCritical(HTMLFILTER).nospace()
-              << "Buffer at error: " << remainder << ", " << html.size() - reader.characterOffset()
-              << " character(s) remaining";
-            break;
+                writer.writeCurrentToken(reader);
+            // Except importing HTML into QTextDocument, skip just like <html> but record
+            // the position for error reporting
+            // (FIXME: this position is still not exactly related to the original text...)
+            bodyOffset = -1; // See run()
+            return true;
         }
-        case QXmlStreamReader::Comment:
-        case QXmlStreamReader::StartDocument:
-        case QXmlStreamReader::DTD:
-        case QXmlStreamReader::ProcessingInstruction:
-            continue; // All these should not affect firstElement state
-        }
-        // Unset first element once encountered non-whitespace under `<body>`
-        // NB: all `continue` statements above intentionally bypass this
-        firstElement &= (bodyOffset <= 0 || reader.isWhitespace());
     }
-}
-
-template <size_t Len>
-inline QStringView cssValue(QStringView css, const char16_t (&propertyNameWithColon)[Len])
-{
-    return css.startsWith(propertyNameWithColon) ? css.mid(Len - 1).trimmed() : QStringView();
-}
-
-Processor::rewrite_t Processor::filterTag(QStringView tag, QXmlStreamAttributes attributes)
-{
-    if (mode == MatrixToQt) {
-        if (tag == u"del" || tag == u"strike") { // Qt doesn't support these...
-            QXmlStreamAttributes attrs;
-            attrs.append(u"style"_s, u"text-decoration:line-through"_s);
-            return { { u"font"_s, std::move(attrs) } };
-        }
-        if (tag == u"mx-reply")
-            return { { u"div"_s, {} } }; // The spec says that mx-reply is HTML div
-        // If `mx-reply` is encountered on the way to the wire, just pass it
+    if (options.testFlag(StripMxReply) && tagName == u"mx-reply") {
+        reader.skipCurrentElement();
+        return false;
     }
 
-    rewrite_t rewrite { { tag.toString(), {} } };
-    if (tag == u"code" && mode != GenericToQt) { // Special case
-        ranges::copy_if(attributes, back_inserter(rewrite.back().second), [](const auto& a) {
-            return a.qualifiedName() == u"class" && a.value().startsWith(u"language-");
-        });
-        return rewrite;
+    auto attrs = reader.attributes();
+    if (ranges::any_of(attrs, [](const auto& a) {
+            return a.qualifiedName() == u"style" && a.value().contains(u"-qt-paragraph-type:empty");
+        })) { // Hidden text block, just skip it
+        reader.skipCurrentElement();
+        return false;
     }
 
-    if (!rangeContains(permittedTags, tag))
-        return {}; // The tag is not allowed
+    tagsStack.emplace();
+    if (tagsStack.size() > 100)
+        qCCritical(HTMLFILTER) << "CS API spec limits HTML tags depth at 100";
 
-    const auto it = ranges::find(passLists, tag, &PassList::tag);
-    if (it == end(passLists))
-        return rewrite; // Drop all attributes, pass the tag
+    // Qt hardcodes the link style in a `<span>` under `<a>`. This breaks the looks on the receiving
+    // side if the sender uses a different style of links from that of the receiver. Since Qt
+    // decorates links when importing HTML anyway, we don't lose anything if we just strip away this
+    // span tag.
+    if (mode != MatrixToQt && inAnchor && textBuffer.isEmpty() && tagName == u"span"
+        && attrs.size() == 1 && attrs.front().qualifiedName() == u"style")
+        return false; // inAnchor == true ==> firstElement == false, no need to unset it
 
-    /// Find the first element in the rewrite that would accept color
-    /// attributes (`font` and, only in Matrix HTML, `span`),
-    /// and add the passed attribute to it
-    const auto& addColorAttr = [&rewrite, this](QStringView attrName, QStringView attrValue) {
-        auto colourableIt = ranges::find_if(rewrite, [this](const rewrite_t::value_type& element) {
-            return element.first == u"font" || (mode == QtToMatrix && element.first == u"span");
-        });
-        if (colourableIt == rewrite.end())
-            colourableIt = rewrite.insert(rewrite.end(), { u"font"_s, {} });
-        colourableIt->second.append(attrName.toString(), attrValue.toString());
-    };
+    // Skip the first top-level <p> and replace further top-level `<p>...</p>` with `<br/>...` -
+    // kinda controversial but there's no cleaner way to get rid of the single top-level <p>
+    // generated by Qt without assuming that it's the only <p> spanning the whole body (copy-pasting
+    // rich text from other editors can bring several legitimate paragraphs of text, e.g.). This is
+    // also a very special case where a converted tag is immediately closed, unlike the one in
+    // the source text; which is why it's checked here rather than in ElementFilter
+    if (mode == QtToMatrix && tagName == u"p"
+        && tagsStack.size() == 1 /* top-level, just emplaced */) {
+        if (firstElement)
+            return false; // Skip unsetting firstElement just yet
+        writer.writeEmptyElement(u"br"_s);
+        return true;
+    }
+    // The spec only allows `<mx-reply>` at the very beginning and it's not supposed to be
+    // in the user input (user input is always analysed inside a Fragment)
+    if (tagName == u"mx-reply" && (!firstElement || options.testFlag(Fragment)))
+        return false;
 
-    const auto& passList = it->allowedAttrs;
-    for (auto&& a: attributes) {
-        const auto aName = a.qualifiedName();
-        const auto aValue = a.value();
-        // Attribute conversions between Matrix and Qt subsets; generic HTML
-        // is treated as possibly-Matrix
-        if (mode != QtToMatrix) {
-            if (aName == mxColorAttr) {
-                addColorAttr(htmlColorAttr, aValue.toString());
-                continue;
-            }
-            if (aName == mxBgColorAttr) {
-                rewrite.front().second.append(QString::fromUtf16(htmlStyleAttr),
-                                              u"background-color:" % aValue.toString());
-                continue;
-            }
-        } else {
-            if (aName == htmlStyleAttr) {
-                // 'style' attribute is not allowed in Matrix; convert
-                // everything possible to tags and other attributes
-                const auto& cssProperties = aValue.split(u';');
-                for (auto p: cssProperties) {
-                    p = p.trimmed();
-                    if (p.isEmpty())
-                        continue;
-                    if (const auto& v = cssValue(p, u"color:"); !v.isEmpty()) {
-                        addColorAttr(mxColorAttr, v);
-                    } else if (const auto& v = cssValue(p, u"background-color:"); !v.isEmpty())
-                        addColorAttr(mxBgColorAttr, v);
-                    else if (const auto& v = cssValue(p, u"font-weight:");
-                             v == u"bold" || v == u"bolder" || v.toFloat() > 500)
-                        rewrite.emplace_back().first = u"b"_s;
-                    else if (const auto& v = cssValue(p, u"font-style:");
-                             v == u"italic" || v.startsWith(u"oblique"))
-                        rewrite.emplace_back().first = u"i"_s;
-                    else if (const auto& v = cssValue(p, u"text-decoration:");
-                             v.contains(u"line-through"))
-                        rewrite.emplace_back().first = u"del"_s;
-                    else {
-                        const auto& fontFamilies = cssValue(p, u"font-family:").split(u',');
-                        for (auto ff : views::transform(fontFamilies, &QStringView::trimmed)
-                                         | views::filter(std::not_fn(&QStringView::empty))) {
-                            if (ff.front() == u'\'' || ff.front() == u'"')
-                                ff = ff.mid(1, ff.size() - 2);
-                            if (QFontDatabase::isFixedPitch(ff.toString())) {
-                                rewrite.emplace_back().first = u"code"_s;
-                                break;
-                            }
-                        }
-                    }
-                }
-                continue;
-            }
-            if (aName == htmlColorAttr)
-                addColorAttr(mxColorAttr, aValue); // Add to 'color'
-        }
+    for (const auto& [rewrittenTag, rewrittenAttrs] :
+         ElementFilter(mode, context).rewrite(tagName, std::move(attrs))) {
+        tagsStack.top().push(rewrittenTag);
+        writer.writeStartElement(rewrittenTag);
+        writer.writeAttributes(rewrittenAttrs);
+        inAnchor |= (rewrittenTag == u"a");
+    }
 
-        // Enrich mxc source URLs for images with the context so that NAM could resolve them
-        if (tag == u"img" && aName == u"src" && aValue.startsWith(u"mxc:")) {
-            auto url = QUrl::fromUserInput(aValue.toString());
-            if (mode == QtToMatrix) {
-                // Make sure the mxc URL is just that, with no internal extras
-                QUrlQuery q{url.query()};
-                for (const auto& k : {u"user_id"_s, u"room_id"_s, u"event_id"_s})
-                    q.removeAllQueryItems(k);
-                url.setQuery(q);
-                a = QXmlStreamAttribute(aName.toString(), url.toString(QUrl::FullyEncoded));
-            } else if (context.room) {
-                a = QXmlStreamAttribute(aName.toString(),
-                                        context.room
-                                          ->makeMediaUrl(context.eventId,
-                                                         QUrl::fromUserInput(aValue.toString()))
-                                          .toString(QUrl::FullyEncoded));
-            }
-            rewrite.front().second.push_back(std::move(a));
-        }
-
-        // Generic filtering for attributes
-        if ((mode == GenericToQt && (aName == htmlStyleAttr || aName == u"class" || aName == u"id"))
-            || (tag == u"a" && aName == u"href"
-                && ranges::any_of(permittedSchemes,
-                                  [&aValue](QStringView s) { return aValue.startsWith(s); }))
-            || rangeContains(passList, a.qualifiedName()))
-            rewrite.front().second.push_back(std::move(a));
-    } // for (a: attributes)
-
-    // Remove the original <font> or <span> if they end up without attributes
-    // since without attributes they are no-op
-    if (!rewrite.empty()
-        && (rewrite.front().first == u"font" || rewrite.front().first == u"span")
-        && rewrite.front().second.empty())
-        rewrite.erase(rewrite.begin());
-
-    return rewrite;
+    return true;
 }
 
 void Processor::filterText(QString& text)
@@ -728,14 +762,14 @@ void Processor::filterText(QString& text)
 
         // Delete protection characters, now buried inside HTML
 #ifndef QTBUG_92445_FIXED
-        Q_ASSERT(text.count(OlMarker) == markerCountOl);
-        Q_ASSERT(text.count(UlMarker) == markerCountUl);
+        QUO_CHECK(text.count(OlMarker) == markerCountOl);
+        QUO_CHECK(text.count(UlMarker) == markerCountUl);
         // After HTML conversion, list markers end up being after HTML tags
         text.replace(QRegularExpression(u'>' % OlMarker), u">"_s);
         text.replace(QRegularExpression(u'>' % UlMarker), u">"_s);
 #endif
 
-        Q_ASSERT(text.count(Marker) == markerCount);
+        QUO_CHECK(text.count(Marker) == markerCount);
         if (hasLeadingWhitespace)
             text.remove(text.indexOf(Marker), Marker.size());
         if (hasTrailingWhitespace)
@@ -747,28 +781,31 @@ void Processor::filterText(QString& text)
     }
     // Re-process this piece of text as HTML but dump text snippets as they are,
     // without recursing into filterText() again
-    Processor(mode, Fragment, context, writer).runOn(text);
+    Processor(text, mode, Fragment, context, writer).run();
 
     text.clear();
 }
-}
+} // anonymous namespace
 
 namespace Quotient::HtmlFilter {
 
 QString toMatrix(const QString& qtMarkup, const Context& context, Options options)
 {
-    // Validation of HTML emitted by Qt doesn't make much sense
-    Q_ASSERT(!options.testFlag(Validate));
-    const auto& result = Processor::process(qtMarkup, QtToMatrix, context, options);
-    Q_ASSERT(result.errorPos == -1);
+    if (QUO_ALARM_X(options.testFlag(Validate),
+                    "Ignoring HtmlFilter::Validate for HTML emitted by Qt"))
+        options.setFlag(Validate, false);
+    const auto& result = process(qtMarkup, QtToMatrix, context, options);
+    QUO_CHECK(result.errorPos == -1);
     return result.filteredHtml;
 }
 
 Result fromMatrix(const QString& matrixHtml, const Context& context, Options options)
 {
     // Matrix HTML body should never be treated as Markdown
-    Q_ASSERT(!options.testFlag(ConvertMarkdown));
-    auto result = Processor::process(matrixHtml, MatrixToQt, context, options);
+    if (QUO_ALARM_X(options.testFlag(ConvertMarkdown),
+                    "Ignoring HtmlFilter::ConvertMarkdown for Matrix HTML body"))
+        options.setFlag(ConvertMarkdown, false);
+    auto result = process(matrixHtml, MatrixToQt, context, options);
     if (result.errorPos == -1) {
         // Make sure to preserve whitespace sequences
         result.filteredHtml =
@@ -779,7 +816,7 @@ Result fromMatrix(const QString& matrixHtml, const Context& context, Options opt
 
 Result fromLocal(const QString& html, const Context& context, Options options)
 {
-    return Processor::process(html, GenericToQt, context, options);
+    return process(html, GenericToQt, context, options);
 }
 
 } // namespace HtmlFilter
