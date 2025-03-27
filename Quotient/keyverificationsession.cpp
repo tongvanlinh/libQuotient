@@ -78,7 +78,10 @@ KeyVerificationSession::KeyVerificationSession(QString remoteUserId, Connection*
     , m_requestEventId(std::move(requestEventId)) // TODO: Consider merging with transactionId
 {
     if (m_connection->hasConflictingDeviceIdsAndCrossSigningKeys(m_remoteUserId)) {
-        qCWarning(E2EE) << "Remote user has conflicting device ids and cross signing keys; refusing to verify.";
+        qCWarning(E2EE)
+            << "Remote user has conflicting device ids and cross-signing keys; refusing to verify.";
+        setState(CANCELED);
+        deleteLater();
         return;
     }
     const auto& currentTime = QDateTime::currentDateTime();
@@ -116,7 +119,10 @@ KeyVerificationSession::KeyVerificationSession(QString remoteUserId, Connection*
     , m_transactionId(std::move(transactionId))
 {
     if (m_connection->hasConflictingDeviceIdsAndCrossSigningKeys(m_remoteUserId)) {
-        qCWarning(E2EE) << "Remote user has conflicting device ids and cross signing keys; refusing to verify.";
+        qCWarning(E2EE)
+            << "Remote user has conflicting device ids and cross-signing keys; refusing to verify.";
+        setState(CANCELED);
+        deleteLater();
         return;
     }
     setupTimeout(600s);
