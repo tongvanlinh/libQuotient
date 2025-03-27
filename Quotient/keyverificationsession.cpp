@@ -53,14 +53,21 @@ KeyVerificationSession::KeyVerificationSession(QString remoteUserId,
                                                Connection* connection, bool encrypted)
     : KeyVerificationSession(std::move(remoteUserId), connection, event.fromDevice(), encrypted,
                              event.methods(), event.timestamp(), event.transactionId())
-{}
+{
+    if (state() != CANCELED) // After validation in the delegate constructor
+        qCDebug(E2EE) << "Incoming device verification session from" << remoteDeviceId();
+}
 
 KeyVerificationSession::KeyVerificationSession(const RoomMessageEvent* event, Room* room)
     : KeyVerificationSession(event->senderId(), room->connection(),
                              event->contentPart<QString>("from_device"_L1), room->usesEncryption(),
                              event->contentPart<QStringList>("methods"_L1),
                              event->originTimestamp(), {}, room, event->id())
-{}
+{
+    if (state() != CANCELED) // After validation in the delegate constructor
+        qCDebug(E2EE) << "Incoming user verification session from" << m_remoteUserId << '/'
+                      << remoteDeviceId() << "in room" << room->objectName();
+}
 
 KeyVerificationSession::KeyVerificationSession(QString remoteUserId, Connection* connection,
                                                QString remoteDeviceId, bool encrypted,
@@ -100,13 +107,20 @@ KeyVerificationSession::KeyVerificationSession(QString userId, QString deviceId,
                                                Connection* connection)
     : KeyVerificationSession(std::move(userId), connection, nullptr, std::move(deviceId),
                              QUuid::createUuid().toString())
-{}
+{
+    if (state() != CANCELED) // After validation in the delegate constructor
+        qCDebug(E2EE) << "Starting device verification session towards" << remoteDeviceId();
+}
 
 KeyVerificationSession::KeyVerificationSession(Room* room)
     : KeyVerificationSession(room->members()[room->members()[0].isLocalMember() ? 1 : 0].id(),
                              room->connection(),
                              room)
-{}
+{
+    if (state() != CANCELED) // After validation in the delegate constructor
+        qCDebug(E2EE) << "Starting user verification session towards" << m_remoteUserId << "in room"
+                      << room->objectName();
+}
 
 KeyVerificationSession::KeyVerificationSession(QString remoteUserId, Connection* connection,
                                                Room* room, QString remoteDeviceId,
