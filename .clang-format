@@ -1,7 +1,8 @@
-# SPDX-FileCopyrightText: 2019 Kitsune Ral <Kitsune-Ral@users.sf.net>
-# SPDX-FileCopyrightText: 2019 Marc Deop <marc@marcdeop.com>
-
-# SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: 2019 Project Quotient
+# SPDX-License-Identifier: LGPL-2.1-only
+#
+# You may use this file under the terms of the LGPL-2.1 license
+# See the file LICENSE from this package for details.
 
 # This is the clang-format configuration style to be used by libQuotient.
 # Inspired by:
@@ -14,7 +15,7 @@
 # to borrow from the WebKit style. The values for such settings try to but
 # are not guaranteed to coincide with the latest version of the WebKit style.
 
-# This file assumes ClangFormat 13 or newer
+# This file assumes ClangFormat 18 or newer
 
 ---
 Language: Cpp
@@ -22,156 +23,193 @@ BasedOnStyle: WebKit
 #AccessModifierOffset: -4
 AlignAfterOpenBracket: Align
 #AlignArrayOfStructures: None # As of ClangFormat 14, Left doesn't work well
-#AlignConsecutiveMacros: None
 #AlignConsecutiveAssignments: None
 #AlignConsecutiveDeclarations: None
+#AlignConsecutiveMacros: None
+AlignConsecutiveShortCaseStatements:
+  Enabled: true
 AlignEscapedNewlines: Left
 AlignOperands: Align
 #AlignTrailingComments: false
 #AllowAllArgumentsOnNextLine: true
-AllowAllConstructorInitializersOnNextLine: true
 #AllowAllParametersOfDeclarationOnNextLine: true
-#AllowShortEnumsOnASingleLine: true
+AllowBreakBeforeNoexceptSpecifier: Always
 #AllowShortBlocksOnASingleLine: Empty
 AllowShortCaseLabelsOnASingleLine: true
+#AllowShortCompoundRequirementOnASingleLine: true
+#AllowShortEnumsOnASingleLine: true
 #AllowShortFunctionsOnASingleLine: All
-#AllowShortLambdasOnASingleLine: All
 #AllowShortIfStatementsOnASingleLine: Never
+#AllowShortLambdasOnASingleLine: All
 #AllowShortLoopsOnASingleLine: false
-#AlwaysBreakAfterDefinitionReturnType: None # deprecated
 #AlwaysBreakAfterReturnType: None
 #AlwaysBreakBeforeMultilineStrings: false
-AlwaysBreakTemplateDeclarations: Yes
-#AttributeMacros:
-#  - __capability
+AlwaysBreakTemplateDeclarations: Yes # To be replaced with BreakTemplateDeclarations
+AttributeMacros:
+  - Q_IMPLICIT
+  - QUOTIENT_API
 #BinPackArguments: true
 #BinPackParameters: true
+#BitFieldColonSpacing: Both
 BraceWrapping:
 #  AfterCaseLabel:  false
 #  AfterClass:      false
 #  AfterControlStatement: Never
 #  AfterEnum:       false
+#  AfterExternBlock: false
   AfterFunction:   true
 #  AfterNamespace:  false
 #  AfterStruct:     false
 #  AfterUnion:      false
-#  AfterExternBlock: false
 #  BeforeCatch:     false
 #  BeforeElse:      false
-#  BeforeLambdaBody: false # 'true' blows up lambdas vertically, even if they become _very_ readable
+#  BeforeLambdaBody: false # 'true' makes one-liner lambda bodies too inconspicuous
 #  BeforeWhile:     false
 #  IndentBraces:    false
   SplitEmptyFunction: false
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
+BracedInitializerIndentWidth: 4
+#BreakAdjacentStringLiterals: true
+#BreakAfterAttributes: Leave
+#BreakAfterReturnType: Automatic # ClangFormat 19; default value anyway
 BreakBeforeBinaryOperators: NonAssignment
-#BreakBeforeConceptDeclarations: true
+#BreakBeforeConceptDeclarations: Always
 BreakBeforeBraces: Custom
-#BreakBeforeInheritanceComma: false # deprecated?
-#BreakInheritanceList: BeforeColon
 #BreakBeforeTernaryOperators: true
-#BreakConstructorInitializersBeforeComma: false # deprecated?
 #BreakConstructorInitializers: BeforeComma
+#BreakFunctionDefinitionParameters: false # ClangFormat 19; default value anyway
+#BreakInheritanceList: BeforeColon
 #BreakStringLiterals: true
+#BreakTemplateDeclarations: Multiline # As of ClangFormat 19, has unintended formatting side-effects
 ColumnLimit: 100
 #QualifierAlignment: Leave # ClangFormat 14 - except 'Leave', updates whole files
 #CompactNamespaces: false
-ConstructorInitializerAllOnOneLineOrOnePerLine: true
 #ConstructorInitializerIndentWidth: 4
 #ContinuationIndentWidth: 4
-#Cpp11BracedListStyle: true
-#DeriveLineEnding: true
+Cpp11BracedListStyle: true
 #DerivePointerAlignment: false
-#EmptyLineAfterAccessModifier: Never # ClangFormat 14
+#EmptyLineAfterAccessModifier: Never
 EmptyLineBeforeAccessModifier: LogicalBlock
 FixNamespaceComments: true
 IncludeBlocks: Regroup
 IncludeCategories:
   - Regex:    'csapi/'
     Priority: 8
+    SortPriority: 5
   - Regex:    'e2ee/'
-    Priority: 10
+    Priority: 8
+    SortPriority: 6
   - Regex:    '(events|jobs)/'
-    Priority: 12
+    Priority: 8
+    SortPriority: 7
   - Regex:    '<Quotient/.+\.h>|"\.\./[^/]+\.h"'
-    Priority: 16
+    Priority: 8
   - Regex:    'moc_.+\.cpp'
-    Priority: 20
+    Priority: 12
   - Regex:    '<Qt.+(/.+)?'
-    Priority: 24
+    Priority: 16
   - Regex:    '<(openssl|olm)/.+'
-    Priority: 28
+    Priority: 24
   - Regex:    '^<'
     Priority: 32
   - Regex:    '.*'
-    Priority: 1
+    Priority: 8
+    SortPriority: 1
 IncludeIsMainRegex: '(_test)?$'
 #IncludeIsMainSourceRegex: ''
 #IndentAccessModifiers: false
-#IndentCaseLabels: false
 #IndentCaseBlocks: false
+#IndentCaseLabels: false
+IndentExternBlock: AfterExternBlock
 IndentGotoLabels: false
 IndentPPDirectives: BeforeHash
-#IndentExternBlock: AfterExternBlock
-IndentRequires: true
+IndentRequiresClause: true
 #IndentWidth: 4
 #IndentWrappedFunctionNames: false
-KeepEmptyLinesAtTheStartOfBlocks: false
-#LambdaBodyIndentation: Signature
+#InsertBraces: false # true is dangerous, see ClangFormat docs
+InsertNewlineAtEOF: true
+#InsertTrailingCommas: None # According to the docs, only available for JavaScript
+IntegerLiteralSeparator:
+  Binary:          4
+  BinaryMinDigits: 5
+  Decimal:         3
+  DecimalMinDigits: 4
+  Hex:             2
+  HexMinDigits:    5
+#KeepEmptyLines: # Uncomment the block once ClangFormat 19 is the baseline
+#  AtEndOfFile:     true
+#  AtStartOfBlock:  false
+#  AtStartOfFile:   false
+KeepEmptyLinesAtTheStartOfBlocks: false # To be replaced with KeepEmptyLines
+LambdaBodyIndentation: OuterScope
+LineEnding:      LF
 #MacroBlockBegin: ''
 #MacroBlockEnd:   ''
+#MainIncludeChar: Quote
 #MaxEmptyLinesToKeep: 1
 #NamespaceIndentation: Inner
+PackConstructorInitializers: NextLine
 PenaltyBreakAssignment: 10
 PenaltyBreakBeforeFirstCallParameter: 70
 PenaltyBreakComment: 45
 #PenaltyBreakFirstLessLess: 120
-#PenaltyBreakOpenParenthesis: 0 # ClangFormat 14
+#PenaltyBreakOpenParenthesis: 0
+#PenaltyBreakScopeResolution: 500
 PenaltyBreakString: 200
 #PenaltyBreakTemplateDeclaration: 10
-PenaltyExcessCharacter: 30
-PenaltyReturnTypeOnItsOwnLine: 200
+PenaltyExcessCharacter: 40
 #PenaltyIndentedWhitespace: 0
+PenaltyReturnTypeOnItsOwnLine: 200
 #PointerAlignment: Left
 #PPIndentWidth: -1
+#QualifierAlignment: Leave # Anything else is dangerous, see ClangFormat docs
+#QualifierOrder: ['friend', 'static', 'inline', 'constexpr', 'const', 'volatile', 'type'] # Unknown key error, despite the documentation...
 #ReferenceAlignment: Pointer
 #ReflowComments: true
+# Setting non-default values for Remove* options below is dangerous, check ClangFormat docs
+#RemoveBracesLLVM: false
+#RemoveParentheses: Leave
+#RemoveSemicolon: false
+#RequiresClausePosition: WithPreceding # As of ClangFormat 19, unindents requires-clause :(
+RequiresExpressionIndentation: OuterScope # No cases in the codebase yet though
+#SeparateDefinitionBlocks: Leave
 ShortNamespaceLines: 20
-#SortIncludes: true
-#SortUsingDeclarations: true
+#SkipMacroDefinitionBody: false
+#SortIncludes: CaseSensitive
+#SortUsingDeclarations: LexicographicNumeric
 #SpaceAfterCStyleCast: false
 #SpaceAfterLogicalNot: false
 #SpaceAfterTemplateKeyword: true
+SpaceAroundPointerQualifiers: After
 #SpaceBeforeAssignmentOperators: true
 #SpaceBeforeCaseColon: false
 SpaceBeforeCpp11BracedList: false
 #SpaceBeforeCtorInitializerColon: true
 #SpaceBeforeInheritanceColon: true
-#SpaceBeforeParens: ControlStatements
-#SpaceBeforeParensOptions: # ClangFormat 14
+SpaceBeforeParens: Custom
+SpaceBeforeParensOptions:
 #  AfterControlStatements: true
 #  AfterForeachMacros: true
 #  AfterFunctionDefinitionName: false
 #  AfterFunctionDeclarationName: false
 #  AfterIfMacros:   true
 #  AfterOverloadedOperator: false
+#  AfterPlacementOperator: true # No cases in the codebase
+  AfterRequiresInClause: true # To make it look the same as if/while etc.
+#  AfterRequiresInExpression: false
 #  BeforeNonEmptyParentheses: false
-SpaceAroundPointerQualifiers: After
 #SpaceBeforeRangeBasedForLoopColon: true
+#SpaceBeforeSquareBrackets: false
 SpaceInEmptyBlock: false
-#SpaceInEmptyParentheses: false
 #SpacesBeforeTrailingComments: 1
-#SpacesInAngles: Never # 'false' before ClangFormat 13
-#SpacesInConditionalStatement: false
-SpacesInContainerLiterals: false
-#SpacesInCStyleCastParentheses: false
+#SpacesInAngles: Never
+#SpacesInContainerLiterals: true # Not relevant to C++?
 #SpacesInLineCommentPrefix:
 #  Minimum:         1
 #  Maximum:         -1
-#SpacesInParentheses: false
+#SpacesInParens:  Never
 #SpacesInSquareBrackets: false
-#SpaceBeforeSquareBrackets: false
-#BitFieldColonSpacing: Both
 Standard: c++20
 StatementAttributeLikeMacros:
   - Q_EMIT
@@ -181,7 +219,6 @@ StatementMacros:
   - QT_REQUIRE_VERSION
   - DEFINE_EVENT_TYPEID
 TabWidth: 4
-#UseCRLF: false
 #UseTab: Never
 #WhitespaceSensitiveMacros: [] # Whatever's the default, not using it
 ...
