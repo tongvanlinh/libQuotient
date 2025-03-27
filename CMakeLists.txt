@@ -130,7 +130,6 @@ target_sources(${QUOTIENT_LIB_NAME} PUBLIC FILE_SET HEADERS BASE_DIRS .
         Quotient/connection.h
         Quotient/connection_p.h
         Quotient/ssosession.h
-        Quotient/logging_categories_p.h
         Quotient/room.h
         Quotient/roomstateview.h
         Quotient/user.h
@@ -198,6 +197,9 @@ target_sources(${QUOTIENT_LIB_NAME} PUBLIC FILE_SET HEADERS BASE_DIRS .
         Quotient/keyimport.h
         Quotient/qt_connection_util.h
         Quotient/thread.h
+    # The following headers are not included from public headers and so excluded from distribution
+    PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS . FILES
+        Quotient/logging_categories_p.h
     PRIVATE
         Quotient/function_traits.cpp
         Quotient/networkaccessmanager.cpp
