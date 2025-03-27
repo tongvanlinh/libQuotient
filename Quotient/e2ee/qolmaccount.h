@@ -5,10 +5,10 @@
 
 #pragma once
 
-#include <Quotient/e2ee/e2ee_common.h>
-#include <Quotient/e2ee/qolmmessage.h>
+#include "e2ee_common.h"
+#include "qolmmessage.h"
 
-#include <Quotient/csapi/keys.h>
+#include "../csapi/keys.h"
 
 #include <QtCore/QObject>
 

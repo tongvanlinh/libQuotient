@@ -2,7 +2,6 @@
 
 #include "connection.h"
 #include "database.h"
-#include "logging_categories_p.h"
 
 #include "e2ee/qolmaccount.h"
 #include "e2ee/qolmsession.h"
@@ -80,12 +79,9 @@ namespace _impl {
             const QMultiHash<QString, QString>& devices);
 
         template <typename... ArgTs>
-        KeyVerificationSession* setupKeyVerificationSession(
-            ArgTs&&... sessionArgs)
+        KeyVerificationSession* setupKeyVerificationSession(ArgTs&&... sessionArgs)
         {
-            auto session =
-                new KeyVerificationSession(std::forward<ArgTs>(sessionArgs)...);
-            qCDebug(E2EE) << "Incoming key verification session from" << session->remoteDeviceId();
+            auto session = new KeyVerificationSession(std::forward<ArgTs>(sessionArgs)...);
             verificationSessions.insert(session->transactionId(), session);
             QObject::connect(session, &QObject::destroyed, q,
                              [this, txnId = session->transactionId()] {

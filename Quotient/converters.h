@@ -333,7 +333,7 @@ struct JsonConverter<std::optional<T>> {
     {
         if (jv.isUndefined() || jv.isNull())
             return std::nullopt;
-        return fromJson<T>(jv);
+        return { fromJson<T>(jv) };
     }
 };
 

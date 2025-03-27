@@ -49,7 +49,7 @@ public:
     Base& operator=(Base&&) = delete;
 
 protected:
-    Base(const Base&) = default;
+    Base(const Base&) = delete;
     Base(Base&&) noexcept = default;
 
     virtual void fillJson(QJsonObject&) const = 0;

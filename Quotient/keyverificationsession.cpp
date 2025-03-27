@@ -53,14 +53,21 @@ KeyVerificationSession::KeyVerificationSession(QString remoteUserId,
                                                Connection* connection, bool encrypted)
     : KeyVerificationSession(std::move(remoteUserId), connection, event.fromDevice(), encrypted,
                              event.methods(), event.timestamp(), event.transactionId())
-{}
+{
+    if (state() != CANCELED) // After validation in the delegate constructor
+        qCDebug(E2EE) << "Incoming device verification session from" << remoteDeviceId();
+}
 
 KeyVerificationSession::KeyVerificationSession(const RoomMessageEvent* event, Room* room)
     : KeyVerificationSession(event->senderId(), room->connection(),
                              event->contentPart<QString>("from_device"_L1), room->usesEncryption(),
                              event->contentPart<QStringList>("methods"_L1),
                              event->originTimestamp(), {}, room, event->id())
-{}
+{
+    if (state() != CANCELED) // After validation in the delegate constructor
+        qCDebug(E2EE) << "Incoming user verification session from" << m_remoteUserId << '/'
+                      << remoteDeviceId() << "in room" << room->objectName();
+}
 
 KeyVerificationSession::KeyVerificationSession(QString remoteUserId, Connection* connection,
                                                QString remoteDeviceId, bool encrypted,
@@ -78,7 +85,10 @@ KeyVerificationSession::KeyVerificationSession(QString remoteUserId, Connection*
     , m_requestEventId(std::move(requestEventId)) // TODO: Consider merging with transactionId
 {
     if (m_connection->hasConflictingDeviceIdsAndCrossSigningKeys(m_remoteUserId)) {
-        qCWarning(E2EE) << "Remote user has conflicting device ids and cross signing keys; refusing to verify.";
+        qCWarning(E2EE)
+            << "Remote user has conflicting device ids and cross-signing keys; refusing to verify.";
+        setState(CANCELED);
+        deleteLater();
         return;
     }
     const auto& currentTime = QDateTime::currentDateTime();
@@ -97,13 +107,20 @@ KeyVerificationSession::KeyVerificationSession(QString userId, QString deviceId,
                                                Connection* connection)
     : KeyVerificationSession(std::move(userId), connection, nullptr, std::move(deviceId),
                              QUuid::createUuid().toString())
-{}
+{
+    if (state() != CANCELED) // After validation in the delegate constructor
+        qCDebug(E2EE) << "Starting device verification session towards" << remoteDeviceId();
+}
 
 KeyVerificationSession::KeyVerificationSession(Room* room)
     : KeyVerificationSession(room->members()[room->members()[0].isLocalMember() ? 1 : 0].id(),
                              room->connection(),
                              room)
-{}
+{
+    if (state() != CANCELED) // After validation in the delegate constructor
+        qCDebug(E2EE) << "Starting user verification session towards" << m_remoteUserId << "in room"
+                      << room->objectName();
+}
 
 KeyVerificationSession::KeyVerificationSession(QString remoteUserId, Connection* connection,
                                                Room* room, QString remoteDeviceId,
@@ -116,7 +133,10 @@ KeyVerificationSession::KeyVerificationSession(QString remoteUserId, Connection*
     , m_transactionId(std::move(transactionId))
 {
     if (m_connection->hasConflictingDeviceIdsAndCrossSigningKeys(m_remoteUserId)) {
-        qCWarning(E2EE) << "Remote user has conflicting device ids and cross signing keys; refusing to verify.";
+        qCWarning(E2EE)
+            << "Remote user has conflicting device ids and cross-signing keys; refusing to verify.";
+        setState(CANCELED);
+        deleteLater();
         return;
     }
     setupTimeout(600s);
@@ -410,7 +430,6 @@ void KeyVerificationSession::sendStartSas()
 
 void KeyVerificationSession::handleReady(const KeyVerificationReadyEvent& event)
 {
-    setState(READY);
     m_remoteSupportedMethods = event.methods();
     auto methods = commonSupportedMethods(m_remoteSupportedMethods);
 
@@ -423,6 +442,8 @@ void KeyVerificationSession::handleReady(const KeyVerificationReadyEvent& event)
         cancelVerification(UNKNOWN_METHOD);
     else if (methods.size() == 1)
         sendStartSas(); // -> WAITINGFORACCEPT
+    else
+        setState(READY); // Not actually reachable yet because the library only supports one method
 }
 
 void KeyVerificationSession::handleStart(const KeyVerificationStartEvent& event)
@@ -608,7 +629,7 @@ KeyVerificationSession::State KeyVerificationSession::state() const
 
 void KeyVerificationSession::setState(KeyVerificationSession::State state)
 {
-    qCDebug(E2EE) << "KeyVerificationSession state" << m_state << "->" << state;
+    qCDebug(E2EE) << "KeyVerificationSession state" << terse << m_state << "->" << state;
     m_state = state;
     emit stateChanged();
 }

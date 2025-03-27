@@ -312,9 +312,9 @@ void ConnectionEncryptionData::consumeDevicesList(const DevicesList& devicesList
 void ConnectionEncryptionData::loadOutdatedUserDevices()
 {
     QHash<QString, QStringList> users;
-    for(const auto &user : outdatedUsers) {
-        users[user] += QStringList();
-    }
+    for (const auto& user : std::as_const(outdatedUsers))
+        users.emplace(user);
+
     currentQueryKeysJob.abandon(); // Cancel network request explicitly
     currentQueryKeysJob = q->callApi<QueryKeysJob>(users).onResult(q, [this](QueryKeysJob* job) {
         if (job->status().good())
@@ -345,11 +345,9 @@ void ConnectionEncryptionData::consumeToDeviceEvent(EventPtr toDeviceEvent)
     }
 }
 
-bool ConnectionEncryptionData::processIfVerificationEvent(const Event& evt,
-                                                          bool encrypted)
+bool ConnectionEncryptionData::processIfVerificationEvent(const Event& evt, bool encrypted)
 {
-    return switchOnType(
-        evt,
+    return evt.switchOnType(
         [this, encrypted](const KeyVerificationRequestEvent& reqEvt) {
             setupKeyVerificationSession(reqEvt.fullJson()[SenderKey].toString(),
                                         reqEvt, q, encrypted);
