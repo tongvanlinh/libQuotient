@@ -40,6 +40,7 @@ private:
     void addColorAttr(QStringView newAttrName, QStringView newAttrValue);
     void convertStyleAttr(QStringView css);
     [[nodiscard]] QXmlStreamAttribute enrichMxcUrl(QXmlStreamAttribute&& a) const;
+    void filterAttr(QStringView tag, QXmlStreamAttribute&& a, const vector<QStringView>& passList);
 };
 
 class Processor : public QXmlStreamEntityResolver {
@@ -199,6 +200,46 @@ QXmlStreamAttribute ElementFilter::enrichMxcUrl(QXmlStreamAttribute&& a) const
     return std::move(a);
 }
 
+void ElementFilter::filterAttr(QStringView tag, QXmlStreamAttribute&& a,
+                               const vector<QStringView>& passList)
+{
+    const auto aName = a.qualifiedName();
+    const auto aValue = a.value();
+    auto& targetAttrs = _rewrite.front().second;
+
+    // Attribute conversions between Matrix and Qt subsets; generic HTML
+    // is treated as possibly-Matrix
+    if (_mode != QtToMatrix) {
+        if (aName == mxColorAttr) {
+            addColorAttr(htmlColorAttr, aValue.toString());
+            return;
+        } else if (aName == mxBgColorAttr) {
+            targetAttrs.append(QString::fromUtf16(htmlStyleAttr),
+                               u"background-color:" % aValue.toString());
+            return;
+        }
+    } else {
+        if (aName == htmlStyleAttr) {
+            convertStyleAttr(aValue);
+            return;
+        } else if (aName == htmlColorAttr)
+            addColorAttr(mxColorAttr, aValue); // Add to 'color', so return false
+    }
+
+    if (tag == u"img" && aName == u"src" && aValue.startsWith(u"mxc:")) {
+        targetAttrs.push_back(enrichMxcUrl(std::move(a)));
+        return;
+    }
+
+    // Generic filtering for attributes
+    if ((_mode == GenericToQt && (aName == htmlStyleAttr || aName == u"class" || aName == u"id"))
+        || (tag == u"a" && aName == u"href"
+            && ranges::any_of(permittedSchemes, [&aValue](QStringView s) {
+        return aValue.startsWith(s);
+    })) || rangeContains(passList, aName))
+        targetAttrs.push_back(std::move(a));
+}
+
 ElementFilter::rewrite_t ElementFilter::rewrite(QStringView tag, QXmlStreamAttributes attributes)
 {
     if (_mode == MatrixToQt) {
@@ -227,43 +268,8 @@ ElementFilter::rewrite_t ElementFilter::rewrite(QStringView tag, QXmlStreamAttri
     if (it == end(passLists))
         return _rewrite; // Drop all attributes, pass the tag
 
-    const auto& passList = it->allowedAttrs;
-    for (auto&& a : attributes) {
-        const auto aName = a.qualifiedName();
-        const auto aValue = a.value();
-
-        // Attribute conversions between Matrix and Qt subsets; generic HTML
-        // is treated as possibly-Matrix
-        if (_mode != QtToMatrix) {
-            if (aName == mxColorAttr) {
-                addColorAttr(htmlColorAttr, aValue.toString());
-                continue;
-            } else if (aName == mxBgColorAttr) {
-                _rewrite.front().second.append(QString::fromUtf16(htmlStyleAttr),
-                                               u"background-color:" % aValue.toString());
-                continue;
-            }
-        } else {
-            if (aName == htmlStyleAttr) {
-                convertStyleAttr(aValue);
-                continue;
-            } else if (aName == htmlColorAttr)
-                addColorAttr(mxColorAttr, aValue); // Add to 'color', so return false
-        }
-
-        if (tag == u"img" && aName == u"src" && aValue.startsWith(u"mxc:")) {
-            _rewrite.front().second.push_back(enrichMxcUrl(std::move(a)));
-            continue;
-        }
-
-        // Generic filtering for attributes
-        if ((_mode == GenericToQt && (aName == htmlStyleAttr || aName == u"class" || aName == u"id"))
-            || (tag == u"a" && aName == u"href"
-                && ranges::any_of(permittedSchemes,
-                                  [&aValue](QStringView s) { return aValue.startsWith(s); }))
-            || rangeContains(passList, a.qualifiedName()))
-            _rewrite.front().second.push_back(std::move(a));
-    }
+    for (auto&& a : attributes)
+        filterAttr(tag, std::move(a), it->allowedAttrs);
 
     // Remove <font> and <span> that ended up without attributes as these are no-op
     erase_if(_rewrite, [](const rewrite_t::value_type& e) {
@@ -558,7 +564,7 @@ tuple<decltype(Result::errorPos), QString, QString::size_type> Processor::run()
 {
     while (!reader.atEnd()) {
         const auto tokenType = reader.readNext();
-        if (bodyOffset == -1) // See 'case StartElement:' in processNextToken()
+        if (bodyOffset == -1) // See processStartElement()
             bodyOffset = reader.characterOffset(); // As of the token just read
 
         if (!textBuffer.isEmpty() && !reader.isCharacters() && !reader.isEntityReference())
@@ -630,6 +636,25 @@ bool Processor::processCurrentToken(QXmlStreamReader::TokenType tokenType)
     return true;
 }
 
+//! \brief Copy the current element along with its content from \p reader to \p writer
+//!
+//! This is in place of a non-existent QXmlStreamWriter::writeCurrentElement() - there are only
+//! skipCurrentElement() and writeCurrentToken().
+void writeCurrentElement(QXmlStreamReader& reader, QXmlStreamWriter& writer)
+{
+    const auto elementName = reader.qualifiedName();
+    // Copy through the whole element - having
+    // QXmlStreamWriter::writeCurrentElement() would help but there's none such
+    do {
+        writer.writeCurrentToken(reader);
+        const auto nextTokenType = reader.readNext();
+        if (nextTokenType == QXmlStreamReader::EndElement && reader.qualifiedName() == elementName) {
+            writer.writeCurrentToken(reader);
+            break;
+        }
+    } while (!reader.atEnd());
+}
+
 bool Processor::processStartElement()
 {
     const auto& tagName = reader.qualifiedName();
@@ -642,21 +667,10 @@ bool Processor::processStartElement()
         } else if (tagName == u"head") {
             // <head> is only needed for Qt to import HTML more accurately, and entirely
             // uninteresting in other modes
-            if (mode != GenericToQt) {
+            if (mode == GenericToQt)
+                writeCurrentElement(reader, writer);
+            else
                 reader.skipCurrentElement();
-                return false;
-            }
-            // Copy through the whole <head> element - having
-            // QXmlStreamWriter::writeCurrentElement() would help but there's none such
-            do {
-                writer.writeCurrentToken(reader);
-                const auto nextTokenType = reader.readNext();
-                if (nextTokenType == QXmlStreamReader::EndElement
-                    && reader.qualifiedName() == u"head") {
-                    writer.writeCurrentToken(reader);
-                    break;
-                }
-            } while (!reader.atEnd());
             return false; // Not in <body> yet
         } else if (tagName == u"body") {
             if (mode == GenericToQt)
@@ -681,7 +695,7 @@ bool Processor::processStartElement()
         return false;
     }
 
-    tagsStack.emplace();
+    tagsStack.emplace(); // NB: No skipCurrentElement() after this point
     if (tagsStack.size() > 100)
         qCCritical(HTMLFILTER) << "CS API spec limits HTML tags depth at 100";
 
@@ -699,8 +713,7 @@ bool Processor::processStartElement()
     // rich text from other editors can bring several legitimate paragraphs of text, e.g.). This is
     // also a very special case where a converted tag is immediately closed, unlike the one in
     // the source text; which is why it's checked here rather than in ElementFilter
-    if (mode == QtToMatrix && tagName == u"p"
-        && tagsStack.size() == 1 /* top-level, just emplaced */) {
+    if (mode == QtToMatrix && tagName == u"p" && tagsStack.size() == 1) {
         if (firstElement)
             return false; // Skip unsetting firstElement just yet
         writer.writeEmptyElement(u"br"_s);
