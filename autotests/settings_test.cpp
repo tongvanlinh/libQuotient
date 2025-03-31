@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: The Quotient Project Contributors
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-#include <QTest>
+#include "settings.h"
 
-#include <Quotient/settings.h>
+#include <QtTest/QTest>
 
 using namespace Qt::Literals;
 using namespace Quotient;
@@ -81,4 +81,4 @@ void TestSettings::accountSettings()
 }
 
 QTEST_GUILESS_MAIN(TestSettings)
-#include "testsettings.moc"
+#include "settings_test.moc"

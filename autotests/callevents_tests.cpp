@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include <Quotient/events/callevents.h>
+#include "events/callevents.h"
 
-#include <QtTest/QtTest>
+#include <QtTest/QTest>
 
 class TestCallCandidatesEvent : public QObject
 {
@@ -57,4 +57,4 @@ void TestCallCandidatesEvent::fromJson()
 }
 
 QTEST_APPLESS_MAIN(TestCallCandidatesEvent)
-#include "callcandidateseventtest.moc"
+#include "callevents_tests.moc"

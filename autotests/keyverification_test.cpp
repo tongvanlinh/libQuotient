@@ -63,4 +63,4 @@ private Q_SLOTS:
     }
 };
 QTEST_GUILESS_MAIN(TestKeyVerificationSession)
-#include "testkeyverification.moc"
+#include "keyverification_test.moc"

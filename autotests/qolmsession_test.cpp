@@ -2,13 +2,24 @@
 //
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include <Quotient/e2ee/qolmsession.h>
-#include <Quotient/e2ee/qolmaccount.h>
-#include "testolmsession.h"
+#include "e2ee/qolmsession.h"
+
+#include "e2ee/qolmaccount.h"
+
+#include <QtTest/QTest>
 
 using namespace Quotient;
 
-std::pair<QOlmSession, QOlmSession> createSessionPair()
+class TestOlmSession : public QObject
+{
+    Q_OBJECT
+private Q_SLOTS:
+    void olmOutboundSessionCreation();
+    void olmEncryptDecrypt();
+    void correctSessionOrdering();
+};
+
+std::optional<std::pair<QOlmSession, QOlmSession>> createSessionPair()
 {
     QByteArray pickledAccountA("eOBXIKivUT6YYowRH031BNv7zNmzqM5B7CpXdyeaPvala5mt7/OeqrG1qVA7vA1SYloFyvJPIy0QNkD3j1HiPl5vtZHN53rtfZ9exXDok03zjmssqn4IJsqcA7Fbo1FZeKafG0NFcWwCPTdmcV7REqxjqGm3I4K8MQFa45AdTGSUu2C12cWeOcbSMlcINiMral+Uyah1sgPmLJ18h1qcnskXUXQvpffZ5DiUw1Iz5zxnwOQF1GVyowPJD7Zdugvj75RQnDxAn6CzyvrY2k2CuedwqDC3fIXM2xdUNWttW4nC2g4InpBhCVvNwhZYxlUb5BUEjmPI2AB3dAL5ry6o9MFncmbN6x5x");
     QByteArray pickledAccountB("eModTvoFi9oOIkax4j4nuxw9Tcl/J8mOmUctUWI68Q89HSaaPTqR+tdlKQ85v2GOs5NlZCp7EuycypN9GQ4fFbHUCrS7nspa3GFBWsR8PnM8+wez5PWmfFZLg3drOvT0jbMjpDx0MjGYClHBqcrEpKx9oFaIRGBaX6HXzT4lRaWSJkXxuX92q8iGNrLn96PuAWFNcD+2JXpPcNFntslwLUNgqzpZ04aIFYwL80GmzyOgq3Bz1GO6u3TgCQEAmTIYN2QkO0MQeuSfe7UoMumhlAJ6R8GPcdSSPtmXNk4tdyzzlgpVq1hm7ZLKto+g8/5Aq3PvnvA8wCqno2+Pi1duK1pZFTIlActr");
@@ -22,8 +33,6 @@ std::pair<QOlmSession, QOlmSession> createSessionPair()
         != OLM_SUCCESS)
         qFatal("Failed to unpickle account B: %s", accountB.lastError());
 
-    //const auto identityKeyA = "qIEr3TWcJQt4CP8QoKKJcCaukByIOpgh6erBkhLEa2o"_ba;
-    //const auto oneTimeKeyA = "WzsbsjD85iB1R32iWxfJdwkgmdz29ClMbJSJziECYwk"_ba;
     const auto identityKeyB = "q/YhJtog/5VHCAS9rM9uUf6AaFk1yPe4GYuyUOXyQCg"_ba;
     const auto oneTimeKeyB = "oWvzryma+B2onYjo3hM6A3Mgo/Yepm8HvgSvwZMTnjQ"_ba;
     auto outbound = accountA.createOutboundSession(identityKeyB, oneTimeKeyB).value();
@@ -31,22 +40,26 @@ std::pair<QOlmSession, QOlmSession> createSessionPair()
     const auto preKey = outbound.encrypt(""); // Payload does not matter for PreKey
 
     if (preKey.type() != QOlmMessage::PreKey) {
-        // We can't call QFail here because it's an helper function returning a value
-        throw "Wrong first message type received, can't create session";
+        // We can't call QFAIL because it's a helper function returning a value here
+        qCritical("Wrong first message type received, can't create session");
+        return {};
     }
     auto inbound = accountB.createInboundSession(preKey).value();
-    return { std::move(inbound), std::move(outbound) };
+    return std::pair{std::move(inbound), std::move(outbound)};
 }
 
 void TestOlmSession::olmOutboundSessionCreation()
 {
-    const auto [_, outboundSession] = createSessionPair();
-    QCOMPARE(0, outboundSession.hasReceivedMessage());
+    const auto sessionPair = createSessionPair();
+    QVERIFY(sessionPair.has_value());
+    QCOMPARE(0, sessionPair->second.hasReceivedMessage());
 }
 
 void TestOlmSession::olmEncryptDecrypt()
 {
-    const auto [inboundSession, outboundSession] = createSessionPair();
+    const auto sessionPair = createSessionPair();
+    QVERIFY(sessionPair.has_value());
+    const auto& [inboundSession, outboundSession] = *sessionPair;
     const auto encrypted = outboundSession.encrypt("Hello world!");
     if (encrypted.type() == QOlmMessage::PreKey) {
         QOlmMessage m(encrypted); // clone
@@ -83,3 +96,5 @@ void TestOlmSession::correctSessionOrdering()
 }
 
 QTEST_GUILESS_MAIN(TestOlmSession)
+
+#include "qolmsession_test.moc"

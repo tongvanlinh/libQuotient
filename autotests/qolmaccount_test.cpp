@@ -3,20 +3,40 @@
 //
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include "testolmaccount.h"
+#include "e2ee/qolmaccount.h"
 
-#include <Quotient/connection.h>
-#include <Quotient/csapi/joining.h>
-#include <Quotient/e2ee/qolmaccount.h>
-#include <Quotient/e2ee/qolmutility.h>
-#include <Quotient/events/encryptionevent.h>
-#include <Quotient/events/filesourceinfo.h>
-#include <Quotient/networkaccessmanager.h>
-#include <Quotient/room.h>
+#include "connection.h"
+#include "room.h"
+#include "e2ee/qolmutility.h"
+#include "events/filesourceinfo.h"
 
 #include "testutils.h"
 
+#include <QtTest/QSignalSpy>
+
 using namespace Quotient;
+
+class TestOlmAccount : public QObject
+{
+    Q_OBJECT
+
+private Q_SLOTS:
+    void pickleUnpickledTest();
+    void identityKeysValid();
+    void signatureValid();
+    void oneTimeKeysValid();
+    //void removeOneTimeKeys();
+    void deviceKeys();
+    void encryptedFile();
+    void uploadIdentityKey();
+    void uploadOneTimeKeys();
+    void uploadSignedOneTimeKeys();
+    void uploadKeys();
+    void queryTest();
+    void claimKeys();
+    void claimMultipleKeys();
+    void enableEncryption();
+};
 
 void TestOlmAccount::pickleUnpickledTest()
 {
@@ -433,3 +453,5 @@ void TestOlmAccount::enableEncryption()
 }
 
 QTEST_GUILESS_MAIN(TestOlmAccount)
+
+#include "qolmaccount_test.moc"

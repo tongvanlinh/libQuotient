@@ -2,10 +2,9 @@
 //
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include <QTest>
+#include "thread.h"
 
-#include <Quotient/events/roommessageevent.h>
-#include <Quotient/thread.h>
+#include "events/roommessageevent.h"
 
 #include "testutils.h"
 
@@ -85,4 +84,4 @@ void TestThread::historicalThread()
 }
 
 QTEST_GUILESS_MAIN(TestThread)
-#include "testthread.moc"
+#include "thread_test.moc"

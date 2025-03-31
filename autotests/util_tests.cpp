@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2021 Kitsune Ral <kitsune-ral@users.sf.net>
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include <Quotient/util.h>
+#include "util.h"
 
 #include <QtCore/QStringBuilder>
-#include <QtTest/QtTest>
+#include <QtTest/QTest>
 
 using namespace Quotient;
 using std::optional, std::pair;
@@ -97,4 +97,4 @@ void TestUtils::testQuoCStr()
 }
 
 QTEST_APPLESS_MAIN(TestUtils)
-#include "utiltests.moc"
+#include "util_tests.moc"

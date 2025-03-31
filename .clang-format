@@ -94,6 +94,8 @@ EmptyLineBeforeAccessModifier: LogicalBlock
 FixNamespaceComments: true
 IncludeBlocks: Regroup
 IncludeCategories:
+  - Regex:    'testutils.h'
+    Priority: 12
   - Regex:    'csapi/'
     Priority: 8
     SortPriority: 5
@@ -116,7 +118,7 @@ IncludeCategories:
   - Regex:    '.*'
     Priority: 8
     SortPriority: 1
-IncludeIsMainRegex: '(_test)?$'
+IncludeIsMainRegex: '(_test(s?)|Test(s?))?$'
 #IncludeIsMainSourceRegex: ''
 #IndentAccessModifiers: false
 #IndentCaseBlocks: false

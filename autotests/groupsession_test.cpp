@@ -2,11 +2,21 @@
 //
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include "testgroupsession.h"
-#include <Quotient/e2ee/qolminboundsession.h>
-#include <Quotient/e2ee/qolmoutboundsession.h>
+#include "e2ee/qolminboundsession.h"
+#include "e2ee/qolmoutboundsession.h"
+
+#include <QtTest/QTest>
 
 using namespace Quotient;
+
+class TestGroupSession : public QObject
+{
+    Q_OBJECT
+
+private Q_SLOTS:
+    void groupSessionPicklingValid();
+    void groupSessionCryptoValid();
+};
 
 void TestGroupSession::groupSessionPicklingValid()
 {
@@ -57,3 +67,5 @@ void TestGroupSession::groupSessionCryptoValid()
     QCOMPARE(0, decryptionResult.second);
 }
 QTEST_GUILESS_MAIN(TestGroupSession)
+
+#include "groupsession_test.moc"

@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-
-#include <QTest>
-#include <Quotient/connection_p.h>
 #include "testutils.h"
+#include <Quotient/connection_p.h>
+
+#include <QtTest/QTest>
 
 using namespace Quotient;
 
@@ -35,6 +35,7 @@ private Q_SLOTS:
         QVERIFY(!connection->isUserVerified("@eve:foo.bar"_L1));
         QVERIFY(!connection->isUserVerified("@aloy:kde.org"_L1));
         QVERIFY(!connection->isVerifiedDevice("@tobiasfella:kde.org"_L1, "LTLVYDIVMO"_L1));
+
         connection->database()->setMasterKeyVerified("iiNvK2+mJtBXj6t+FVnaPBZ4e/M/n84wPJBfUVN38OE"_L1);
         QVERIFY(connection->isUserVerified("@tobiasfella:kde.org"_L1));
         connection->d->encryptionData->handleQueryKeys(mockKeys);
@@ -49,4 +50,4 @@ private Q_SLOTS:
     }
 };
 QTEST_GUILESS_MAIN(TestCrossSigning)
-#include "testcrosssigning.moc"
+#include "cross_signing_test.moc"

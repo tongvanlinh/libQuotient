@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2024 Tobias Fella <tobias.fella@kde.org>
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include <Quotient/e2ee/cryptoutils.h>
+#include "keyimport.h"
 
-#include <QTest>
-
-#include <Quotient/keyimport.h>
+#include <QtCore/QJsonArray>
+#include <QtCore/QJsonObject>
+#include <QtCore/QString>
+#include <QtTest/QTest>
 
 class TestKeyImport : public QObject
 {
@@ -16,6 +17,7 @@ private slots:
 };
 
 using namespace Quotient;
+using namespace Qt::StringLiterals;
 
 void TestKeyImport::testImport()
 {
@@ -61,4 +63,4 @@ void TestKeyImport::testExport()
 }
 
 QTEST_GUILESS_MAIN(TestKeyImport)
-#include "testkeyimport.moc"
+#include "keyimport_test.moc"

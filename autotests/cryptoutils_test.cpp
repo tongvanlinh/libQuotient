@@ -2,14 +2,14 @@
 //
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include <Quotient/connection.h>
-#include <Quotient/database.h>
-#include <Quotient/e2ee/cryptoutils.h>
-#include <Quotient/e2ee/e2ee_common.h>
+#include "e2ee/cryptoutils.h"
 
-#include <Quotient/events/filesourceinfo.h>
+#include "connection.h"
+#include "database.h"
+#include "e2ee/e2ee_common.h"
+#include "events/filesourceinfo.h"
 
-#include <QTest>
+#include <QtTest/QTest>
 
 #include <olm/pk.h>
 
@@ -109,4 +109,4 @@ void TestCryptoUtils::testEncrypted()
 }
 
 QTEST_GUILESS_MAIN(TestCryptoUtils)
-#include "testcryptoutils.moc"
+#include "cryptoutils_test.moc"
