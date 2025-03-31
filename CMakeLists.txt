@@ -120,7 +120,6 @@ target_sources(${QUOTIENT_LIB_NAME} PUBLIC FILE_SET HEADERS BASE_DIRS .
         Quotient/quotient_common.h
         Quotient/quotient_export.h
         Quotient/function_traits.h
-        Quotient/omittable.h
         Quotient/expected.h
         Quotient/networkaccessmanager.h
         Quotient/connectiondata.h
