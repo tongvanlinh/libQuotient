@@ -622,7 +622,7 @@ QByteArray Database::loadEncrypted(const QString& name)
 
     return aesCtr256Decrypt(cipher, asCBytes(m_picklingKey).first<Aes256KeySize>(),
                             asCBytes<AesBlockSize>(iv))
-        .move_value_or({});
+        .value_or({});
 }
 
 void Database::setMasterKeyVerified(const QString& masterKey)

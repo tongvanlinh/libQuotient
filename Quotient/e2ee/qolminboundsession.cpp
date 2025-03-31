@@ -9,7 +9,6 @@
 #include <olm/olm.h>
 
 #include <cstring>
-#include <iostream>
 
 using namespace Quotient;
 
@@ -37,7 +36,7 @@ QOlmExpected<QOlmInboundGroupSession> QOlmInboundGroupSession::create(const QByt
         == olm_error()) {
         qWarning(E2EE) << "Failed to create an inbound group session:"
                        << groupSession.lastError();
-        return groupSession.lastErrorCode();
+        return std::unexpected(groupSession.lastErrorCode());
     }
 
     return groupSession;
@@ -52,7 +51,7 @@ QOlmExpected<QOlmInboundGroupSession> QOlmInboundGroupSession::importSession(con
         == olm_error()) {
         qWarning(E2EE) << "Failed to import an inbound group session:"
                        << groupSession.lastError();
-        return groupSession.lastErrorCode();
+        return std::unexpected(groupSession.lastErrorCode());
     }
 
     return groupSession;
@@ -80,7 +79,7 @@ QOlmExpected<QOlmInboundGroupSession> QOlmInboundGroupSession::unpickle(
         == olm_error()) {
         qWarning(E2EE) << "Failed to unpickle an inbound group session:"
                        << groupSession.lastError();
-        return groupSession.lastErrorCode();
+        return std::unexpected(groupSession.lastErrorCode());
     }
 
     return groupSession;
@@ -104,7 +103,7 @@ QOlmExpected<std::pair<QByteArray, uint32_t>> QOlmInboundGroupSession::decrypt(
                           plaintextLength, &messageIndex);
     if (actualLength == olm_error()) {
         qWarning(E2EE) << "Failed to decrypt the message:" << lastError();
-        return lastErrorCode();
+        return std::unexpected(lastErrorCode());
     }
 
     // actualLength cannot be more than plainTextLength because the resulting
@@ -123,7 +122,7 @@ QOlmExpected<QByteArray> QOlmInboundGroupSession::exportSession(
         == olm_error()) {
         QOLM_FAIL_OR_LOG(OLM_OUTPUT_BUFFER_TOO_SMALL,
                          "Failed to export the inbound group session"_L1);
-        return lastErrorCode();
+        return std::unexpected(lastErrorCode());
     }
     return keyBuf;
 }

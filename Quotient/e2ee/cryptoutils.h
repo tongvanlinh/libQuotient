@@ -4,12 +4,6 @@
 #pragma once
 
 #include "e2ee_common.h"
-#include "../expected.h"
-
-#include "../quotient_export.h"
-
-#include <QtCore/QByteArray>
-#include <QtCore/QString>
 
 namespace Quotient {
 
@@ -52,7 +46,7 @@ enum SslErrorCodes : SslErrorCode {
 
 //! Same as QOlmExpected but for wrapping OpenSSL instead of Olm calls
 template <typename T>
-using SslExpected = Expected<T, SslErrorCode>;
+using SslExpected = std::expected<T, SslErrorCode>;
 
 // TODO, 0.9: merge zeroedByteArray() into zeroes() and replace const QByteArray& with
 // QByteArrayView where OpenSSL/Olm expect an array of signed chars
@@ -62,8 +56,8 @@ inline QByteArray zeroedByteArray(QByteArray::size_type n = 32) { return { n, '\
 template <size_t N, typename T = uint8_t> consteval std::array<T, N> zeroes() { return {}; }
 
 namespace _impl {
-    QUOTIENT_API SslErrorCode pbkdf2HmacSha512(const QByteArray& passphrase, const QByteArray& salt,
-                                               int iterations, byte_span_t<> output);
+    QUOTIENT_API std::optional<std::unexpected<SslErrorCode>> pbkdf2HmacSha512(
+        const QByteArray& passphrase, const QByteArray& salt, int iterations, byte_span_t<> output);
 }
 
 //! Generate a key out of the given passphrase
@@ -73,8 +67,8 @@ QUOTIENT_API inline SslExpected<key_material_t<Size>> pbkdf2HmacSha512(const QBy
                                                                        int iterations)
 {
     key_material_t<Size> result;
-    if (auto code = _impl::pbkdf2HmacSha512(passphrase, salt, iterations, result); code != 0)
-        return code;
+    if (auto code = _impl::pbkdf2HmacSha512(passphrase, salt, iterations, result))
+        return *code;
     return result;
 }
 

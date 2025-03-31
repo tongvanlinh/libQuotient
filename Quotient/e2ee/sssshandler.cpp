@@ -76,37 +76,37 @@ public:
 };
 
 struct SSSSHandler::UnlockData {
-    static Expected<UnlockData, Error> prepare(const Connection* c)
+    static std::expected<UnlockData, Error> prepare(const Connection* c)
     {
         Q_ASSERT(c);
 
         const auto& defaultKeyEvent = c->accountData("m.secret_storage.default_key"_L1);
         if (!defaultKeyEvent) {
             qCWarning(E2EE) << "SSSS: No default secret storage key";
-            return NoKeyError;
+            return std::unexpected(NoKeyError);
         }
         auto defaultKey = defaultKeyEvent->contentPart<QString>("key"_L1);
         const auto keyName = "m.secret_storage.key."_L1 + defaultKey;
         auto* const keyDescription = c->accountData<AesHmacSha2KeyDescription>(keyName);
         if (!keyDescription) {
             qCWarning(E2EE) << "SSSS: No account data for key" << keyName;
-            return NoKeyError;
+            return std::unexpected(NoKeyError);
         }
 
         if (keyDescription->algorithm() != "m.secret_storage.v1.aes-hmac-sha2"_L1) {
             qCWarning(E2EE) << "Unsupported SSSS key algorithm" << keyDescription->algorithm()
                             << " - aborting.";
-            return UnsupportedAlgorithmError;
+            return std::unexpected(UnsupportedAlgorithmError);
         }
         auto iv = QByteArray::fromBase64Encoding(keyDescription->iv().toLatin1());
         if (!iv || iv.decoded.isEmpty() || iv.decoded.size() != AesBlockSize) {
             qCWarning(E2EE) << "SSSS: Malformed or empty IV";
-            return DecryptionError;
+            return std::unexpected(DecryptionError);
         }
         auto&& mac = QByteArray::fromBase64Encoding(keyDescription->mac().toLatin1());
         if (!mac || mac.decoded.isEmpty()) {
             qCWarning(E2EE) << "SSSS: Failed to decode expected MAC or it is empty";
-            return DecryptionError;
+            return std::unexpected(DecryptionError);
         }
         return UnlockData{ std::move(defaultKey), keyDescription->passphrase(), std::move(*iv),
                            std::move(*mac) };

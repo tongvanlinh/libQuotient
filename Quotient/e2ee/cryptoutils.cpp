@@ -63,8 +63,6 @@ inline std::pair<int, bool> checkedSize(
     return { maxSize, true };
 }
 
-// NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-// TODO: remove NOLINT brackets once we're on clang-tidy 18
 #define CLAMP_SIZE(SizeVar_, ByteArray_, ...)                                               \
     const auto [SizeVar_, ByteArray_##Clamped] =                                            \
         checkedSize((ByteArray_).size() __VA_OPT__(, ) __VA_ARGS__);                        \
@@ -72,7 +70,7 @@ inline std::pair<int, bool> checkedSize(
                     u"" #ByteArray_                                                         \
                     " is %1 bytes long, too much for OpenSSL and overall suspicious"_s.arg( \
                         (ByteArray_).size())))                                              \
-        return SslPayloadTooLong;                                                           \
+        return std::unexpected<SslErrorCode>(SslPayloadTooLong);                            \
     do {} while (false)                                                                     \
 // End of macro
 
@@ -82,21 +80,20 @@ inline std::pair<int, bool> checkedSize(
             qCWarning(E2EE) << std::source_location::current().function_name() \
                             << "failed to call OpenSSL API:"                   \
                             << ERR_error_string(ERR_get_error(), nullptr);     \
-            return ERR_get_error();                                            \
+            return std::unexpected(ERR_get_error());                           \
         }                                                                      \
     } while (false)                                                            \
-    // End of macro
-// NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+// End of macro
 
-SslErrorCode Quotient::_impl::pbkdf2HmacSha512(const QByteArray& passphrase, const QByteArray& salt,
-                                               int iterations, byte_span_t<> output)
+std::optional<std::unexpected<SslErrorCode>> Quotient::_impl::pbkdf2HmacSha512(
+    const QByteArray& passphrase, const QByteArray& salt, int iterations, byte_span_t<> output)
 {
     CLAMP_SIZE(passphraseSize, passphrase);
     CLAMP_SIZE(saltSize, salt);
     CLAMP_SIZE(outputSize, output);
     CALL_OPENSSL(PKCS5_PBKDF2_HMAC(passphrase.data(), passphraseSize, asCBytes(salt).data(),
                                    saltSize, iterations, EVP_sha512(), outputSize, output.data()));
-    return 0; // OpenSSL doesn't have a special constant for success code :/
+    return {}; // OpenSSL doesn't have a special constant for success code, so using std::optional
 }
 
 SslExpected<QByteArray> Quotient::aesCtr256Encrypt(const QByteArray& plaintext,
@@ -108,7 +105,7 @@ SslExpected<QByteArray> Quotient::aesCtr256Encrypt(const QByteArray& plaintext,
     const ContextHolder ctx(EVP_CIPHER_CTX_new(), &EVP_CIPHER_CTX_free);
     if (QUO_ALARM_X(!ctx, QByteArrayLiteral("failed to create SSL context: ")
                           + ERR_error_string(ERR_get_error(), nullptr)))
-        return ERR_get_error();
+        return std::unexpected(ERR_get_error());
 
     QByteArray encrypted(plaintextSize + static_cast<int>(iv.size()),
                          Qt::Uninitialized);
@@ -162,7 +159,7 @@ SslExpected<HkdfKeys> Quotient::hkdfSha256(byte_view_t<DefaultPbkdf2KeyLength> k
         qCCritical(E2EE) << "hkdfSha256: the shared secret is" << outputLength
                          << "bytes instead of" << result.size();
         Q_ASSERT(false);
-        return WrongDerivedKeyLength;
+        return std::unexpected(WrongDerivedKeyLength);
     }
 
     return result;
@@ -177,7 +174,7 @@ SslExpected<QByteArray> Quotient::hmacSha256(byte_view_t<HmacKeySize> hmacKey,
              unsignedSize(data), asWritableCBytes(output).data(), &len)
         == nullptr) {
         qWarning() << ERR_error_string(ERR_get_error(), nullptr);
-        return ERR_get_error();
+        return std::unexpected(ERR_get_error());
     }
     return output;
 }
@@ -194,7 +191,7 @@ SslExpected<QByteArray> Quotient::aesCtr256Decrypt(const QByteArray& ciphertext,
             << "aesCtr256Decrypt() failed to create cipher context:"
             << ERR_error_string(ERR_get_error(), nullptr);
         Q_ASSERT(context);
-        return ERR_get_error();
+        return std::unexpected(ERR_get_error());
     }
 
     auto decrypted = zeroedByteArray(ciphertextSize);
@@ -235,12 +232,12 @@ QOlmExpected<QByteArray> Quotient::curve25519AesSha2Decrypt(
                                 publicKey.size(), privateKey.data(),
                                 unsignedSize(privateKey))
         == olm_error())
-        return olm_pk_decryption_last_error_code(context.get());
+        return std::unexpected(olm_pk_decryption_last_error_code(context.get()));
 
     auto plaintext = byteArrayForOlm(olm_pk_max_plaintext_length(context.get(), unsignedSize(ciphertext)));
     const auto resultSize = olm_pk_decrypt(context.get(), ephemeral.data(), unsignedSize(ephemeral), mac.data(), unsignedSize(mac), ciphertext.data(), unsignedSize(ciphertext), plaintext.data(), unsignedSize(plaintext));
     if (resultSize == olm_error())
-        return olm_pk_decryption_last_error_code(context.get());
+        return std::unexpected(olm_pk_decryption_last_error_code(context.get()));
 
     const auto checkedResultSize = checkedSize(resultSize).first;
     plaintext.resize(checkedResultSize);
@@ -256,7 +253,7 @@ QOlmExpected<Curve25519Encrypted> Quotient::curve25519AesSha2Encrypt(
     if (olm_pk_encryption_set_recipient_key(context.get(), publicKey.data(),
                                             unsignedSize(publicKey))
         == olm_error())
-        return olm_pk_encryption_last_error_code(context.get());
+        return std::unexpected(olm_pk_encryption_last_error_code(context.get()));
 
     auto ephemeral = byteArrayForOlm(olm_pk_key_length());
     auto mac = byteArrayForOlm(olm_pk_mac_length(context.get()));
@@ -270,7 +267,7 @@ QOlmExpected<Curve25519Encrypted> Quotient::curve25519AesSha2Encrypt(
                        unsignedSize(ephemeral), getRandom(randomLength).data(),
                        randomLength)
         == olm_error())
-        return olm_pk_encryption_last_error_code(context.get());
+        return std::unexpected(olm_pk_encryption_last_error_code(context.get()));
 
     return Curve25519Encrypted {
         .ciphertext = ciphertext,

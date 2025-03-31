@@ -58,7 +58,7 @@ QOlmExpected<QOlmSession> QOlmAccount::createInbound(
     if (error == olm_error()) {
         qCWarning(E2EE) << "Error when creating inbound session"
                         << session.lastError();
-        return session.lastErrorCode();
+        return std::unexpected(session.lastErrorCode());
     }
 
     return session;
@@ -257,7 +257,7 @@ QOlmExpected<QOlmSession> QOlmAccount::createOutboundSession(
         QOLM_FAIL_OR_LOG_X(errorCode == OLM_NOT_ENOUGH_RANDOM,
                            "Failed to create an outbound Olm session"_L1,
                            olmOutboundSession.lastError());
-        return errorCode;
+        return std::unexpected(errorCode);
     }
     return olmOutboundSession;
 }
