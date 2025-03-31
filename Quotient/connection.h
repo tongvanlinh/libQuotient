@@ -67,31 +67,6 @@ namespace LoginFlowTypes {
                           Token = "m.login.token"_L1;
 }
 
-//! Predefined login flows
-namespace
-#ifndef Q_MOC_RUN
-    [[deprecated("Use login flow types and Connection::getLoginFlow() instead")]]
-#endif
-    LoginFlows {
-    inline const LoginFlow Password { LoginFlowTypes::Password };
-    inline const LoginFlow SSO { LoginFlowTypes::SSO };
-    inline const LoginFlow Token { LoginFlowTypes::Token };
-}
-
-// To simplify comparisons of LoginFlows
-
-[[deprecated("Compare login flow types instead")]]
-inline bool operator==(const LoginFlow& lhs, const LoginFlow& rhs)
-{
-    return lhs.type == rhs.type;
-}
-
-[[deprecated("Compare login flow types instead")]]
-inline bool operator!=(const LoginFlow& lhs, const LoginFlow& rhs)
-{
-    return !(lhs == rhs);
-}
-
 class Connection;
 
 using room_factory_t =
