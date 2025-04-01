@@ -7,6 +7,12 @@ set(quotest_SRCS quotest.cpp)
 find_package(${Qt} COMPONENTS Concurrent)
 add_executable(quotest ${quotest_SRCS})
 target_link_libraries(quotest PRIVATE ${Qt}::Core ${Qt}::Test ${Qt}::Concurrent ${QUOTIENT_LIB_NAME})
+set_target_properties(quotest PROPERTIES
+    CXX_STANDARD 23
+    CXX_EXTENSIONS OFF
+    VISIBILITY_INLINES_HIDDEN ON
+    CXX_VISIBILITY_PRESET hidden
+)
 
 if (MSVC)
     target_compile_options(quotest PUBLIC /EHsc /W4

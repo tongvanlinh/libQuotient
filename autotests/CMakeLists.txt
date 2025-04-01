@@ -14,6 +14,12 @@ function(QUOTIENT_ADD_TEST)
     target_link_libraries(${ARG_NAME} ${Qt}::Core ${Qt}::Test ${QUOTIENT_LIB_NAME})
     add_test(NAME ${ARG_NAME} COMMAND ${ARG_NAME})
     add_dependencies(autotests ${ARG_NAME})
+    set_target_properties(${ARG_NAME} PROPERTIES
+        CXX_STANDARD 23
+        CXX_EXTENSIONS OFF
+        VISIBILITY_INLINES_HIDDEN ON
+        CXX_VISIBILITY_PRESET hidden
+    )
 endfunction()
 
 quotient_add_test(NAME callcandidateseventtest)
