@@ -13,7 +13,7 @@ namespace Quotient {
 struct DevicesList;
 
 namespace _impl {
-    class ConnectionEncryptionData {
+    class QUOTIENT_API ConnectionEncryptionData {
     public:
         static QFuture<bool> setup(Connection* connection,
                                    std::unique_ptr<ConnectionEncryptionData>& result,
