@@ -53,13 +53,13 @@ AttributeMacros:
 #BitFieldColonSpacing: Both
 BraceWrapping:
 #  AfterCaseLabel:  false
-#  AfterClass:      false
+  AfterClass:      true
 #  AfterControlStatement: Never
 #  AfterEnum:       false
 #  AfterExternBlock: false
   AfterFunction:   true
 #  AfterNamespace:  false
-#  AfterStruct:     false
+  AfterStruct:     true
 #  AfterUnion:      false
 #  BeforeCatch:     false
 #  BeforeElse:      false
@@ -161,7 +161,7 @@ PenaltyBreakString: 200
 PenaltyExcessCharacter: 40
 #PenaltyIndentedWhitespace: 0
 PenaltyReturnTypeOnItsOwnLine: 200
-#PointerAlignment: Left
+PointerAlignment: Right
 #PPIndentWidth: -1
 #QualifierAlignment: Leave # Anything else is dangerous, see ClangFormat docs
 #QualifierOrder: ['friend', 'static', 'inline', 'constexpr', 'const', 'volatile', 'type'] # Unknown key error, despite the documentation...

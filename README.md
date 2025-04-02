@@ -39,21 +39,22 @@ To use libQuotient (i.e. build or run applications with it), you'll need:
 
 - A recent Linux, macOS or Windows system (desktop versions are known to work, and there's also
   limited positive experience with Android)
-  - Recent enough Linux examples: Debian Trixie; Fedora 39; openSUSE Leap 15.6; Ubuntu 24.04 LTS
+  - Recent enough Linux examples: Debian Trixie; Fedora 40; Ubuntu 24.04 LTS
 - Qt 6.4 or newer - either Open Source or Commercial
 - QtKeychain (https://github.com/frankosterfeld/qtkeychain) - 0.12 or newer is recommended;
-  the build configuration of QtKeychain must use the same Qt major version, that is Qt 6.
+  the build configuration of QtKeychain must use the same Qt major version, i.e. Qt 6.
 
 To build applications with libQuotient, you'll also need:
 
 - CMake 3.26 or newer
-- A C++ toolchain that supports at least some subset of C++20 (concepts, in particular):
-  - GCC 13 (Windows, Linux, macOS), Clang 16 (Linux), Apple Clang 15 (macOS 14+)
-    and Visual Studio 2022 (Windows) are the oldest officially supported
+- A C++ toolchain that has reasonably complete C++20 support and some C++23 elements
+  (`std::expected`, in particular)
+  - GCC 13 (Windows, Linux, macOS), Clang 18 (Linux), Apple Clang 15 (macOS 14+)
+    and Visual Studio 2022 17.6 (Windows) are the oldest officially supported
 - libolm 3.2.5 or newer (the latest 3.x strongly recommended)
-- OpenSSL 3.x (1.1.x may still work but is strongly recommended against)
+- OpenSSL 3.x (1.1.x may still work but is strongly discouraged)
 - Any build system that works with CMake should be fine; known to work are GNU Make and
-  ninja (recommended) on any platform; NMake and jom on Windows
+  ninja (recommended) on any platform; NMake and jom on Windows should also work
 
 The requirements to build libQuotient itself are basically the same except that you should install
 development libraries for the dependencies listed above.

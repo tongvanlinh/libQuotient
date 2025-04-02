@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <QtCore/qglobal.h>
+#include <QtCore/qcompilerdetection.h>
 
 #ifdef QUOTIENT_STATIC
     #define QUOTIENT_API
