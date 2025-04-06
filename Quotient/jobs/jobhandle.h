@@ -3,6 +3,7 @@
 #include "basejob.h"
 
 #include <QtCore/QFuture>
+#include <QtCore/QPointer>
 
 namespace Quotient {
 
@@ -84,13 +85,16 @@ private:
         : pointer_type(job), future_type(std::move(futureToWrap))
     {}
 
-    static future_type setupFuture(JobT* job)
-    {
-        return job ? job->future().then([job] { return future_value_type{ job }; }) : future_type{};
-    }
-
 public:
-    Q_IMPLICIT JobHandle(JobT* job = nullptr) : JobHandle(job, setupFuture(job)) {}
+    JobHandle() = default; //!< Creates a "null QPointer, cancelled QFuture" job handle
+
+    //! Create a new job and get a JobHandle for it
+    template <typename... JobArgTs>
+    static JobHandle createFrom(JobArgTs&&... jobArgs)
+    {
+        auto pJob = new JobT(std::forward<JobArgTs>(jobArgs)...);
+        return { pJob, pJob->future().then([pJob] { return future_value_type{ pJob }; }) };
+    }
 
     //! \brief Attach a continuation to a successful or unsuccessful completion of the future
     //!
@@ -309,8 +313,8 @@ private:
         // exist when the continuation is constructed, and only later it would change its value
         // to something useful. Unless the client code stored the original JobHandle, it would
         // lose that change and only store nullptr; and if it stores a JobHandle then it can just
-        // use the QFuture interface instead. Therefore a pure QFuture is returned instead, that
-        // settles when the underlying job finishes or gets cancelled.
+        // use the QFuture interface instead. The returned QFuture settles when the underlying job
+        // finishes or gets cancelled.
         QFutureInterface<typename JobHandle<NewJobT>::future_value_type> newPromise(
             QFutureInterfaceBase::State::Pending);
         ft.then([newPromise](JobHandle<NewJobT> nestedHandle) mutable {

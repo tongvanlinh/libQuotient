@@ -680,7 +680,7 @@ QFuture<Room*> Connection::joinAndGetRoom(const QString& roomAlias, const QStrin
         .then([this](const QString& roomId) { return provideRoom(roomId); });
 }
 
-LeaveRoomJob* Connection::leaveRoom(Room* room)
+JobHandle<LeaveRoomJob> Connection::leaveRoom(Room* room)
 {
     const auto& roomId = room->id();
     const auto job = callApi<LeaveRoomJob>(roomId);
@@ -717,24 +717,22 @@ QUrl Connection::makeMediaUrl(QUrl mxcUrl) const
     return mxcUrl;
 }
 
-MediaThumbnailJob* Connection::getThumbnail(const QString& mediaId,
-                                            QSize requestedSize,
-                                            RunningPolicy policy)
+JobHandle<MediaThumbnailJob> Connection::getThumbnail(const QString& mediaId, QSize requestedSize,
+                                                      RunningPolicy policy)
 {
     auto idParts = splitMediaId(mediaId);
     return callApi<MediaThumbnailJob>(policy, idParts.front(), idParts.back(),
                                       requestedSize);
 }
 
-MediaThumbnailJob* Connection::getThumbnail(const QUrl& url, QSize requestedSize,
-                                            RunningPolicy policy)
+JobHandle<MediaThumbnailJob> Connection::getThumbnail(const QUrl& url, QSize requestedSize,
+                                                      RunningPolicy policy)
 {
     return getThumbnail(url.authority() + url.path(), requestedSize, policy);
 }
 
-MediaThumbnailJob* Connection::getThumbnail(const QUrl& url, int requestedWidth,
-                                            int requestedHeight,
-                                            RunningPolicy policy)
+JobHandle<MediaThumbnailJob> Connection::getThumbnail(const QUrl& url, int requestedWidth,
+                                                      int requestedHeight, RunningPolicy policy)
 {
     return getThumbnail(url, QSize(requestedWidth, requestedHeight), policy);
 }
@@ -752,7 +750,7 @@ JobHandle<UploadContentJob> Connection::uploadContent(QIODevice* contentSource,
         if (!contentSource->open(QIODevice::ReadOnly)) {
             qCWarning(MAIN) << "Couldn't open content source" << filename
                             << "for reading:" << contentSource->errorString();
-            return nullptr;
+            return {};
         }
     }
     return callApi<UploadContentJob>(contentSource, filename, contentType);
@@ -777,16 +775,16 @@ BaseJob* Connection::getContent(const QUrl& url)
     QT_IGNORE_DEPRECATIONS(return getContent(url.authority() + url.path());)
 }
 
-DownloadFileJob* Connection::downloadFile(const QUrl& url, const QString& localFilename)
+JobHandle<DownloadFileJob> Connection::downloadFile(const QUrl& url, const QString& localFilename)
 {
     auto mediaId = url.authority() + url.path();
     auto idParts = splitMediaId(mediaId);
     return callApi<DownloadFileJob>(idParts.front(), idParts.back(), localFilename);
 }
 
-DownloadFileJob* Connection::downloadFile(
-    const QUrl& url, const EncryptedFileMetadata& fileMetadata,
-    const QString& localFilename)
+JobHandle<DownloadFileJob> Connection::downloadFile(const QUrl& url,
+                                                    const EncryptedFileMetadata& fileMetadata,
+                                                    const QString& localFilename)
 {
     auto mediaId = url.authority() + url.path();
     auto idParts = splitMediaId(mediaId);
@@ -1591,14 +1589,13 @@ void Connection::setLazyLoading(bool newValue)
     }
 }
 
-BaseJob* Connection::run(BaseJob* job, RunningPolicy runningPolicy)
+void Connection::run(BaseJob* job, RunningPolicy runningPolicy)
 {
     // Reparent to protect from #397, #398 and to prevent BaseJob* from being
     // garbage-collected if made by or returned to QML/JavaScript.
     job->setParent(this);
     connect(job, &BaseJob::failure, this, &Connection::requestFailed);
     job->initiate(d->data.get(), runningPolicy & BackgroundRequest);
-    return job;
 }
 
 void Connection::getTurnServers()

@@ -222,10 +222,10 @@ DeviceKeys QOlmAccount::deviceKeys() const
     };
 }
 
-UploadKeysJob* QOlmAccount::createUploadKeyRequest(
+JobHandle<UploadKeysJob> QOlmAccount::createUploadKeyRequest(
     const UnsignedOneTimeKeys& oneTimeKeys) const
 {
-    return new UploadKeysJob(deviceKeys(), signOneTimeKeys(oneTimeKeys));
+    return JobHandle<UploadKeysJob>::createFrom(deviceKeys(), signOneTimeKeys(oneTimeKeys));
 }
 
 QOlmExpected<QOlmSession> QOlmAccount::createInboundSession(

@@ -10,6 +10,8 @@
 
 #include "../csapi/keys.h"
 
+#include "../jobs/jobhandle.h"
+
 #include <QtCore/QObject>
 
 struct OlmAccount;
@@ -66,7 +68,7 @@ public:
     //! Sign all one time keys.
     OneTimeKeys signOneTimeKeys(const UnsignedOneTimeKeys &keys) const;
 
-    UploadKeysJob* createUploadKeyRequest(const UnsignedOneTimeKeys& oneTimeKeys) const;
+    JobHandle<UploadKeysJob> createUploadKeyRequest(const UnsignedOneTimeKeys& oneTimeKeys) const;
 
     DeviceKeys deviceKeys() const;
 

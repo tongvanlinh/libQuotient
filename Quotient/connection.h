@@ -515,21 +515,26 @@ public:
     bool lazyLoading() const;
     void setLazyLoading(bool newValue);
 
-    //! Start a pre-created job object on this connection
-    Q_INVOKABLE BaseJob* run(BaseJob* job, RunningPolicy runningPolicy = ForegroundRequest);
-
-    //! \brief Start a pre-created job on this connection and get a job handle to it
+    //! \brief Start a pre-made job object on this connection
     //!
-    //! This is a template overload for run(BaseJob*, RunningPolicy) - if you call run() on any
-    //! derived job (99% of the cases when you're going to call it), this overload will be chosen
-    //! as a more type-safe and feature-rich version. It's not Q_INVOKABLE though.
+    //! Use this overload in case when you don't want to, or cannot, use JobHandle. Internally,
+    //! this is also the function all other template wrappers ultimately call to do the real work.
+    Q_INVOKABLE void run(Quotient::BaseJob* job,
+                         Quotient::RunningPolicy runningPolicy = Quotient::ForegroundRequest);
+
+    //! \brief Start a pre-created job on this connection
+    //!
+    //! Use this overload if you have a job object pre-made with JobHandle<>::createFrom() when
+    //! you need to actually start (or rather, queue) the network request. It is strongly
+    //! recommended to use the job handle returned by run() instead of the original, as run() may
+    //! (in the future) attach continuations to the future interface of the handle.
+    //! \sa JobHandle::createFrom
     template <std::derived_from<BaseJob> JobT>
         requires (!std::same_as<JobT, BaseJob>)
-    JobHandle<JobT> run(JobT* job, RunningPolicy runningPolicy = ForegroundRequest)
+    JobHandle<JobT> run(JobHandle<JobT>&& job, RunningPolicy runningPolicy = ForegroundRequest)
     {
-        JobHandle jh { job };
-        run(static_cast<BaseJob*>(job), runningPolicy);
-        return jh;
+        run(job.get(), runningPolicy);
+        return std::move(job);
     }
 
     //! \brief Start a job of a given type with specified arguments and policy
@@ -546,7 +551,7 @@ public:
     template <typename JobT, typename... JobArgTs>
     JobHandle<JobT> callApi(RunningPolicy runningPolicy, JobArgTs&&... jobArgs)
     {
-        return run(new JobT(std::forward<JobArgTs>(jobArgs)...), runningPolicy);
+        return run(JobHandle<JobT>::createFrom(std::forward<JobArgTs>(jobArgs)...), runningPolicy);
     }
 
     //! \brief Start a job of a specified type with specified arguments
@@ -710,14 +715,13 @@ public Q_SLOTS:
 
     void stopSync();
 
-    virtual MediaThumbnailJob*
-    getThumbnail(const QString& mediaId, QSize requestedSize,
-                 RunningPolicy policy = BackgroundRequest);
-    MediaThumbnailJob* getThumbnail(const QUrl& url, QSize requestedSize,
-                                    RunningPolicy policy = BackgroundRequest);
-    MediaThumbnailJob* getThumbnail(const QUrl& url, int requestedWidth,
-                                    int requestedHeight,
-                                    RunningPolicy policy = BackgroundRequest);
+    virtual JobHandle<MediaThumbnailJob> getThumbnail(const QString& mediaId, QSize requestedSize,
+                                                      RunningPolicy policy = BackgroundRequest);
+    JobHandle<MediaThumbnailJob> getThumbnail(const QUrl& url, QSize requestedSize,
+                                              RunningPolicy policy = BackgroundRequest);
+    JobHandle<MediaThumbnailJob> getThumbnail(const QUrl& url, int requestedWidth,
+                                              int requestedHeight,
+                                              RunningPolicy policy = BackgroundRequest);
 
     // QIODevice* should already be open
     JobHandle<UploadContentJob> uploadContent(QIODevice* contentSource, const QString& filename = {},
@@ -728,11 +732,11 @@ public Q_SLOTS:
     [[deprecated("Use downloadFile() instead")]] BaseJob* getContent(const QUrl& url);
 
     // If localFilename is empty, a temporary file will be created
-    DownloadFileJob* downloadFile(const QUrl& url, const QString& localFilename = {});
+    JobHandle<DownloadFileJob> downloadFile(const QUrl& url, const QString& localFilename = {});
 
-    DownloadFileJob* downloadFile(const QUrl& url,
-                                  const EncryptedFileMetadata& fileMetadata,
-                                  const QString& localFilename = {});
+    JobHandle<DownloadFileJob> downloadFile(const QUrl& url,
+                                            const EncryptedFileMetadata& fileMetadata,
+                                            const QString& localFilename = {});
 
     //! \brief Create a room (generic method)
     //!
@@ -775,7 +779,7 @@ public Q_SLOTS:
     SendMessageJob* sendMessage(const QString& roomId, const RoomEvent& event);
 
     //! \deprecated Do not use this directly, use Room::leaveRoom() instead
-    virtual LeaveRoomJob* leaveRoom(Room* room);
+    virtual JobHandle<LeaveRoomJob> leaveRoom(Room* room);
 
     Quotient::KeyVerificationSession* startKeyVerificationSession(const QString& userId,
                                                                   const QString& deviceId);
