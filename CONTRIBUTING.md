@@ -104,13 +104,23 @@ under *LGPL v3 or later* (that includes licenses permitting *LGPL v2.1 or later*
 *LGPL v2.1 only*). While this rule can be negotiated in some situations, using only licenses from
 [the list approved by OSI](https://opensource.org/licenses) is non-negotiable.
 
-We use [SPDX](https://spdx.dev) conventions for copyright statements. Please
-follow them when making a sizable contribution: add your name and year to
-the top of the file. New files should begin with the following preamble:
+We use [SPDX](https://spdx.dev) conventions for copyright statements. Please follow them when adding
+new files by beginning them with the following preamble, also available in
+[source_file.template](./source_file.template) for convenience:
 ```cpp
-// SPDX-FileCopyrightText: 2021 Your Name <your@email.address>
-// SPDX-License-Identifier: LGPL-2.1-or-later
+// SPDX-FileCopyrightText: The Quotient Project Contributors
+// SPDX-License-Identifier: LGPL-3.0-or-later
 ```
+Individual names and years are discouraged as they bitrot quickly, and both of these are much more
+reliably found out from Git logs. See
+[the recommendation of LF](https://www.linuxfoundation.org/blog/blog/copyright-notices-in-open-source-software-projects)
+for more details on why a static preamble is better and is just as robust when when it comes to
+copyright compliance.
+
+In line with the same LF recommendation, you're totally allowed to use a different (OSI-approved -
+see above) license and/or include your name, year, and additional SPDX annotations. The only
+requirement is using SPDX. Otherwise, the copyright preamble is not subject to any kind of "cleanup"
+except for glaring bitrot.
 
 ## Vulnerability reporting (security issues) - see [SECURITY.md](./SECURITY.md)
 
@@ -126,22 +136,22 @@ to make the review easier.
 
 ### C++ feature set
 
-As of Quotient 0.9, the C++ standard for new code is C++20, except a few features that currently
-supported toolchains still don't have, most notably:
+As of version 0.10, the library is compiled with C++23 flags. That being said, support of C++23 is
+still patchy depending on the toolchain (GCC and MSVC lead the pack). You can confidently use C++20
+except a couple features still not fully supported across the board:
 - template parameteres for type aliases and aggregates still cannot be deduced yet, you have
   to explicitly specify those;
-- modules support, while formally there, is missing standard library header units; sticking with
-  good old `#include`s in this cycle.
+- we still don't use modules, though it's more likely with every toolchain upgrade.
 
-You can also try to use some C++23 library features; libQuotient is compiled with C++23 flags. The
+As for C++23 features, the
 [compiler support page at cppreference](https://en.cppreference.com/w/cpp/compiler_support#cpp23)
 is a nice tool to check whether you can try using a specific language or library feature; refer
 to the list of toolchain versions in [README](./README.md) for the compatibility baseline.
-Be mindful that Clang build configuration on Linux does not use LLVM project's libc++ but rather
-the GNU C++ standard library (i.e. you should look at Clang column for core language features
-but GCC libstdc++ for library features). Most of the limitations, however, are due to Apple's
-standard library - they have their own spin of libc++ that is constantly behind vanilla and, as 
-of now, the poorest in terms of features.
+Be mindful that Clang build configuration on our Linux CI does not use LLVM project's libc++ but
+rather the GNU C++ standard library (i.e. you should look at Clang column for core language features
+but GCC libstdc++ for library features). Most of the limitations these days, anyway, are due
+to Apple's toolchain - they have their own spin of Clang and libc++ that is constantly behind
+vanilla and, as of now, the poorest in terms of features.
 
 ### Code style and formatting
 
@@ -150,12 +160,14 @@ should follow it. Reasonable deviations from the defined style are allowed;
 use `// clang-format off` and `// clang-format on` to protect them.
 
 Most fundamental things from `.clang-format`:
-* Our style is based on that of Webkit: 4-space indents, no tabs, no trailing spaces, no empty lines
+* Our style is based on that of Qt: 4-space indents, no tabs, no trailing spaces, no empty lines
   at the end of the file. If you see code that doesn't follow this, fix it on the spot, thank you.
 * Prefer keeping lines within 100 characters. Slight overflows are ok if that
   helps readability.
-
-Ideally, just use `clang-format` to format lines.
+* Historically, pointer/reference alignment has been left (`auto& var`) but since Quotient 0.10
+  it will gradually switch to right (`auto &var`), to align with Qt and KDE formatting rules.
+* Aside from the above, we're rather lenient on formatting; but ideally, please use `clang-format`
+  to format your code.
 
 ### API conventions
 
@@ -424,7 +436,7 @@ Qt Creator in addition knows about clazy, a Qt-aware static analysis tool that
 hunts for Qt-specific issues that are easy to overlook otherwise, such as
 possible unintended copying of a Qt container. Most of clazy checks are relevant
 to our code; here's the configuration line the author of this text is using:
-`level2,no-foreach,no-non-pod-global-static,no-range-loop-reference,no-ctor-missing-parent-argument,no-missing-qobject-macro,no-jni-signatures,no-qt-keywords,no-qt4-qstring-from-array`
+`level2,no-foreach,no-non-pod-global-static,no-range-loop-reference,no-ctor-missing-parent-argument,no-function-args-by-ref,no-missing-qobject-macro,no-jni-signatures,no-qt-keywords,no-qt4-qstring-from-array`
 
 ### Continuous Integration
 
