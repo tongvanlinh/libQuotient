@@ -13,7 +13,7 @@ namespace EventContent {
 //! \brief Definition of an allow AllowCondition
 //!
 //! \sa https://spec.matrix.org/latest/client-server-api/#mroomjoin_ruless
-struct AllowCondition {
+struct QUOTIENT_API AllowCondition {
     QString roomId;
     QString type;
 };
@@ -30,7 +30,7 @@ struct AllowCondition {
 //! \brief The content of a join rule event
 //!
 //! \sa https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules
-struct JoinRuleContent {
+struct QUOTIENT_API JoinRuleContent {
     JoinRule joinRule;
     QList<AllowCondition> allow;
 };
@@ -75,8 +75,8 @@ inline auto toJson(const EventContent::JoinRuleContent& c)
 //! \brief Class to define a join rule state event.
 //!
 //! \sa Quotient::StateEvent, https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules
-class JoinRulesEvent : public KeylessStateEventBase<JoinRulesEvent,
-    EventContent::JoinRuleContent>
+class QUOTIENT_API JoinRulesEvent
+    : public KeylessStateEventBase<JoinRulesEvent, EventContent::JoinRuleContent>
 {
 public:
     QUO_EVENT(JoinRulesEvent, "m.room.join_rules")
