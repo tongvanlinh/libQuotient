@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include <Quotient/converters.h>
-#include <Quotient/expected.h>
+#include "Quotient/converters.h"
+#include "Quotient/expected.h"
 
 #include <QtCore/QMetaType>
 #include <QtCore/QStringBuilder>

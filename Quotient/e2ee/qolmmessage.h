@@ -4,11 +4,13 @@
 
 #pragma once
 
-#include <Quotient/quotient_export.h>
+#include "Quotient/quotient_export.h"
 
 #include <QtCore/QByteArray>
-#include <qobjectdefs.h>
+
 #include <olm/olm.h>
+
+#include <qobjectdefs.h>
 
 namespace Quotient {
 

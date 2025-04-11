@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <Quotient/e2ee/e2ee_common.h>
-#include <Quotient/e2ee/qolmmessage.h>
+#include "e2ee_common.h"
+#include "qolmmessage.h"
 
 struct OlmSession;
 

@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include "events/event.h"
+
 #include <QtTest/QTest>
 
 #include <memory>
-
-#include <Quotient/events/event.h>
 
 namespace Quotient {
 

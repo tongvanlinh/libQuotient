@@ -5,8 +5,8 @@
 
 #include "testutils.h"
 
-#include <Quotient/connection.h>
-#include <Quotient/networkaccessmanager.h>
+#include "connection.h"
+#include "networkaccessmanager.h"
 
 #include <QtTest/QSignalSpy>
 

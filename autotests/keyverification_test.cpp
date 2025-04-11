@@ -2,14 +2,12 @@
 //
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
+#include "connection.h"
 #include "olm/sas.h"
+#include "e2ee/qolmaccount.h"
 
-#include <QTest>
 #include <QtCore/QDateTime>
-
-#include <Quotient/connection.h>
-#include <Quotient/e2ee/qolmaccount.h>
-#include <Quotient/e2ee/cryptoutils.h>
+#include <QtTest/QTest>
 
 using namespace Quotient;
 

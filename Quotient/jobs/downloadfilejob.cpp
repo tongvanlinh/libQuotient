@@ -4,13 +4,10 @@
 #include "downloadfilejob.h"
 
 #include "Quotient/connectiondata.h"
-
-#include "../csapi/authed-content-repo.h"
-#include "../csapi/content-repo.h"
-
-#include <Quotient/events/filesourceinfo.h>
-
-#include "../logging_categories_p.h"
+#include "Quotient/logging_categories_p.h"
+#include "Quotient/csapi/authed-content-repo.h"
+#include "Quotient/csapi/content-repo.h"
+#include "Quotient/events/filesourceinfo.h"
 
 #include <QtCore/QCryptographicHash>
 #include <QtCore/QFile>

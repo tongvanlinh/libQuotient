@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <Quotient/e2ee/e2ee_common.h>
+#include "e2ee_common.h"
 
 struct OlmInboundGroupSession;
 

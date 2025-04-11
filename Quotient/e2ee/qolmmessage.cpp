@@ -4,7 +4,7 @@
 
 #include "qolmmessage.h"
 
-#include <Quotient/util.h>
+#include "Quotient/util.h"
 
 using namespace Quotient;
 

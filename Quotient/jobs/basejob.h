@@ -4,15 +4,13 @@
 
 #pragma once
 
+#include "Quotient/converters.h" // Common for csapi/ headers even though not used here
 #include "requestdata.h"
 
+#include <QtCore/QFuture>
+#include <QtCore/QLoggingCategory>
 #include <QtCore/QObject>
 #include <QtCore/QStringBuilder>
-#include <QtCore/QLoggingCategory>
-#include <QtCore/QFuture>
-
-#include <Quotient/converters.h> // Common for csapi/ headers even though not used here
-#include <Quotient/quotient_common.h> // For DECL_DEPRECATED_ENUMERATOR
 
 class QNetworkRequest;
 class QNetworkReply;

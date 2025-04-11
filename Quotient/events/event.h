@@ -3,10 +3,9 @@
 
 #pragma once
 
-#include "single_key_value.h"
-
-#include <Quotient/converters.h>
-#include <Quotient/function_traits.h>
+#include "Quotient/converters.h"
+#include "Quotient/function_traits.h"
+#include "single_key_value.h" // IWYU pragma: keep for DEFINE_SIMPLE_EVENT
 
 #include <span>
 

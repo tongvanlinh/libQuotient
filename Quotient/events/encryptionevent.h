@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <Quotient/quotient_common.h>
+#include "Quotient/quotient_common.h"
 #include "stateevent.h"
 
 namespace Quotient {
