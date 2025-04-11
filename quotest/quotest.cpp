@@ -28,8 +28,6 @@
 #include <QtConcurrent/QtConcurrent>
 #include <QtNetwork/QNetworkReply>
 
-#include <iostream>
-
 using namespace Quotient;
 
 class TestSuite;
@@ -39,7 +37,7 @@ public:
     TestManager(int& argc, char** argv);
 
 private:
-    void setupAndRun();
+    void setupAndRun(const QString &targetRoomAlias);
     void onNewRoom(Room* r);
     void doTests();
     void conclude();
@@ -48,7 +46,6 @@ private:
 private:
     Connection* c = nullptr;
     QString origin;
-    QString targetRoomName;
     TestSuite* testSuite = nullptr;
     QByteArrayList running {}, succeeded {}, failed {};
 };
@@ -201,28 +198,57 @@ inline void logConnectionDetails(Connection* c)
     qInfo() << "Access token:" << c->accessToken();
 }
 
+using qsl_size_t = QStringList::size_type;
+
+template <qsl_size_t From, qsl_size_t N>
+inline std::array<QString, N> unpackList(const QStringList &l)
+{
+    return [&l]<qsl_size_t... Is>(std::integer_sequence<qsl_size_t, Is...>) {
+        return std::to_array<QString>({l.size() > From + Is ? l[From + Is] : QString()...});
+    }(std::make_integer_sequence<qsl_size_t, N>{});
+}
+
 TestManager::TestManager(int& argc, char** argv)
     : QCoreApplication(argc, argv), c(new Connection(this))
 {
-    Q_ASSERT(argc >= 5);
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    qInfo() << "Connecting to Matrix as" << argv[1];
-    c->loginWithPassword(QString::fromUtf8(argv[1]), QString::fromUtf8(argv[2]),
-                         QString::fromUtf8(argv[3]));
-    targetRoomName = QString::fromUtf8(argv[4]);
-    qInfo() << "Test room name:" << argv[4];
-    if (argc > 5) {
-        origin = QString::fromUtf8(argv[5]);
-        qInfo() << "Origin for the test message:" << origin;
-    }
-    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    setOrganizationName(u"Quotient"_s);
+    setApplicationName(u"Quotest"_s);
+    setApplicationVersion(versionString());
 
-    connect(c, &Connection::connected, this, [this] {
+    // QCommandLineParser is of limited use here, as it cannot control for the number and format
+    // of positional arguments; but at least it can show a nice help block
+    const auto appDescription = u"Functional test suite for libQuotient"_s;
+    QCommandLineParser clp;
+    clp.setApplicationDescription(appDescription);
+    clp.addHelpOption();
+    clp.addVersionOption();
+    clp.addPositionalArgument(u"user"_s, u"The user MXID that quotest will use to run tests"_s);
+    clp.addPositionalArgument(u"password"_s, u"The password for the provided MXID"_s);
+    clp.addPositionalArgument(u"device_name"_s, u"The device name to login with"_s);
+    clp.addPositionalArgument(u"room_alias"_s, u"The alias of the room to run tests in"_s);
+    clp.addPositionalArgument(u"origin"_s,
+                              u"The invoker of the test or the conditions it is run in"_s,
+                              u"origin"_s);
+    clp.process(*this);
+    const auto &positionalArgs = clp.positionalArguments();
+    if (positionalArgs.size() < 5)
+        clp.showHelp(EXIT_FAILURE);
+
+    qInfo().noquote() << applicationName() << applicationVersion();
+    const auto &[user, password, deviceName, targetRoomAlias] = unpackList<0, 4>(positionalArgs);
+    origin = positionalArgs[4];
+    qInfo().noquote() << "Connecting to Matrix as" << user;
+    qInfo().noquote() << "Test room alias:" << targetRoomAlias;
+    if (!origin.isEmpty())
+        qInfo() << "Origin for the test message:" << origin;
+
+    c->loginWithPassword(user, password, deviceName);
+    connect(c, &Connection::connected, this, [this, targetRoomAlias] {
         if (QUO_ALARM(c->homeserver().isEmpty() || !c->homeserver().isValid())
             || QUO_ALARM(c->domain() != c->userId().section(u':', 1))) {
             qCritical() << "Connection information doesn't look right, "
                         << "check the parameters passed to quotest";
-            QCoreApplication::exit(-2);
+            exit(2);
             return;
         }
         logConnectionDetails(c);
@@ -235,18 +261,18 @@ TestManager::TestManager(int& argc, char** argv)
         if (QUO_ALARM(newC->homeserver() != c->homeserver())
             || QUO_ALARM(newC->userId() != c->userId()) || QUO_ALARM(!newC->isLoggedIn())) {
             qCritical() << "Connection::assumeIdentity() is broken";
-            QCoreApplication::exit(-2);
+            exit(2);
             return;
         }
 
         c->deleteLater();
         c = newC;
-        setupAndRun();
+        setupAndRun(targetRoomAlias);
     });
     connect(c, &Connection::resolveError, this,
         [](const QString& error) {
             qCritical() << "Could not start testing:" << error;
-            QCoreApplication::exit(-2);
+            exit(2);
         },
         Qt::QueuedConnection);
     connect(c, &Connection::loginError, this,
@@ -254,7 +280,7 @@ TestManager::TestManager(int& argc, char** argv)
         qCritical().nospace() << "Failed to login to " << c->homeserver().toDisplayString() << ": "
                               << message;
         qWarning() << "Details:\n" << details;
-        QCoreApplication::exit(-2);
+        exit(2);
     }, Qt::QueuedConnection);
 
     // Big countdown watchdog
@@ -276,7 +302,7 @@ void listTests(const char *message, QByteArrayList testList)
         dbg << testName(test);
 }
 
-void TestManager::setupAndRun()
+void TestManager::setupAndRun(const QString& targetRoomAlias)
 {
     Q_ASSERT(!c->homeserver().isEmpty() && c->homeserver().isValid());
     Q_ASSERT(c->domain() == c->userId().section(u':', 1));
@@ -286,8 +312,8 @@ void TestManager::setupAndRun()
 
     c->setLazyLoading(true);
 
-    qInfo() << "Joining" << targetRoomName;
-    c->joinAndGetRoom(targetRoomName).then(this, [this](Room* room) {
+    qInfo() << "Joining" << targetRoomAlias;
+    c->joinAndGetRoom(targetRoomAlias).then(this, [this](Room* room) {
         if (!room) {
             qCritical() << "Failed to join the test room";
             finalize();
@@ -947,29 +973,22 @@ void TestManager::finalize(const QString& lastWords)
 {
     if (!c->isLoggedIn()) {
         qCritical("No usable connection reached");
-        QCoreApplication::exit(-2);
-        return; // NB: QCoreApplication::exit() does return to the caller
+        exit(2);
+        return; // NB: QCoreApplication::exit() still returns to the caller
     }
     qInfo("Logging out");
     c->logout().then(
         this, [this, lastWords] {
             qInfo().noquote() << lastWords;
-            QCoreApplication::exit(!testSuite ? -3
-                                   : succeeded.empty() && failed.empty()
-                                           && running.empty()
-                                       ? -4
-                                       : static_cast<int>(failed.size() + running.size()));
+            exit(!testSuite ? 3
+                 : succeeded.empty() && failed.empty() && running.empty()
+                     ? 4
+                     : -static_cast<int>(failed.size() + running.size()));
         });
 }
 
 int main(int argc, char* argv[])
 {
-    // TODO: use QCommandLineParser
-    if (argc < 5) {
-        std::cerr << "Usage: quotest <user> <passwd> <device_name> <room_alias> [origin]\n";
-        return -1;
-    }
-    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     return TestManager(argc, argv).exec();
 }
 
