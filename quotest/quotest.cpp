@@ -904,20 +904,6 @@ TEST_IMPL(thread)
     return false;
 }
 
-bool checkPrettyPrint(std::initializer_list<std::pair<const char *, const char *>> tests)
-{
-    bool result = true;
-    for (const auto& [test, etalon] : tests) {
-        const auto is = prettyPrint(QString::fromUtf8(test));
-        const QString shouldBe("<span style='white-space:pre-wrap'>"_L1 % etalon % "</span>"_L1);
-        if (is == shouldBe)
-            continue;
-        qWarning() << is << " != " << shouldBe;
-        result = false;
-    }
-    return result;
-}
-
 void TestManager::conclude()
 {
     // Clean up the room (best effort)
