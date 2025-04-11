@@ -11,7 +11,7 @@ SearchUserDirectoryJob::SearchUserDirectoryJob(const QString& searchTerm, std::o
     QJsonObject _dataJson;
     addParam(_dataJson, "search_term"_L1, searchTerm);
     addParam<IfNotEmpty>(_dataJson, "limit"_L1, limit);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
     addExpectedKey(u"results"_s);
     addExpectedKey(u"limited"_s);
 }

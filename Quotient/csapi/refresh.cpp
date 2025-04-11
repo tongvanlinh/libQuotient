@@ -9,6 +9,6 @@ RefreshJob::RefreshJob(const QString& refreshToken)
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "refresh_token"_L1, refreshToken);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
     addExpectedKey(u"access_token"_s);
 }

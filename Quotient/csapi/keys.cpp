@@ -12,7 +12,7 @@ UploadKeysJob::UploadKeysJob(const std::optional<DeviceKeys>& deviceKeys,
     addParam<IfNotEmpty>(_dataJson, "device_keys"_L1, deviceKeys);
     addParam<IfNotEmpty>(_dataJson, "one_time_keys"_L1, oneTimeKeys);
     addParam<IfNotEmpty>(_dataJson, "fallback_keys"_L1, fallbackKeys);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
     addExpectedKey(u"one_time_key_counts"_s);
 }
 
@@ -22,7 +22,7 @@ QueryKeysJob::QueryKeysJob(const QHash<UserId, QStringList>& deviceKeys, std::op
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "timeout"_L1, timeout);
     addParam(_dataJson, "device_keys"_L1, deviceKeys);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }
 
 ClaimKeysJob::ClaimKeysJob(const QHash<UserId, QHash<QString, QString>>& oneTimeKeys,
@@ -32,7 +32,7 @@ ClaimKeysJob::ClaimKeysJob(const QHash<UserId, QHash<QString, QString>>& oneTime
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "timeout"_L1, timeout);
     addParam(_dataJson, "one_time_keys"_L1, oneTimeKeys);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
     addExpectedKey(u"one_time_keys"_s);
 }
 

@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include <Quotient/csapi/definitions/room_event_filter.h>
-
-#include <Quotient/events/roomevent.h>
-#include <Quotient/events/stateevent.h>
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/csapi/definitions/room_event_filter.h"
+#include "Quotient/events/roomevent.h"
+#include "Quotient/events/stateevent.h"
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 

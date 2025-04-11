@@ -69,7 +69,7 @@ SetPushRuleJob::SetPushRuleJob(const QString& kind, const QString& ruleId,
     addParam(_dataJson, "actions"_L1, actions);
     addParam<IfNotEmpty>(_dataJson, "conditions"_L1, conditions);
     addParam<IfNotEmpty>(_dataJson, "pattern"_L1, pattern);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }
 
 QUrl IsPushRuleEnabledJob::makeRequestUrl(const HomeserverData& hsData, const QString& kind,
@@ -93,7 +93,7 @@ SetPushRuleEnabledJob::SetPushRuleEnabledJob(const QString& kind, const QString&
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "enabled"_L1, enabled);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }
 
 QUrl GetPushRuleActionsJob::makeRequestUrl(const HomeserverData& hsData, const QString& kind,
@@ -117,5 +117,5 @@ SetPushRuleActionsJob::SetPushRuleActionsJob(const QString& kind, const QString&
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "actions"_L1, actions);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }

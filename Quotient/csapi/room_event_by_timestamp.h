@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -77,7 +77,7 @@ public:
 
 template <std::derived_from<GetEventByTimestampJob> JobT>
 constexpr inline auto doCollectResponse<JobT> = [](JobT* j) -> GetEventByTimestampJob::Response {
-    return { j->eventId(), j->originServerTimestamp() };
+    return {j->eventId(), j->originServerTimestamp()};
 };
 
 } // namespace Quotient

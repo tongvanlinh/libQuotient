@@ -12,5 +12,5 @@ UpdateAppserviceRoomDirectoryVisibilityJob::UpdateAppserviceRoomDirectoryVisibil
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "visibility"_L1, visibility);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }

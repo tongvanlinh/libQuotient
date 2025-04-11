@@ -13,5 +13,5 @@ SetReadMarkerJob::SetReadMarkerJob(const QString& roomId, const QString& fullyRe
     addParam<IfNotEmpty>(_dataJson, "m.fully_read"_L1, fullyRead);
     addParam<IfNotEmpty>(_dataJson, "m.read"_L1, read);
     addParam<IfNotEmpty>(_dataJson, "m.read.private"_L1, readPrivate);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }

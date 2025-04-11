@@ -26,7 +26,7 @@ LoginJob::LoginJob(const QString& type, const std::optional<UserIdentifier>& ide
     addParam<IfNotEmpty>(_dataJson, "device_id"_L1, deviceId);
     addParam<IfNotEmpty>(_dataJson, "initial_device_display_name"_L1, initialDeviceDisplayName);
     addParam<IfNotEmpty>(_dataJson, "refresh_token"_L1, refreshToken);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
     addExpectedKey(u"user_id"_s);
     addExpectedKey(u"access_token"_s);
     addExpectedKey(u"device_id"_s);

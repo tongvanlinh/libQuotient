@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <Quotient/events/roomevent.h>
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/events/roomevent.h"
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -81,6 +81,6 @@ public:
 
 template <std::derived_from<GetThreadRootsJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> GetThreadRootsJob::Response { return { j->chunk(), j->nextBatch() }; };
+    [](JobT* j) -> GetThreadRootsJob::Response { return {j->chunk(), j->nextBatch()}; };
 
 } // namespace Quotient

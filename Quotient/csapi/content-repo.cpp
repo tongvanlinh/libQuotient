@@ -17,7 +17,7 @@ UploadContentJob::UploadContentJob(QIODevice* content, const QString& filename,
               queryToUploadContent(filename))
 {
     setRequestHeader("Content-Type", contentType.toLatin1());
-    setRequestData({ content });
+    setRequestData({content});
     addExpectedKey(u"content_uri"_s);
 }
 
@@ -36,7 +36,7 @@ UploadContentToMXCJob::UploadContentToMXCJob(const QString& serverName, const QS
               queryToUploadContentToMXC(filename))
 {
     setRequestHeader("Content-Type", contentType.toLatin1());
-    setRequestData({ content });
+    setRequestData({content});
 }
 
 QUrl CreateContentJob::makeRequestUrl(const HomeserverData& hsData)
@@ -75,7 +75,7 @@ GetContentJob::GetContentJob(const QString& serverName, const QString& mediaId, 
               makePath("/_matrix", "/media/v3/download/", serverName, "/", mediaId),
               queryToGetContent(allowRemote, timeoutMs, allowRedirect), {}, false)
 {
-    setExpectedContentTypes({ "application/octet-stream" });
+    setExpectedContentTypes({"application/octet-stream"});
 }
 
 auto queryToGetContentOverrideName(bool allowRemote, qint64 timeoutMs, bool allowRedirect)
@@ -105,7 +105,7 @@ GetContentOverrideNameJob::GetContentOverrideNameJob(const QString& serverName,
               makePath("/_matrix", "/media/v3/download/", serverName, "/", mediaId, "/", fileName),
               queryToGetContentOverrideName(allowRemote, timeoutMs, allowRedirect), {}, false)
 {
-    setExpectedContentTypes({ "application/octet-stream" });
+    setExpectedContentTypes({"application/octet-stream"});
 }
 
 auto queryToGetContentThumbnail(int width, int height, const QString& method, bool allowRemote,
@@ -145,7 +145,7 @@ GetContentThumbnailJob::GetContentThumbnailJob(const QString& serverName, const 
                                          allowRedirect, animated),
               {}, false)
 {
-    setExpectedContentTypes({ "image/jpeg", "image/png", "image/apng", "image/gif", "image/webp" });
+    setExpectedContentTypes({"image/jpeg", "image/png", "image/apng", "image/gif", "image/webp"});
 }
 
 auto queryToGetUrlPreview(const QUrl& url, std::optional<qint64> ts)

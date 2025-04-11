@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -120,6 +120,6 @@ public:
 
 template <std::derived_from<GetUserProfileJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> GetUserProfileJob::Response { return { j->avatarUrl(), j->displayname() }; };
+    [](JobT* j) -> GetUserProfileJob::Response { return {j->avatarUrl(), j->displayname()}; };
 
 } // namespace Quotient

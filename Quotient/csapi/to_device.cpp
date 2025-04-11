@@ -11,5 +11,5 @@ SendToDeviceJob::SendToDeviceJob(const QString& eventType, const QString& txnId,
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "messages"_L1, messages);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }

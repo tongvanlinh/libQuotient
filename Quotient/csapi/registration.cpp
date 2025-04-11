@@ -26,7 +26,7 @@ RegisterJob::RegisterJob(const QString& kind, const std::optional<Authentication
     addParam<IfNotEmpty>(_dataJson, "initial_device_display_name"_L1, initialDeviceDisplayName);
     addParam<IfNotEmpty>(_dataJson, "inhibit_login"_L1, inhibitLogin);
     addParam<IfNotEmpty>(_dataJson, "refresh_token"_L1, refreshToken);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
     addExpectedKey(u"user_id"_s);
 }
 
@@ -34,14 +34,14 @@ RequestTokenToRegisterEmailJob::RequestTokenToRegisterEmailJob(const EmailValida
     : BaseJob(HttpVerb::Post, u"RequestTokenToRegisterEmailJob"_s,
               makePath("/_matrix/client/v3", "/register/email/requestToken"), false)
 {
-    setRequestData({ toJson(data) });
+    setRequestData({toJson(data)});
 }
 
 RequestTokenToRegisterMSISDNJob::RequestTokenToRegisterMSISDNJob(const MsisdnValidationData& data)
     : BaseJob(HttpVerb::Post, u"RequestTokenToRegisterMSISDNJob"_s,
               makePath("/_matrix/client/v3", "/register/msisdn/requestToken"), false)
 {
-    setRequestData({ toJson(data) });
+    setRequestData({toJson(data)});
 }
 
 ChangePasswordJob::ChangePasswordJob(const QString& newPassword, bool logoutDevices,
@@ -53,7 +53,7 @@ ChangePasswordJob::ChangePasswordJob(const QString& newPassword, bool logoutDevi
     addParam(_dataJson, "new_password"_L1, newPassword);
     addParam<IfNotEmpty>(_dataJson, "logout_devices"_L1, logoutDevices);
     addParam<IfNotEmpty>(_dataJson, "auth"_L1, auth);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }
 
 RequestTokenToResetPasswordEmailJob::RequestTokenToResetPasswordEmailJob(
@@ -61,7 +61,7 @@ RequestTokenToResetPasswordEmailJob::RequestTokenToResetPasswordEmailJob(
     : BaseJob(HttpVerb::Post, u"RequestTokenToResetPasswordEmailJob"_s,
               makePath("/_matrix/client/v3", "/account/password/email/requestToken"), false)
 {
-    setRequestData({ toJson(data) });
+    setRequestData({toJson(data)});
 }
 
 RequestTokenToResetPasswordMSISDNJob::RequestTokenToResetPasswordMSISDNJob(
@@ -69,7 +69,7 @@ RequestTokenToResetPasswordMSISDNJob::RequestTokenToResetPasswordMSISDNJob(
     : BaseJob(HttpVerb::Post, u"RequestTokenToResetPasswordMSISDNJob"_s,
               makePath("/_matrix/client/v3", "/account/password/msisdn/requestToken"), false)
 {
-    setRequestData({ toJson(data) });
+    setRequestData({toJson(data)});
 }
 
 DeactivateAccountJob::DeactivateAccountJob(const std::optional<AuthenticationData>& auth,
@@ -81,7 +81,7 @@ DeactivateAccountJob::DeactivateAccountJob(const std::optional<AuthenticationDat
     addParam<IfNotEmpty>(_dataJson, "auth"_L1, auth);
     addParam<IfNotEmpty>(_dataJson, "id_server"_L1, idServer);
     addParam<IfNotEmpty>(_dataJson, "erase"_L1, erase);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
     addExpectedKey(u"id_server_unbind_result"_s);
 }
 

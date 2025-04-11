@@ -10,7 +10,7 @@ SetRoomAliasJob::SetRoomAliasJob(const QString& roomAlias, const QString& roomId
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "room_id"_L1, roomId);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }
 
 QUrl GetRoomIdByAliasJob::makeRequestUrl(const HomeserverData& hsData, const QString& roomAlias)

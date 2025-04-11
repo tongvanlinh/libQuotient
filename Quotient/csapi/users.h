@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -63,7 +63,7 @@ public:
 
 template <std::derived_from<SearchUserDirectoryJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> SearchUserDirectoryJob::Response { return { j->results(), j->limited() }; };
+    [](JobT* j) -> SearchUserDirectoryJob::Response { return {j->results(), j->limited()}; };
 
 template <>
 struct QUOTIENT_API JsonObjectConverter<SearchUserDirectoryJob::User> {

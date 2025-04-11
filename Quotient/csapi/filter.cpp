@@ -8,7 +8,7 @@ DefineFilterJob::DefineFilterJob(const QString& userId, const Filter& filter)
     : BaseJob(HttpVerb::Post, u"DefineFilterJob"_s,
               makePath("/_matrix/client/v3", "/user/", userId, "/filter"))
 {
-    setRequestData({ toJson(filter) });
+    setRequestData({toJson(filter)});
     addExpectedKey(u"filter_id"_s);
 }
 

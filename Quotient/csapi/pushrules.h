@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include <Quotient/csapi/definitions/push_condition.h>
-#include <Quotient/csapi/definitions/push_rule.h>
-#include <Quotient/csapi/definitions/push_ruleset.h>
-
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/csapi/definitions/push_condition.h"
+#include "Quotient/csapi/definitions/push_rule.h"
+#include "Quotient/csapi/definitions/push_ruleset.h"
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 

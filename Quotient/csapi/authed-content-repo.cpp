@@ -26,7 +26,7 @@ GetContentAuthedJob::GetContentAuthedJob(const QString& serverName, const QStrin
               makePath("/_matrix/client/v1", "/media/download/", serverName, "/", mediaId),
               queryToGetContentAuthed(timeoutMs))
 {
-    setExpectedContentTypes({ "application/octet-stream" });
+    setExpectedContentTypes({"application/octet-stream"});
 }
 
 auto queryToGetContentOverrideNameAuthed(qint64 timeoutMs)
@@ -56,7 +56,7 @@ GetContentOverrideNameAuthedJob::GetContentOverrideNameAuthedJob(const QString& 
                        fileName),
               queryToGetContentOverrideNameAuthed(timeoutMs))
 {
-    setExpectedContentTypes({ "application/octet-stream" });
+    setExpectedContentTypes({"application/octet-stream"});
 }
 
 auto queryToGetContentThumbnailAuthed(int width, int height, const QString& method,
@@ -90,7 +90,7 @@ GetContentThumbnailAuthedJob::GetContentThumbnailAuthedJob(const QString& server
               makePath("/_matrix/client/v1", "/media/thumbnail/", serverName, "/", mediaId),
               queryToGetContentThumbnailAuthed(width, height, method, timeoutMs, animated))
 {
-    setExpectedContentTypes({ "image/jpeg", "image/png", "image/apng", "image/gif", "image/webp" });
+    setExpectedContentTypes({"image/jpeg", "image/png", "image/apng", "image/gif", "image/webp"});
 }
 
 auto queryToGetUrlPreviewAuthed(const QUrl& url, std::optional<qint64> ts)

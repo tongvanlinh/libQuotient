@@ -12,5 +12,5 @@ PostReceiptJob::PostReceiptJob(const QString& roomId, const QString& receiptType
 {
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "thread_id"_L1, threadId);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }

@@ -9,6 +9,6 @@ SendMessageJob::SendMessageJob(const QString& roomId, const QString& eventType,
     : BaseJob(HttpVerb::Put, u"SendMessageJob"_s,
               makePath("/_matrix/client/v3", "/rooms/", roomId, "/send/", eventType, "/", txnId))
 {
-    setRequestData({ toJson(content) });
+    setRequestData({toJson(content)});
     addExpectedKey(u"event_id"_s);
 }

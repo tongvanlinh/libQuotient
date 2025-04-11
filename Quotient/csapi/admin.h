@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -72,7 +72,7 @@ public:
 
 template <std::derived_from<GetWhoIsJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> GetWhoIsJob::Response { return { j->userId(), j->devices() }; };
+    [](JobT* j) -> GetWhoIsJob::Response { return {j->userId(), j->devices()}; };
 
 template <>
 struct QUOTIENT_API JsonObjectConverter<GetWhoIsJob::ConnectionInfo> {

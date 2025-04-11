@@ -23,7 +23,7 @@ SetRoomVisibilityOnDirectoryJob::SetRoomVisibilityOnDirectoryJob(const QString& 
 {
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "visibility"_L1, visibility);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }
 
 auto queryToGetPublicRooms(std::optional<int> limit, const QString& since, const QString& server)
@@ -70,6 +70,6 @@ QueryPublicRoomsJob::QueryPublicRoomsJob(const QString& server, std::optional<in
     addParam<IfNotEmpty>(_dataJson, "filter"_L1, filter);
     addParam<IfNotEmpty>(_dataJson, "include_all_networks"_L1, includeAllNetworks);
     addParam<IfNotEmpty>(_dataJson, "third_party_instance_id"_L1, thirdPartyInstanceId);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
     addExpectedKey(u"chunk"_s);
 }

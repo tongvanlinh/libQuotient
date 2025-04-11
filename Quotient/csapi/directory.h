@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -57,7 +57,7 @@ public:
 
 template <std::derived_from<GetRoomIdByAliasJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> GetRoomIdByAliasJob::Response { return { j->roomId(), j->servers() }; };
+    [](JobT* j) -> GetRoomIdByAliasJob::Response { return {j->roomId(), j->servers()}; };
 
 //! \brief Remove a mapping of room alias to room ID.
 //!

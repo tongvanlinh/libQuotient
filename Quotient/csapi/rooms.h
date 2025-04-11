@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include <Quotient/events/roomevent.h>
-#include <Quotient/events/stateevent.h>
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/events/roomevent.h"
+#include "Quotient/events/stateevent.h"
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 

@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include <Quotient/csapi/definitions/push_condition.h>
-
-#include <Quotient/converters.h>
+#include "Quotient/converters.h"
+#include "Quotient/csapi/definitions/push_condition.h"
 
 namespace Quotient {
 

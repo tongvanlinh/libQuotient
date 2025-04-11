@@ -13,7 +13,7 @@ JoinRoomByIdJob::JoinRoomByIdJob(const QString& roomId,
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "third_party_signed"_L1, thirdPartySigned);
     addParam<IfNotEmpty>(_dataJson, "reason"_L1, reason);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
     addExpectedKey(u"room_id"_s);
 }
 
@@ -36,6 +36,6 @@ JoinRoomJob::JoinRoomJob(const QString& roomIdOrAlias, const QStringList& server
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "third_party_signed"_L1, thirdPartySigned);
     addParam<IfNotEmpty>(_dataJson, "reason"_L1, reason);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
     addExpectedKey(u"room_id"_s);
 }

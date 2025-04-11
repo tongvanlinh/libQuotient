@@ -10,7 +10,7 @@ SetDisplayNameJob::SetDisplayNameJob(const QString& userId, const QString& displ
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "displayname"_L1, displayname);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }
 
 QUrl GetDisplayNameJob::makeRequestUrl(const HomeserverData& hsData, const QString& userId)
@@ -30,7 +30,7 @@ SetAvatarUrlJob::SetAvatarUrlJob(const QString& userId, const QUrl& avatarUrl)
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "avatar_url"_L1, avatarUrl);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }
 
 QUrl GetAvatarUrlJob::makeRequestUrl(const HomeserverData& hsData, const QString& userId)

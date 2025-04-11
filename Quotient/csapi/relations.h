@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <Quotient/events/roomevent.h>
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/events/roomevent.h"
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -123,7 +123,7 @@ public:
 
 template <std::derived_from<GetRelatingEventsJob> JobT>
 constexpr inline auto doCollectResponse<JobT> = [](JobT* j) -> GetRelatingEventsJob::Response {
-    return { j->nextBatch(), j->prevBatch(), j->recursionDepth(), j->chunk() };
+    return {j->nextBatch(), j->prevBatch(), j->recursionDepth(), j->chunk()};
 };
 
 //! \brief Get the child events for a given parent event, with a given `relType`.
@@ -254,7 +254,7 @@ public:
 template <std::derived_from<GetRelatingEventsWithRelTypeJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
     [](JobT* j) -> GetRelatingEventsWithRelTypeJob::Response {
-    return { j->nextBatch(), j->prevBatch(), j->recursionDepth(), j->chunk() };
+    return {j->nextBatch(), j->prevBatch(), j->recursionDepth(), j->chunk()};
 };
 
 //! \brief Get the child events for a given parent event, with a given `relType` and `eventType`.
@@ -390,7 +390,7 @@ public:
 template <std::derived_from<GetRelatingEventsWithRelTypeAndEventTypeJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
     [](JobT* j) -> GetRelatingEventsWithRelTypeAndEventTypeJob::Response {
-    return { j->nextBatch(), j->prevBatch(), j->recursionDepth(), j->chunk() };
+    return {j->nextBatch(), j->prevBatch(), j->recursionDepth(), j->chunk()};
 };
 
 } // namespace Quotient

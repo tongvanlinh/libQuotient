@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <Quotient/events/event.h>
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/events/event.h"
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -87,7 +87,7 @@ public:
 
 template <std::derived_from<GetNotificationsJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> GetNotificationsJob::Response { return { j->nextToken(), j->notifications() }; };
+    [](JobT* j) -> GetNotificationsJob::Response { return {j->nextToken(), j->notifications()}; };
 
 template <>
 struct QUOTIENT_API JsonObjectConverter<GetNotificationsJob::Notification> {

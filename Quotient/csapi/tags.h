@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include <Quotient/csapi/definitions/tag.h>
-
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/csapi/definitions/tag.h"
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 

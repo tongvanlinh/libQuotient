@@ -21,7 +21,7 @@ SetRoomTagJob::SetRoomTagJob(const QString& userId, const QString& roomId, const
     : BaseJob(HttpVerb::Put, u"SetRoomTagJob"_s,
               makePath("/_matrix/client/v3", "/user/", userId, "/rooms/", roomId, "/tags/", tag))
 {
-    setRequestData({ toJson(data) });
+    setRequestData({toJson(data)});
 }
 
 QUrl DeleteRoomTagJob::makeRequestUrl(const HomeserverData& hsData, const QString& userId,

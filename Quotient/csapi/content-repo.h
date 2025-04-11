@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/jobs/basejob.h"
 
 #include <QtCore/QIODevice>
 #include <QtNetwork/QNetworkReply>
@@ -118,7 +118,7 @@ public:
 
 template <std::derived_from<CreateContentJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> CreateContentJob::Response { return { j->contentUri(), j->unusedExpiresAt() }; };
+    [](JobT* j) -> CreateContentJob::Response { return {j->contentUri(), j->unusedExpiresAt()}; };
 
 //! \brief Download content from the content repository.
 //!
@@ -160,7 +160,7 @@ public:
     //!   response that points at the relevant media content. When not explicitly
     //!   set to `true` the server must return the media content itself.
     explicit GetContentJob(const QString& serverName, const QString& mediaId,
-                           bool allowRemote = true, qint64 timeoutMs = 20000,
+                           bool allowRemote = true, qint64 timeoutMs = 20'000,
                            bool allowRedirect = false);
 
     //! \brief Construct a URL without creating a full-fledged job object
@@ -169,7 +169,7 @@ public:
     //! is necessary but the job itself isn't.
     static QUrl makeRequestUrl(const HomeserverData& hsData, const QString& serverName,
                                const QString& mediaId, bool allowRemote = true,
-                               qint64 timeoutMs = 20000, bool allowRedirect = false);
+                               qint64 timeoutMs = 20'000, bool allowRedirect = false);
 
     // Result properties
 
@@ -266,7 +266,7 @@ public:
     //!   set to `true` the server must return the media content itself.
     explicit GetContentOverrideNameJob(const QString& serverName, const QString& mediaId,
                                        const QString& fileName, bool allowRemote = true,
-                                       qint64 timeoutMs = 20000, bool allowRedirect = false);
+                                       qint64 timeoutMs = 20'000, bool allowRedirect = false);
 
     //! \brief Construct a URL without creating a full-fledged job object
     //!
@@ -274,7 +274,7 @@ public:
     //! is necessary but the job itself isn't.
     static QUrl makeRequestUrl(const HomeserverData& hsData, const QString& serverName,
                                const QString& mediaId, const QString& fileName,
-                               bool allowRemote = true, qint64 timeoutMs = 20000,
+                               bool allowRemote = true, qint64 timeoutMs = 20'000,
                                bool allowRedirect = false);
 
     // Result properties
@@ -388,7 +388,7 @@ public:
     //!   server SHOULD behave as though `animated` is `false`.
     explicit GetContentThumbnailJob(const QString& serverName, const QString& mediaId, int width,
                                     int height, const QString& method = {}, bool allowRemote = true,
-                                    qint64 timeoutMs = 20000, bool allowRedirect = false,
+                                    qint64 timeoutMs = 20'000, bool allowRedirect = false,
                                     std::optional<bool> animated = std::nullopt);
 
     //! \brief Construct a URL without creating a full-fledged job object
@@ -398,7 +398,7 @@ public:
     static QUrl makeRequestUrl(const HomeserverData& hsData, const QString& serverName,
                                const QString& mediaId, int width, int height,
                                const QString& method = {}, bool allowRemote = true,
-                               qint64 timeoutMs = 20000, bool allowRedirect = false,
+                               qint64 timeoutMs = 20'000, bool allowRedirect = false,
                                std::optional<bool> animated = std::nullopt);
 
     // Result properties
@@ -482,7 +482,7 @@ QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 template <std::derived_from<GetUrlPreviewJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> GetUrlPreviewJob::Response { return { j->matrixImageSize(), j->ogImage() }; };
+    [](JobT* j) -> GetUrlPreviewJob::Response { return {j->matrixImageSize(), j->ogImage()}; };
 QT_WARNING_POP
 
 //! \brief Get the configuration for the content repository.

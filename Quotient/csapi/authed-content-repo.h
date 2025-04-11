@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/jobs/basejob.h"
 
 #include <QtCore/QIODevice>
 #include <QtNetwork/QNetworkReply>
@@ -34,14 +34,14 @@ public:
     //!   repository SHOULD impose a maximum value for this parameter. The
     //!   content repository MAY respond before the timeout.
     explicit GetContentAuthedJob(const QString& serverName, const QString& mediaId,
-                                 qint64 timeoutMs = 20000);
+                                 qint64 timeoutMs = 20'000);
 
     //! \brief Construct a URL without creating a full-fledged job object
     //!
     //! This function can be used when a URL for GetContentAuthedJob
     //! is necessary but the job itself isn't.
     static QUrl makeRequestUrl(const HomeserverData& hsData, const QString& serverName,
-                               const QString& mediaId, qint64 timeoutMs = 20000);
+                               const QString& mediaId, qint64 timeoutMs = 20'000);
 
     // Result properties
 
@@ -122,7 +122,7 @@ public:
     //!   repository SHOULD impose a maximum value for this parameter. The
     //!   content repository MAY respond before the timeout.
     explicit GetContentOverrideNameAuthedJob(const QString& serverName, const QString& mediaId,
-                                             const QString& fileName, qint64 timeoutMs = 20000);
+                                             const QString& fileName, qint64 timeoutMs = 20'000);
 
     //! \brief Construct a URL without creating a full-fledged job object
     //!
@@ -130,7 +130,7 @@ public:
     //! is necessary but the job itself isn't.
     static QUrl makeRequestUrl(const HomeserverData& hsData, const QString& serverName,
                                const QString& mediaId, const QString& fileName,
-                               qint64 timeoutMs = 20000);
+                               qint64 timeoutMs = 20'000);
 
     // Result properties
 
@@ -228,7 +228,7 @@ public:
     //!   server SHOULD behave as though `animated` is `false`.
     explicit GetContentThumbnailAuthedJob(const QString& serverName, const QString& mediaId,
                                           int width, int height, const QString& method = {},
-                                          qint64 timeoutMs = 20000,
+                                          qint64 timeoutMs = 20'000,
                                           std::optional<bool> animated = std::nullopt);
 
     //! \brief Construct a URL without creating a full-fledged job object
@@ -237,7 +237,7 @@ public:
     //! is necessary but the job itself isn't.
     static QUrl makeRequestUrl(const HomeserverData& hsData, const QString& serverName,
                                const QString& mediaId, int width, int height,
-                               const QString& method = {}, qint64 timeoutMs = 20000,
+                               const QString& method = {}, qint64 timeoutMs = 20'000,
                                std::optional<bool> animated = std::nullopt);
 
     // Result properties
@@ -314,7 +314,7 @@ public:
 
 template <std::derived_from<GetUrlPreviewAuthedJob> JobT>
 constexpr inline auto doCollectResponse<JobT> = [](JobT* j) -> GetUrlPreviewAuthedJob::Response {
-    return { j->matrixImageSize(), j->ogImage() };
+    return {j->matrixImageSize(), j->ogImage()};
 };
 
 //! \brief Get the configuration for the content repository.

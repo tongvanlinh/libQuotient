@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include <Quotient/csapi/definitions/auth_data.h>
-#include <Quotient/csapi/definitions/request_email_validation.h>
-#include <Quotient/csapi/definitions/request_msisdn_validation.h>
-#include <Quotient/csapi/definitions/request_token_response.h>
-
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/csapi/definitions/auth_data.h"
+#include "Quotient/csapi/definitions/request_email_validation.h"
+#include "Quotient/csapi/definitions/request_msisdn_validation.h"
+#include "Quotient/csapi/definitions/request_token_response.h"
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -173,7 +172,7 @@ public:
 
 template <std::derived_from<RegisterJob> JobT>
 constexpr inline auto doCollectResponse<JobT> = [](JobT* j) -> RegisterJob::Response {
-    return { j->userId(), j->accessToken(), j->refreshToken(), j->expiresInMs(), j->deviceId() };
+    return {j->userId(), j->accessToken(), j->refreshToken(), j->expiresInMs(), j->deviceId()};
 };
 
 //! \brief Begins the validation process for an email to be used during registration.

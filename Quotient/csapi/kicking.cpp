@@ -11,5 +11,5 @@ KickJob::KickJob(const QString& roomId, const QString& userId, const QString& re
     QJsonObject _dataJson;
     addParam(_dataJson, "user_id"_L1, userId);
     addParam<IfNotEmpty>(_dataJson, "reason"_L1, reason);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }

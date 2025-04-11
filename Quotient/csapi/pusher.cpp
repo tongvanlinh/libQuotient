@@ -29,5 +29,5 @@ PostPusherJob::PostPusherJob(const QString& pushkey, const QString& kind, const 
     addParam<IfNotEmpty>(_dataJson, "lang"_L1, lang);
     addParam<IfNotEmpty>(_dataJson, "data"_L1, data);
     addParam<IfNotEmpty>(_dataJson, "append"_L1, append);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }

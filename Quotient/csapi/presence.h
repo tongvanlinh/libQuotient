@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -80,7 +80,7 @@ public:
 
 template <std::derived_from<GetPresenceJob> JobT>
 constexpr inline auto doCollectResponse<JobT> = [](JobT* j) -> GetPresenceJob::Response {
-    return { j->presence(), j->lastActiveAgo(), j->statusMsg(), j->currentlyActive() };
+    return {j->presence(), j->lastActiveAgo(), j->statusMsg(), j->currentlyActive()};
 };
 
 } // namespace Quotient

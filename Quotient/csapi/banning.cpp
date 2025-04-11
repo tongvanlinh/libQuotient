@@ -10,7 +10,7 @@ BanJob::BanJob(const QString& roomId, const QString& userId, const QString& reas
     QJsonObject _dataJson;
     addParam(_dataJson, "user_id"_L1, userId);
     addParam<IfNotEmpty>(_dataJson, "reason"_L1, reason);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }
 
 UnbanJob::UnbanJob(const QString& roomId, const QString& userId, const QString& reason)
@@ -20,5 +20,5 @@ UnbanJob::UnbanJob(const QString& roomId, const QString& userId, const QString& 
     QJsonObject _dataJson;
     addParam(_dataJson, "user_id"_L1, userId);
     addParam<IfNotEmpty>(_dataJson, "reason"_L1, reason);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }

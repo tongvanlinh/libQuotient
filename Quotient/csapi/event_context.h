@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include <Quotient/events/roomevent.h>
-#include <Quotient/events/stateevent.h>
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/events/roomevent.h"
+#include "Quotient/events/stateevent.h"
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -96,8 +96,8 @@ public:
 
 template <std::derived_from<GetEventContextJob> JobT>
 constexpr inline auto doCollectResponse<JobT> = [](JobT* j) -> GetEventContextJob::Response {
-    return { j->begin(),          j->end(),         j->eventsBefore(),
-             j->requestedEvent(), j->eventsAfter(), j->state() };
+    return {j->begin(),          j->end(),         j->eventsBefore(),
+            j->requestedEvent(), j->eventsAfter(), j->state()};
 };
 
 } // namespace Quotient

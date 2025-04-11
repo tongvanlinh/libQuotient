@@ -12,5 +12,5 @@ SetTypingJob::SetTypingJob(const QString& userId, const QString& roomId, bool ty
     QJsonObject _dataJson;
     addParam(_dataJson, "typing"_L1, typing);
     addParam<IfNotEmpty>(_dataJson, "timeout"_L1, timeout);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }

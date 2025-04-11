@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include <Quotient/csapi/definitions/third_party_signed.h>
-
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/csapi/definitions/third_party_signed.h"
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 

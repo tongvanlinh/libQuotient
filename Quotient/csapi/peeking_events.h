@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <Quotient/events/roomevent.h>
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/events/roomevent.h"
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -70,6 +70,6 @@ public:
 
 template <std::derived_from<PeekEventsJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> PeekEventsJob::Response { return { j->begin(), j->end(), j->chunk() }; };
+    [](JobT* j) -> PeekEventsJob::Response { return {j->begin(), j->end(), j->chunk()}; };
 
 } // namespace Quotient

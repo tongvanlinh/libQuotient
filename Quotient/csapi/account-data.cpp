@@ -9,7 +9,7 @@ SetAccountDataJob::SetAccountDataJob(const QString& userId, const QString& type,
     : BaseJob(HttpVerb::Put, u"SetAccountDataJob"_s,
               makePath("/_matrix/client/v3", "/user/", userId, "/account_data/", type))
 {
-    setRequestData({ toJson(content) });
+    setRequestData({toJson(content)});
 }
 
 QUrl GetAccountDataJob::makeRequestUrl(const HomeserverData& hsData, const QString& userId,
@@ -30,7 +30,7 @@ SetAccountDataPerRoomJob::SetAccountDataPerRoomJob(const QString& userId, const 
               makePath("/_matrix/client/v3", "/user/", userId, "/rooms/", roomId, "/account_data/",
                        type))
 {
-    setRequestData({ toJson(content) });
+    setRequestData({toJson(content)});
 }
 
 QUrl GetAccountDataPerRoomJob::makeRequestUrl(const HomeserverData& hsData, const QString& userId,

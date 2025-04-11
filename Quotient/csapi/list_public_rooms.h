@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include <Quotient/csapi/definitions/public_rooms_response.h>
-
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/csapi/definitions/public_rooms_response.h"
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -130,7 +129,7 @@ public:
 
 template <std::derived_from<GetPublicRoomsJob> JobT>
 constexpr inline auto doCollectResponse<JobT> = [](JobT* j) -> GetPublicRoomsJob::Response {
-    return { j->chunk(), j->nextBatch(), j->prevBatch(), j->totalRoomCountEstimate() };
+    return {j->chunk(), j->nextBatch(), j->prevBatch(), j->totalRoomCountEstimate()};
 };
 
 //! \brief Lists the public rooms on the server with optional filter.
@@ -234,7 +233,7 @@ public:
 
 template <std::derived_from<QueryPublicRoomsJob> JobT>
 constexpr inline auto doCollectResponse<JobT> = [](JobT* j) -> QueryPublicRoomsJob::Response {
-    return { j->chunk(), j->nextBatch(), j->prevBatch(), j->totalRoomCountEstimate() };
+    return {j->chunk(), j->nextBatch(), j->prevBatch(), j->totalRoomCountEstimate()};
 };
 
 template <>

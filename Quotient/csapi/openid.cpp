@@ -8,5 +8,5 @@ RequestOpenIdTokenJob::RequestOpenIdTokenJob(const QString& userId, const QJsonO
     : BaseJob(HttpVerb::Post, u"RequestOpenIdTokenJob"_s,
               makePath("/_matrix/client/v3", "/user/", userId, "/openid/request_token"))
 {
-    setRequestData({ toJson(dontUse) });
+    setRequestData({toJson(dontUse)});
 }

@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include <Quotient/csapi/definitions/cross_signing_key.h>
-#include <Quotient/csapi/definitions/device_keys.h>
-
-#include <Quotient/e2ee/e2ee_common.h>
-
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/csapi/definitions/cross_signing_key.h"
+#include "Quotient/csapi/definitions/device_keys.h"
+#include "Quotient/e2ee/e2ee_common.h"
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -191,8 +189,8 @@ public:
 
 template <std::derived_from<QueryKeysJob> JobT>
 constexpr inline auto doCollectResponse<JobT> = [](JobT* j) -> QueryKeysJob::Response {
-    return { j->failures(), j->deviceKeys(), j->masterKeys(), j->selfSigningKeys(),
-             j->userSigningKeys() };
+    return {j->failures(), j->deviceKeys(), j->masterKeys(), j->selfSigningKeys(),
+            j->userSigningKeys()};
 };
 
 template <>
@@ -278,7 +276,7 @@ public:
 
 template <std::derived_from<ClaimKeysJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> ClaimKeysJob::Response { return { j->failures(), j->oneTimeKeys() }; };
+    [](JobT* j) -> ClaimKeysJob::Response { return {j->failures(), j->oneTimeKeys()}; };
 
 //! \brief Query users with recent device key updates.
 //!
@@ -338,6 +336,6 @@ public:
 
 template <std::derived_from<GetKeysChangesJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> GetKeysChangesJob::Response { return { j->changed(), j->left() }; };
+    [](JobT* j) -> GetKeysChangesJob::Response { return {j->changed(), j->left()}; };
 
 } // namespace Quotient

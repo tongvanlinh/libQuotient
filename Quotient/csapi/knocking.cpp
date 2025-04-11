@@ -20,6 +20,6 @@ KnockRoomJob::KnockRoomJob(const QString& roomIdOrAlias, const QStringList& serv
 {
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "reason"_L1, reason);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
     addExpectedKey(u"room_id"_s);
 }

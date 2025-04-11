@@ -12,5 +12,5 @@ ReportContentJob::ReportContentJob(const QString& roomId, const QString& eventId
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "score"_L1, score);
     addParam<IfNotEmpty>(_dataJson, "reason"_L1, reason);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }

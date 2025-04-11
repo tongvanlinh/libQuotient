@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include <Quotient/csapi/definitions/user_identifier.h>
-#include <Quotient/csapi/definitions/wellknown/full.h>
-
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/csapi/definitions/user_identifier.h"
+#include "Quotient/csapi/definitions/wellknown/full.h"
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -28,9 +27,9 @@ public:
         //! endpoint. Note that supporting the endpoint does not
         //! necessarily indicate that the user attempting to log in will
         //! be able to generate such a token.
-        bool getLoginToken{ false };
+        bool getLoginToken{false};
 
-        bool delegatedOidcCompatibility{ false };
+        bool delegatedOidcCompatibility{false};
     };
 
     // Construction/destruction
@@ -185,8 +184,8 @@ public:
 
 template <std::derived_from<LoginJob> JobT>
 constexpr inline auto doCollectResponse<JobT> = [](JobT* j) -> LoginJob::Response {
-    return { j->userId(),      j->accessToken(), j->refreshToken(),
-             j->expiresInMs(), j->deviceId(),    j->wellKnown() };
+    return {j->userId(),      j->accessToken(), j->refreshToken(),
+            j->expiresInMs(), j->deviceId(),    j->wellKnown()};
 };
 
 } // namespace Quotient

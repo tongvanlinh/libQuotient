@@ -11,7 +11,7 @@ PostRoomKeysVersionJob::PostRoomKeysVersionJob(const QString& algorithm, const Q
     QJsonObject _dataJson;
     addParam(_dataJson, "algorithm"_L1, algorithm);
     addParam(_dataJson, "auth_data"_L1, authData);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
     addExpectedKey(u"version"_s);
 }
 
@@ -56,7 +56,7 @@ PutRoomKeysVersionJob::PutRoomKeysVersionJob(const QString& version, const QStri
     QJsonObject _dataJson;
     addParam(_dataJson, "algorithm"_L1, algorithm);
     addParam(_dataJson, "auth_data"_L1, authData);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }
 
 QUrl DeleteRoomKeysVersionJob::makeRequestUrl(const HomeserverData& hsData, const QString& version)
@@ -83,7 +83,7 @@ PutRoomKeyBySessionIdJob::PutRoomKeyBySessionIdJob(const QString& roomId, const 
               makePath("/_matrix/client/v3", "/room_keys/keys/", roomId, "/", sessionId),
               queryToPutRoomKeyBySessionId(version))
 {
-    setRequestData({ toJson(data) });
+    setRequestData({toJson(data)});
     addExpectedKey(u"etag"_s);
     addExpectedKey(u"count"_s);
 }
@@ -151,7 +151,7 @@ PutRoomKeysByRoomIdJob::PutRoomKeysByRoomIdJob(const QString& roomId, const QStr
               makePath("/_matrix/client/v3", "/room_keys/keys/", roomId),
               queryToPutRoomKeysByRoomId(version))
 {
-    setRequestData({ toJson(backupData) });
+    setRequestData({toJson(backupData)});
     addExpectedKey(u"etag"_s);
     addExpectedKey(u"count"_s);
 }
@@ -214,7 +214,7 @@ PutRoomKeysJob::PutRoomKeysJob(const QString& version, const QHash<RoomId, RoomK
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "rooms"_L1, rooms);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
     addExpectedKey(u"etag"_s);
     addExpectedKey(u"count"_s);
 }

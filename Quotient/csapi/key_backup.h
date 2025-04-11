@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include <Quotient/csapi/definitions/key_backup_data.h>
-#include <Quotient/csapi/definitions/room_key_backup.h>
-
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/csapi/definitions/key_backup_data.h"
+#include "Quotient/csapi/definitions/room_key_backup.h"
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -92,7 +91,7 @@ public:
 template <std::derived_from<GetRoomKeysVersionCurrentJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
     [](JobT* j) -> GetRoomKeysVersionCurrentJob::Response {
-    return { j->algorithm(), j->authData(), j->count(), j->etag(), j->version() };
+    return {j->algorithm(), j->authData(), j->count(), j->etag(), j->version()};
 };
 
 //! \brief Get information about an existing backup.
@@ -161,7 +160,7 @@ public:
 
 template <std::derived_from<GetRoomKeysVersionJob> JobT>
 constexpr inline auto doCollectResponse<JobT> = [](JobT* j) -> GetRoomKeysVersionJob::Response {
-    return { j->algorithm(), j->authData(), j->count(), j->etag(), j->version() };
+    return {j->algorithm(), j->authData(), j->count(), j->etag(), j->version()};
 };
 
 //! \brief Update information about an existing backup.
@@ -251,7 +250,7 @@ public:
 
 template <std::derived_from<PutRoomKeyBySessionIdJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> PutRoomKeyBySessionIdJob::Response { return { j->etag(), j->count() }; };
+    [](JobT* j) -> PutRoomKeyBySessionIdJob::Response { return {j->etag(), j->count()}; };
 
 //! \brief Retrieve a key from the backup.
 //!
@@ -328,7 +327,7 @@ public:
 
 template <std::derived_from<DeleteRoomKeyBySessionIdJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> DeleteRoomKeyBySessionIdJob::Response { return { j->etag(), j->count() }; };
+    [](JobT* j) -> DeleteRoomKeyBySessionIdJob::Response { return {j->etag(), j->count()}; };
 
 //! \brief Store several keys in the backup for a given room.
 //!
@@ -367,7 +366,7 @@ public:
 
 template <std::derived_from<PutRoomKeysByRoomIdJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> PutRoomKeysByRoomIdJob::Response { return { j->etag(), j->count() }; };
+    [](JobT* j) -> PutRoomKeysByRoomIdJob::Response { return {j->etag(), j->count()}; };
 
 //! \brief Retrieve the keys from the backup for a given room.
 //!
@@ -437,7 +436,7 @@ public:
 
 template <std::derived_from<DeleteRoomKeysByRoomIdJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> DeleteRoomKeysByRoomIdJob::Response { return { j->etag(), j->count() }; };
+    [](JobT* j) -> DeleteRoomKeysByRoomIdJob::Response { return {j->etag(), j->count()}; };
 
 //! \brief Store several keys in the backup.
 //!
@@ -472,7 +471,7 @@ public:
 
 template <std::derived_from<PutRoomKeysJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> PutRoomKeysJob::Response { return { j->etag(), j->count() }; };
+    [](JobT* j) -> PutRoomKeysJob::Response { return {j->etag(), j->count()}; };
 
 //! \brief Retrieve the keys from the backup.
 //!
@@ -536,6 +535,6 @@ public:
 
 template <std::derived_from<DeleteRoomKeysJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> DeleteRoomKeysJob::Response { return { j->etag(), j->count() }; };
+    [](JobT* j) -> DeleteRoomKeysJob::Response { return {j->etag(), j->count()}; };
 
 } // namespace Quotient

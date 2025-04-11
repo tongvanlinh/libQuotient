@@ -17,7 +17,7 @@ UploadCrossSigningKeysJob::UploadCrossSigningKeysJob(
     addParam<IfNotEmpty>(_dataJson, "self_signing_key"_L1, selfSigningKey);
     addParam<IfNotEmpty>(_dataJson, "user_signing_key"_L1, userSigningKey);
     addParam<IfNotEmpty>(_dataJson, "auth"_L1, auth);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }
 
 UploadCrossSigningSignaturesJob::UploadCrossSigningSignaturesJob(
@@ -25,5 +25,5 @@ UploadCrossSigningSignaturesJob::UploadCrossSigningSignaturesJob(
     : BaseJob(HttpVerb::Post, u"UploadCrossSigningSignaturesJob"_s,
               makePath("/_matrix/client/v3", "/keys/signatures/upload"))
 {
-    setRequestData({ toJson(signatures) });
+    setRequestData({toJson(signatures)});
 }

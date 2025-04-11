@@ -10,7 +10,7 @@ LeaveRoomJob::LeaveRoomJob(const QString& roomId, const QString& reason)
 {
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "reason"_L1, reason);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }
 
 QUrl ForgetRoomJob::makeRequestUrl(const HomeserverData& hsData, const QString& roomId)

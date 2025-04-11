@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <Quotient/events/stateevent.h>
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/events/stateevent.h"
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -128,7 +128,7 @@ public:
 
 template <std::derived_from<GetSpaceHierarchyJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> GetSpaceHierarchyJob::Response { return { j->rooms(), j->nextBatch() }; };
+    [](JobT* j) -> GetSpaceHierarchyJob::Response { return {j->rooms(), j->nextBatch()}; };
 
 template <>
 struct QUOTIENT_API JsonObjectConverter<GetSpaceHierarchyJob::SpaceHierarchyRoomsChunk> {

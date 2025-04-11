@@ -29,7 +29,7 @@ UpdateDeviceJob::UpdateDeviceJob(const QString& deviceId, const QString& display
 {
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "display_name"_L1, displayName);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }
 
 DeleteDeviceJob::DeleteDeviceJob(const QString& deviceId,
@@ -39,7 +39,7 @@ DeleteDeviceJob::DeleteDeviceJob(const QString& deviceId,
 {
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "auth"_L1, auth);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }
 
 DeleteDevicesJob::DeleteDevicesJob(const QStringList& devices,
@@ -50,5 +50,5 @@ DeleteDevicesJob::DeleteDevicesJob(const QStringList& devices,
     QJsonObject _dataJson;
     addParam(_dataJson, "devices"_L1, devices);
     addParam<IfNotEmpty>(_dataJson, "auth"_L1, auth);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }

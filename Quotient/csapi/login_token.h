@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include <Quotient/csapi/definitions/auth_data.h>
-
-#include <Quotient/jobs/basejob.h>
+#include "Quotient/csapi/definitions/auth_data.h"
+#include "Quotient/jobs/basejob.h"
 
 namespace Quotient {
 
@@ -69,8 +68,7 @@ public:
 };
 
 template <std::derived_from<GenerateLoginTokenJob> JobT>
-constexpr inline auto doCollectResponse<JobT> = [](JobT* j) -> GenerateLoginTokenJob::Response {
-    return { j->loginToken(), j->expiresInMs() };
-};
+constexpr inline auto doCollectResponse<JobT> =
+    [](JobT* j) -> GenerateLoginTokenJob::Response { return {j->loginToken(), j->expiresInMs()}; };
 
 } // namespace Quotient

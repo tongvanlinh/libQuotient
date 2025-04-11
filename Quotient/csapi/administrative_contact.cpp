@@ -19,7 +19,7 @@ Post3PIDsJob::Post3PIDsJob(const ThreePidCredentials& threePidCreds)
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "three_pid_creds"_L1, threePidCreds);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }
 
 Add3PIDJob::Add3PIDJob(const QString& clientSecret, const QString& sid,
@@ -30,7 +30,7 @@ Add3PIDJob::Add3PIDJob(const QString& clientSecret, const QString& sid,
     addParam<IfNotEmpty>(_dataJson, "auth"_L1, auth);
     addParam(_dataJson, "client_secret"_L1, clientSecret);
     addParam(_dataJson, "sid"_L1, sid);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }
 
 Bind3PIDJob::Bind3PIDJob(const QString& clientSecret, const QString& idServer,
@@ -42,7 +42,7 @@ Bind3PIDJob::Bind3PIDJob(const QString& clientSecret, const QString& idServer,
     addParam(_dataJson, "id_server"_L1, idServer);
     addParam(_dataJson, "id_access_token"_L1, idAccessToken);
     addParam(_dataJson, "sid"_L1, sid);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
 }
 
 Delete3pidFromAccountJob::Delete3pidFromAccountJob(const QString& medium, const QString& address,
@@ -54,7 +54,7 @@ Delete3pidFromAccountJob::Delete3pidFromAccountJob(const QString& medium, const 
     addParam<IfNotEmpty>(_dataJson, "id_server"_L1, idServer);
     addParam(_dataJson, "medium"_L1, medium);
     addParam(_dataJson, "address"_L1, address);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
     addExpectedKey(u"id_server_unbind_result"_s);
 }
 
@@ -67,7 +67,7 @@ Unbind3pidFromAccountJob::Unbind3pidFromAccountJob(const QString& medium, const 
     addParam<IfNotEmpty>(_dataJson, "id_server"_L1, idServer);
     addParam(_dataJson, "medium"_L1, medium);
     addParam(_dataJson, "address"_L1, address);
-    setRequestData({ _dataJson });
+    setRequestData({_dataJson});
     addExpectedKey(u"id_server_unbind_result"_s);
 }
 
@@ -75,12 +75,12 @@ RequestTokenTo3PIDEmailJob::RequestTokenTo3PIDEmailJob(const EmailValidationData
     : BaseJob(HttpVerb::Post, u"RequestTokenTo3PIDEmailJob"_s,
               makePath("/_matrix/client/v3", "/account/3pid/email/requestToken"), false)
 {
-    setRequestData({ toJson(data) });
+    setRequestData({toJson(data)});
 }
 
 RequestTokenTo3PIDMSISDNJob::RequestTokenTo3PIDMSISDNJob(const MsisdnValidationData& data)
     : BaseJob(HttpVerb::Post, u"RequestTokenTo3PIDMSISDNJob"_s,
               makePath("/_matrix/client/v3", "/account/3pid/msisdn/requestToken"), false)
 {
-    setRequestData({ toJson(data) });
+    setRequestData({toJson(data)});
 }
