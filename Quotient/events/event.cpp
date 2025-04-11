@@ -4,7 +4,6 @@
 #include "event.h"
 
 #include "../logging_categories_p.h"
-#include "../ranges_extras.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QStringBuilder>
@@ -15,31 +14,36 @@
 
 using namespace Quotient;
 
-void AbstractEventMetaType::addDerived(const AbstractEventMetaType* newType)
+AbstractEventMetaType::AbstractEventMetaType(const std::type_info &typeInfo, const char *className,
+                                             AbstractEventMetaType *nearestBase,
+                                             event_type_t matrixId)
+    : typeInfo(typeInfo), className(className), baseType(nearestBase), matrixId(matrixId)
 {
-    if (const auto existing =
-            std::ranges::find(_derivedTypes, newType->matrixId, &AbstractEventMetaType::matrixId);
-        existing != _derivedTypes.cend()) {
-        if (*existing == newType)
-            return;
-        // Two different metatype objects claim the same Matrix type id; this
-        // is not normal, so give as much information as possible to diagnose
-        if (QUO_ALARM_X(
-                (*existing)->className == newType->className,
-                QLatin1StringView(newType->className) % " claims '"_L1 % newType->matrixId
-                    % "' repeatedly;"
-                      " check that it's exported across translation units or shared objects"_L1))
-            return; // That situation is very wrong so maybe std::terminate() even?
+    if (nearestBase) {
+        if (const auto existing = std::ranges::find(nearestBase->derivedTypes(), matrixId,
+                                                    &AbstractEventMetaType::matrixId);
+            existing != nearestBase->derivedTypes().end()) // macOS still has no std::span::cend()
+        {
+            if (QUO_ALARM_X(*existing == this, "Attempt to re-register the same event class"))
+                return; // This is kinda fine but extremely fishy
 
-        qWarning(EVENTS).nospace() << newType->matrixId << " is already mapped to "
-                                   << (*existing)->className << " before " << newType->className
-                                   << "; unless the two have different isValid() conditions, the "
-                                      "latter class will never be used";
+            // Two different metatype objects claim the same Matrix type id; this
+            // is not normal, so give as much information as possible to diagnose
+            if (QUO_ALARM_X((*existing)->typeInfo == typeInfo,
+                            QLatin1StringView(className) % " claims '"_L1 % matrixId
+                                % "' repeatedly; check that the C++ symbol is properly exported"_L1))
+                return; // That situation is very wrong (see #413) so maybe std::terminate() even?
+
+            qWarning(EVENTS).nospace() << matrixId << " is already mapped to "
+                                       << (*existing)->className << " before " << className
+                                       << "; unless the two have different isValid() conditions, "
+                                          "the latter class will never be used";
+        }
+        nearestBase->_derivedTypes.emplace_back(this);
+        qDebug(EVENTS).nospace() << matrixId << " -> " << className << "; "
+                                 << nearestBase->_derivedTypes.size()
+                                 << " derived type(s) registered for " << nearestBase->className;
     }
-    _derivedTypes.emplace_back(newType);
-    qDebug(EVENTS).nospace() << newType->matrixId << " -> " << newType->className << "; "
-                             << _derivedTypes.size() << " derived type(s) registered for "
-                             << className;
 }
 
 Event::Event(const QJsonObject& json) : _json(json) {}
