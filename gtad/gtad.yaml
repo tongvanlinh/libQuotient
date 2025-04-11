@@ -113,7 +113,7 @@ analyzer:
 #      - getFilter<: *Filter
       - OneTimeKeys:
           type: OneTimeKeys
-          imports: '<Quotient/e2ee/e2ee_common.h>'
+          imports: '"Quotient/e2ee/e2ee_common.h"'
       - /(Room|Event|RoomEvent)Filter$/: # These do not need std::optional<>
       - //: *UseOptional
     - array:
@@ -123,7 +123,7 @@ analyzer:
         - /^Notification|Result|SpaceHierarchyRoomsChunk$/: "std::vector<{{1}}>"
         - /^StrippedChildStateEvent$|state_event.yaml$/:
             type: StateEvents
-            imports: '<Quotient/events/stateevent.h>' # For StrippedChildStateEvent
+            imports: '"Quotient/events/stateevent.h"' # For StrippedChildStateEvent
         - /(room|client)_event.yaml$/: RoomEvents
         - /event(_without_room_id)?.yaml$/: Events
       - //: "QVector<{{1}}>"
@@ -139,7 +139,7 @@ analyzer:
 
   references:
     # This renderer applies to everything actually imported (not substituted/inlined)
-    importRenderer: '<Quotient/{{#segments}}{{_}}{{#_join}}/{{/_join}}{{/segments}}.h>'
+    importRenderer: '"Quotient/{{#segments}}{{_}}{{#_join}}/{{/_join}}{{/segments}}.h"'
     inline:
     # Inline whatever is used from the identity spec
     - /identity/definitions/
@@ -161,13 +161,13 @@ analyzer:
       +on:
       - /state_event.yaml$/:
           type: StateEventPtr
-          imports: '<Quotient/events/stateevent.h>'
+          imports: '"Quotient/events/stateevent.h"'
       - /(room|client)_event.yaml$/:
           type: RoomEventPtr
-          imports: '<Quotient/events/roomevent.h>'
+          imports: '"Quotient/events/roomevent.h"'
       - /event(_without_room_id)?.yaml$/:
           type: EventPtr
-          imports: '<Quotient/events/event.h>'
+          imports: '"Quotient/events/event.h"'
 
   #operations:
 
@@ -284,4 +284,3 @@ mustache:
       .cpp: "{{>operation.cpp.mustache}}"
 
   #outFilesList: apifiles.txt
-
