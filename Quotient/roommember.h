@@ -244,16 +244,6 @@ struct QUOTIENT_API MemberSorter {
         return operator()(u1name, u2.displayName());
     }
     bool operator()(QStringView u1name, QStringView u2name) const;
-
-#if Quotient_VERSION_MAJOR == 0 && Quotient_VERSION_MINOR < 10
-    template <template <class> class ContT>
-    [[deprecated("Use Quotient::lowerBoundIndex() or std::ranges::lower_bound() instead")]] //
-    typename ContT<RoomMember>::size_type
-    lowerBoundIndex(const ContT<RoomMember>& c, const auto& v) const
-    {
-        return std::ranges::lower_bound(c, v, *this) - c.begin();
-    }
-#endif
 };
 
 } // namespace Quotient
