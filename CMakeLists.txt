@@ -94,6 +94,10 @@ set(CMAKE_AUTORCC ON)
 find_package(${Qt} ${QtMinVersion} REQUIRED Core Network Gui Test Sql)
 get_filename_component(Qt_Prefix "${${Qt}_DIR}/../../../.." ABSOLUTE)
 
+if(${Qt}Core_VERSION VERSION_GREATER_EQUAL 6.10)
+    find_package(${Qt} ${QtMinVersion} REQUIRED COMPONENTS CorePrivate)
+endif()
+
 find_package(${Qt}Keychain REQUIRED)
 
 find_package(Olm 3.2.5 REQUIRED)
