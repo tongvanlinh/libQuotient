@@ -28,10 +28,7 @@
 #include <QtConcurrent/QtConcurrent>
 #include <QtNetwork/QNetworkReply>
 
-#include <iostream>
-
 using namespace Quotient;
-using std::clog, std::endl;
 
 class TestSuite;
 
@@ -40,7 +37,7 @@ public:
     TestManager(int& argc, char** argv);
 
 private:
-    void setupAndRun();
+    void setupAndRun(const QString &targetRoomAlias);
     void onNewRoom(Room* r);
     void doTests();
     void conclude();
@@ -49,7 +46,6 @@ private:
 private:
     Connection* c = nullptr;
     QString origin;
-    QString targetRoomName;
     TestSuite* testSuite = nullptr;
     QByteArrayList running {}, succeeded {}, failed {};
 };
@@ -153,17 +149,17 @@ private:
 
 #define FAIL_TEST() FINISH_TEST(false)
 
-#define FAIL_TEST_IF(Condition, ...)                           \
-    do {                                                       \
-        if (Condition) {                                       \
-            __VA_OPT__(clog << QUO_CSTR(__VA_ARGS__) << endl;) \
-            FAIL_TEST();                                       \
-        }                                                      \
+#define FAIL_TEST_IF(Condition, ...)                         \
+    do {                                                     \
+        if (Condition) {                                     \
+            __VA_OPT__(qWarning() << QUO_CSTR(__VA_ARGS__);) \
+            FAIL_TEST();                                     \
+        }                                                    \
     } while (false)
 
 void TestSuite::doTest(const QByteArray& testName)
 {
-    clog << "Starting: " << testName.constData() << endl;
+    qInfo() << "Starting:" << testName.constData();
     QMetaObject::invokeMethod(this, testName.constData(), Qt::DirectConnection,
                               Q_ARG(TestToken, testName));
 }
@@ -182,11 +178,11 @@ void TestSuite::finishTest(const TestToken& token, bool condition, std::source_l
 {
     const auto& item = testName(token);
     if (condition) {
-        clog << item << " successful" << endl;
+        qInfo() << item << "successful";
         if (targetRoom)
             targetRoom->postText<MessageEventType::Notice>(origin % ": "_L1 % QString::fromUtf8(item) % " successful"_L1);
     } else {
-        clog << item << " FAILED at " << loc.file_name() << ":" << loc.line() << endl;
+        qWarning().nospace() << item << " FAILED at " << loc.file_name() << ":" << loc.line();
         if (targetRoom)
             targetRoom->postText(origin % ": "_L1 % QString::fromUtf8(item) % " FAILED at "_L1
                                  % QString::fromUtf8(loc.file_name()) % ", line "_L1
@@ -196,33 +192,66 @@ void TestSuite::finishTest(const TestToken& token, bool condition, std::source_l
     emit finishedItem(item, condition);
 }
 
+inline void logConnectionDetails(Connection* c)
+{
+    qInfo() << "Connected to" << c->homeserver().toDisplayString();
+    qInfo() << "Access token:" << c->accessToken();
+}
+
+using qsl_size_t = QStringList::size_type;
+
+template <qsl_size_t From, qsl_size_t N>
+inline std::array<QString, N> unpackList(const QStringList &l)
+{
+    return [&l]<qsl_size_t... Is>(std::integer_sequence<qsl_size_t, Is...>) {
+        return std::to_array<QString>({l.size() > From + Is ? l[From + Is] : QString()...});
+    }(std::make_integer_sequence<qsl_size_t, N>{});
+}
+
 TestManager::TestManager(int& argc, char** argv)
     : QCoreApplication(argc, argv), c(new Connection(this))
 {
-    Q_ASSERT(argc >= 5);
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    clog << "Connecting to Matrix as " << argv[1] << endl;
-    c->loginWithPassword(QString::fromUtf8(argv[1]), QString::fromUtf8(argv[2]),
-                         QString::fromUtf8(argv[3]));
-    targetRoomName = QString::fromUtf8(argv[4]);
-    clog << "Test room name: " << argv[4] << '\n';
-    if (argc > 5) {
-        origin = QString::fromUtf8(argv[5]);
-        clog << "Origin for the test message: " << origin.toStdString() << '\n';
-    }
-    clog.flush();
-    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    setOrganizationName(u"Quotient"_s);
+    setApplicationName(u"Quotest"_s);
+    setApplicationVersion(versionString());
 
-    connect(c, &Connection::connected, this, [this] {
+    // QCommandLineParser is of limited use here, as it cannot control for the number and format
+    // of positional arguments; but at least it can show a nice help block
+    const auto appDescription = u"Functional test suite for libQuotient"_s;
+    QCommandLineParser clp;
+    clp.setApplicationDescription(appDescription);
+    clp.addHelpOption();
+    clp.addVersionOption();
+    clp.addPositionalArgument(u"user"_s, u"The user MXID that quotest will use to run tests"_s);
+    clp.addPositionalArgument(u"password"_s, u"The password for the provided MXID"_s);
+    clp.addPositionalArgument(u"device_name"_s, u"The device name to login with"_s);
+    clp.addPositionalArgument(u"room_alias"_s, u"The alias of the room to run tests in"_s);
+    clp.addPositionalArgument(u"origin"_s,
+                              u"The invoker of the test or the conditions it is run in"_s,
+                              u"origin"_s);
+    clp.process(*this);
+    const auto &positionalArgs = clp.positionalArguments();
+    if (positionalArgs.size() < 5)
+        clp.showHelp(EXIT_FAILURE);
+
+    qInfo().noquote() << applicationName() << applicationVersion();
+    const auto &[user, password, deviceName, targetRoomAlias] = unpackList<0, 4>(positionalArgs);
+    origin = positionalArgs[4];
+    qInfo().noquote() << "Connecting to Matrix as" << user;
+    qInfo().noquote() << "Test room alias:" << targetRoomAlias;
+    if (!origin.isEmpty())
+        qInfo() << "Origin for the test message:" << origin;
+
+    c->loginWithPassword(user, password, deviceName);
+    connect(c, &Connection::connected, this, [this, targetRoomAlias] {
         if (QUO_ALARM(c->homeserver().isEmpty() || !c->homeserver().isValid())
             || QUO_ALARM(c->domain() != c->userId().section(u':', 1))) {
-            clog << "Connection information doesn't look right, "
-                 << "check the parameters passed to quotest" << endl;
-            QCoreApplication::exit(-2);
+            qCritical() << "Connection information doesn't look right, "
+                        << "check the parameters passed to quotest";
+            exit(2);
             return;
         }
-        clog << "Connected, server: " << c->homeserver().toDisplayString().toStdString() << '\n'
-             << "Access token: " << c->accessToken().toStdString() << endl;
+        logConnectionDetails(c);
 
         // Test Connection::assumeIdentity() while we can replace connection objects
         auto* newC = new Connection(c->homeserver(), this);
@@ -231,33 +260,32 @@ TestManager::TestManager(int& argc, char** argv)
         //     data is initialised asynchronously
         if (QUO_ALARM(newC->homeserver() != c->homeserver())
             || QUO_ALARM(newC->userId() != c->userId()) || QUO_ALARM(!newC->isLoggedIn())) {
-            clog << "Connection::assumeIdentity() is broken" << endl;
-            QCoreApplication::exit(-2);
+            qCritical() << "Connection::assumeIdentity() is broken";
+            exit(2);
             return;
         }
 
         c->deleteLater();
         c = newC;
-        setupAndRun();
+        setupAndRun(targetRoomAlias);
     });
     connect(c, &Connection::resolveError, this,
         [](const QString& error) {
-            clog << "Could not start testing: " << error.toStdString() << endl;
-            QCoreApplication::exit(-2);
+            qCritical() << "Could not start testing:" << error;
+            exit(2);
         },
         Qt::QueuedConnection);
     connect(c, &Connection::loginError, this,
-        [this](const QString& message, const QString& details) {
-            clog << "Failed to login to " << c->homeserver().toDisplayString().toStdString() << ": "
-                 << message.toStdString() << "\nDetails:\n"
-                 << details.toStdString() << endl;
-            QCoreApplication::exit(-2);
-        },
-        Qt::QueuedConnection);
+            [this](const QString &message, const QString &details) {
+        qCritical().nospace() << "Failed to login to " << c->homeserver().toDisplayString() << ": "
+                              << message;
+        qWarning() << "Details:\n" << details;
+        exit(2);
+    }, Qt::QueuedConnection);
 
     // Big countdown watchdog
     QTimer::singleShot(180000, this, [this] {
-        clog << "Time is up, stopping the session\n";
+        qWarning() << "Time is up, stopping the session";
         if (testSuite)
             conclude();
         else
@@ -265,21 +293,29 @@ TestManager::TestManager(int& argc, char** argv)
     });
 }
 
-void TestManager::setupAndRun()
+void listTests(const char *message, QByteArrayList testList)
+{
+    auto dbg = qInfo().noquote().nospace();
+    dbg << testList.size() << ' ' << message << ':';
+    dbg.space();
+    for (const auto &test : std::as_const(testList))
+        dbg << testName(test);
+}
+
+void TestManager::setupAndRun(const QString& targetRoomAlias)
 {
     Q_ASSERT(!c->homeserver().isEmpty() && c->homeserver().isValid());
     Q_ASSERT(c->domain() == c->userId().section(u':', 1));
-    clog << "Connected, server: " << c->homeserver().toDisplayString().toStdString() << '\n'
-         << "Access token: " << c->accessToken().toStdString() << endl;
+    logConnectionDetails(c);
 
     connect(c, &Connection::loadedRoomState, this, &TestManager::onNewRoom);
 
     c->setLazyLoading(true);
 
-    clog << "Joining " << targetRoomName.toStdString() << endl;
-    c->joinAndGetRoom(targetRoomName).then(this, [this](Room* room) {
+    qInfo() << "Joining" << targetRoomAlias;
+    c->joinAndGetRoom(targetRoomAlias).then(this, [this](Room* room) {
         if (!room) {
-            clog << "Failed to join the test room" << endl;
+            qCritical() << "Failed to join the test room";
             finalize();
             return;
         }
@@ -291,19 +327,16 @@ void TestManager::setupAndRun()
         c->syncLoop();
         connect(c, &Connection::syncDone, this, [this] {
             static int i = 0;
-            clog << "Sync " << ++i << " complete" << endl;
+            qInfo() << "Sync" << ++i << "complete";
             if (auto* r = testSuite->room()) {
-                clog << "Test room timeline size = " << r->timelineSize();
+                auto dbg = qInfo();
+                dbg << "Test room timeline size =" << r->timelineSize();
                 if (!r->pendingEvents().empty())
-                    clog << ", pending size = " << r->pendingEvents().size();
-                clog << endl;
+                    dbg << ", pending size =" << r->pendingEvents().size();
             }
-            if (!running.empty()) {
-                clog << running.size() << " test(s) in the air:";
-                for (const auto& test: std::as_const(running))
-                    clog << " " << testName(test);
-                clog << endl;
-            }
+            if (!running.empty())
+                listTests("test(s) in the air", running);
+
             if (i == 1) {
                 testSuite->room()->getPreviousContent().then(this, &TestManager::doTests);
             }
@@ -313,10 +346,11 @@ void TestManager::setupAndRun()
 
 void TestManager::onNewRoom(Room* r)
 {
-    clog << "New room: " << r->id().toStdString() << "\n  Name: " << r->name().toStdString()
-         << "\n  Canonical alias: " << r->canonicalAlias().toStdString() << endl;
+    qDebug() << "New room:" << r->id();
+    qDebug() << "  Name:" << r->name();
+    qDebug() << "  Canonical alias: " << r->canonicalAlias();
     connect(r, &Room::aboutToAddNewMessages, r, [r](RoomEventsRange timeline) {
-        clog << timeline.size() << " new event(s) in room " << r->objectName().toStdString() << endl;
+        qDebug() << timeline.size() << "new event(s) in room" << r->objectName();
     });
 }
 
@@ -336,10 +370,7 @@ void TestManager::doTests()
         QMetaObject::invokeMethod(testSuite, "doTest", Qt::QueuedConnection,
                                   Q_ARG(QByteArray, testName));
     }
-    clog << "Tests to do:";
-    for (const auto& test: std::as_const(running))
-        clog << " " << testName(test);
-    clog << endl;
+    listTests("tests to do", running);
     connect(testSuite, &TestSuite::finishedItem, this,
             [this](const QByteArray& itemName, bool condition) {
                 if (auto i = running.indexOf(itemName); i != -1)
@@ -348,7 +379,7 @@ void TestManager::doTests()
                     Q_ASSERT_X(false, itemName.constData(),
                                "Test item is not in running state");
                 if (running.empty()) {
-                    clog << "All tests finished" << endl;
+                    qInfo() << "All tests finished";
                     conclude();
                 }
             });
@@ -366,10 +397,8 @@ TEST_IMPL(loadMembers)
     // It's not exactly correct because an arbitrary server might not support
     // lazy loading; but in the absence of capabilities framework we assume
     // it does.
-    if (targetRoom->joinedMembers().size() >= targetRoom->joinedCount()) {
-        clog << "Lazy loading doesn't seem to be enabled" << endl;
-        FAIL_TEST();
-    }
+    FAIL_TEST_IF(targetRoom->joinedMembers().size() >= targetRoom->joinedCount(),
+                 "Lazy loading doesn't seem to be enabled");
     targetRoom->setDisplayed();
     connect(targetRoom, &Room::allMembersLoaded, this, [this, thisTest] {
         FINISH_TEST(targetRoom->joinedMembers().size() >= targetRoom->joinedCount());
@@ -380,16 +409,12 @@ TEST_IMPL(loadMembers)
 TEST_IMPL(sendMessage)
 {
     auto txnId = targetRoom->postText("Hello, "_L1 % origin % " is here"_L1);
-    if (!validatePendingEvent<RoomMessageEvent>(txnId)) {
-        clog << "Invalid pending event right after submitting" << endl;
-        FAIL_TEST();
-    }
+    FAIL_TEST_IF(!validatePendingEvent<RoomMessageEvent>(txnId),
+                 "Invalid pending event right after submitting");
     targetRoom->whenMessageMerged(txnId).then(this, [this, thisTest, txnId](const RoomEvent& evt) {
         const auto pendingIt = targetRoom->findPendingEvent(txnId);
-        if (pendingIt == targetRoom->pendingEvents().end()) {
-            clog << "Pending event not found at the moment of local echo merging\n";
-            FAIL_TEST();
-        }
+        FAIL_TEST_IF(pendingIt == targetRoom->pendingEvents().end(),
+                     "Pending event not found at the moment of local echo merging");
         FINISH_TEST(evt.is<RoomMessageEvent>() && !evt.id().isEmpty()
                     && txnId == (*pendingIt)->transactionId() && txnId == evt.transactionId());
     });
@@ -402,16 +427,13 @@ TEST_IMPL(sendReaction)
         .whenMerged()
         .then([this, thisTest](const RoomEvent& targetEvt) {
             const auto targetEvtId = targetEvt.id();
-            clog << "Reacting to the message just sent to the room: " << targetEvtId.toStdString()
-                 << endl;
+            qInfo() << "Reacting to the message just sent to the room" << targetEvtId;
 
             // TODO: a separate test unit for reactionevent.h
-            if (loadEvent<ReactionEvent>(RoomEvent::basicJson(
-                    ReactionEvent::TypeId,
-                    { { RelatesToKey, toJson(EventRelation::replace(targetEvtId)) } }))) {
-                clog << "ReactionEvent can be created with an invalid relation type" << endl;
-                FAIL_TEST();
-            }
+            FAIL_TEST_IF((loadEvent<ReactionEvent>(RoomEvent::basicJson(
+                             ReactionEvent::TypeId,
+                             {{RelatesToKey, toJson(EventRelation::replace(targetEvtId))}}))),
+                         "ReactionEvent can be created with an invalid relation type");
 
             const auto key = u"+"_s;
             const auto txnId = targetRoom->postReaction(targetEvtId, key);
@@ -440,21 +462,18 @@ TEST_IMPL(sendReaction)
 TEST_IMPL(sendFile)
 {
     auto* tf = new QTemporaryFile;
-    if (!tf->open()) {
-        clog << "Failed to create a temporary file" << endl;
-        FAIL_TEST();
-    }
+    FAIL_TEST_IF(!tf->open(), "Failed to create a temporary file");
     tf->write("Test");
     tf->close();
     const QFileInfo tfi { *tf };
     // QFileInfo::fileName brings only the file name; QFile::fileName brings
     // the full path
     const auto tfName = tfi.fileName();
-    clog << "Sending file " << tfName.toStdString() << endl;
+    qInfo() << "Sending file" << tfName;
     const auto txnId = targetRoom->postFile(
         "Test file"_L1, std::make_unique<EventContent::FileContent>(tfi));
     if (!validatePendingEvent<RoomMessageEvent>(txnId)) {
-        clog << "Invalid pending event right after submitting" << endl;
+        qWarning() << "Invalid pending event right after submitting";
         tf->deleteLater();
         FAIL_TEST();
     }
@@ -518,20 +537,18 @@ bool TestSuite::checkFileSendingOutcome(const TestToken& thisTest,
                                         const QString& fileName)
 {
     auto it = targetRoom->findPendingEvent(txnId);
-    if (it == targetRoom->pendingEvents().end()) {
-        clog << "Pending file event dropped before upload completion" << endl;
-        FAIL_TEST();
-    }
+    FAIL_TEST_IF(it == targetRoom->pendingEvents().end(),
+                 "Pending file event dropped before upload completion");
     if (it->deliveryStatus() != EventStatus::FileUploaded) {
-        clog << "Pending file event status upon upload completion is "
+        qWarning() << "Pending file event status upon upload completion is "
              << it->deliveryStatus() << " != FileUploaded("
-             << EventStatus::FileUploaded << ')' << endl;
+             << EventStatus::FileUploaded << ')';
         FAIL_TEST();
     }
 
     targetRoom->whenMessageMerged(txnId).then(
         this, [this, thisTest, txnId, fileName](const RoomEvent& evt) {
-            clog << "File event " << txnId.toStdString() << " arrived in the timeline" << endl;
+            qInfo() << "File event" << txnId << "arrived in the timeline";
             using EventContent::FileContent;
             evt.switchOnType(
                 [&](const RoomMessageEvent& e) {
@@ -553,10 +570,8 @@ DEFINE_SIMPLE_EVENT(CustomEvent, RoomEvent, "quotest.custom", int, testValue,
 TEST_IMPL(sendCustomEvent)
 {
     const auto& pendingEventItem = targetRoom->post<CustomEvent>(42);
-    if (!validatePendingEvent<CustomEvent>(pendingEventItem->transactionId())) {
-        clog << "Invalid pending event right after submitting" << endl;
-        FAIL_TEST();
-    }
+    FAIL_TEST_IF(!validatePendingEvent<CustomEvent>(pendingEventItem->transactionId()),
+                 "Invalid pending event right after submitting");
     pendingEventItem.whenMerged().then(
         this, [this, thisTest, txnId = pendingEventItem->transactionId()](const RoomEvent& evt) {
             evt.switchOnType(
@@ -567,23 +582,19 @@ TEST_IMPL(sendCustomEvent)
                 [this, thisTest](const RoomEvent&) { FAIL_TEST(); });
         });
     return false;
-
 }
 
 TEST_IMPL(setTopic)
 {
     const auto newTopic = connection()->generateTxnId(); // Just a way to make a unique id
     targetRoom->setTopic(newTopic);
-    connectUntil(targetRoom, &Room::topicChanged, this,
-        [this, thisTest, newTopic] {
-            if (targetRoom->topic() == newTopic)
-                FINISH_TEST(true);
+    connectUntil(targetRoom, &Room::topicChanged, this, [this, thisTest, newTopic] {
+        FINISH_TEST_IF(targetRoom->topic() == newTopic);
 
-            clog << "Requested topic was " << newTopic.toStdString() << ", "
-                 << targetRoom->topic().toStdString() << " arrived instead"
-                 << endl;
-            return false;
-        });
+        qWarning() << "Requested topic was " << newTopic << ", " << targetRoom->topic()
+                << " arrived instead";
+        return false;
+    });
     return false;
 }
 
@@ -592,7 +603,7 @@ QFuture<void> ensureEvent(Room* room, const QString& evtId, QPromise<void>&& p =
 {
     auto future = p.future();
     if (room->findInTimeline(evtId) == room->historyEdge()) {
-        clog << "Loading a page of history, " << room->timelineSize() << " events so far\n";
+        qInfo() << "Loading a page of history, " << room->timelineSize() << " events so far";
         room->getPreviousContent().then(std::bind_front(ensureEvent, room, evtId, std::move(p)));
     } else
         p.finish();
@@ -616,7 +627,7 @@ TEST_IMPL(redactEvent)
     // Make sure the event is loaded in the timeline before proceeding with the test, to make sure
     // the replacement tracked below actually occurs
     ensureEvent(targetRoom, evtId).then([this, thisTest, evtId] {
-        clog << "Redacting the latest member event" << endl;
+        qInfo() << "Redacting the latest member event";
         targetRoom->redactEvent(evtId, origin);
         connectUntil(targetRoom, &Room::replacedEvent, this,
                      [this, thisTest, evtId](const RoomEvent* evt) {
@@ -645,30 +656,23 @@ TEST_IMPL(changeName)
     QtFuture::connect(targetRoom, &Room::allMembersLoaded).then([this, thisTest] {
         auto* const localUser = connection()->user();
         const auto& newName = connection()->generateTxnId(); // See setTopic()
-        clog << "Renaming the user to " << newName.toStdString()
-             << " in the target room" << endl;
+        qInfo() << "Renaming the user to" << newName << "in the target room";
         localUser->rename(newName, targetRoom);
         connectUntil(
             targetRoom, &Room::aboutToAddNewMessages, this,
             [this, thisTest, localUser, newName](RoomEventsRange evts) {
                 for (const auto& e : evts) {
                     if (const auto* rme = eventCast<const RoomMemberEvent>(e)) {
-                        if (rme->stateKey() != localUser->id()
-                            || !rme->isRename())
+                        if (rme->stateKey() != localUser->id() || !rme->isRename())
                             continue;
-                        if (!rme->newDisplayName()
-                            || *rme->newDisplayName() != newName)
-                            FAIL_TEST();
+                        FAIL_TEST_IF(!rme->newDisplayName() || *rme->newDisplayName() != newName);
                         // State events coming in the timeline are first
                         // processed to change the room state and then as
                         // timeline messages; aboutToAddNewMessages is triggered
                         // when the state is already updated, so check that
-                        if (targetRoom->currentState().get<RoomMemberEvent>(
-                                localUser->id())
-                            != rme)
-                            FAIL_TEST();
-                        clog << "Member rename successful, renaming the account"
-                             << endl;
+                        FAIL_TEST_IF(targetRoom->currentState().get<RoomMemberEvent>(localUser->id())
+                                     != rme);
+                        qInfo() << "Member rename successful, renaming the account";
                         const auto newN = newName.mid(0, 5);
                         localUser->rename(newN);
                         connectUntil(localUser, &User::defaultNameChanged, this,
@@ -705,16 +709,11 @@ TEST_IMPL(addAndRemoveTag)
     // of the tag change.
     const QSignalSpy spy(targetRoom, &Room::tagsChanged);
     targetRoom->addTag(TestTag);
-    if (spy.size() != 1 || !targetRoom->tags().contains(TestTag)) {
-        clog << "Tag adding failed" << endl;
-        FAIL_TEST();
-    }
+    FAIL_TEST_IF(spy.size() != 1 || !targetRoom->tags().contains(TestTag), "Tag adding failed");
     const auto& tagsToRooms = connection()->tagsToRooms();
-    if (!tagsToRooms.contains(TestTag) || !tagsToRooms[TestTag].contains(targetRoom)) {
-        clog << "Tag adding succeeded but the connection doesn't know about it\n";
-        FAIL_TEST();
-    }
-    clog << "Test tag set, removing it now" << endl;
+    FAIL_TEST_IF(!tagsToRooms.contains(TestTag) || !tagsToRooms[TestTag].contains(targetRoom),
+                 "Tag adding succeeded but the connection doesn't know about it");
+    qInfo() << "Test tag set, removing it now";
     targetRoom->removeTag(TestTag);
     FINISH_TEST(spy.size() == 2 && !targetRoom->tags().contains(TestTag));
 }
@@ -736,23 +735,18 @@ TEST_IMPL(markDirectChat)
     // Same as with tags (and unusual for the rest of Quotient), direct chat
     // operations are synchronous.
     const QSignalSpy spy(connection(), &Connection::directChatsListChanged);
-    clog << "Marking the room as a direct chat" << endl;
+    qInfo() << "Marking the room as a direct chat";
     connection()->addToDirectChats(targetRoom, connection()->user()->id());
-    if (spy.size() != 1 || !checkDirectChat())
-        FAIL_TEST();
+    FAIL_TEST_IF(spy.size() != 1 || !checkDirectChat());
 
     // Check that the first argument (added DCs) actually contains the room
     const auto& addedDCs = spy.back().front().value<DirectChatsMap>();
-    if (addedDCs.size() != 1
-        || !addedDCs.contains(connection()->user(), targetRoom->id())) {
-        clog << "The room is not in added direct chats" << endl;
-        FAIL_TEST();
-    }
+    FAIL_TEST_IF(addedDCs.size() != 1 || !addedDCs.contains(connection()->user(), targetRoom->id()),
+                 "The room is not in added direct chats");
 
-    clog << "Unmarking the direct chat" << endl;
+    qInfo() << "Unmarking the direct chat";
     connection()->removeFromDirectChats(targetRoom->id(), connection()->user()->id());
-    if (spy.size() != 2 && checkDirectChat())
-        FAIL_TEST();
+    FAIL_TEST_IF(spy.size() != 2 && checkDirectChat());
 
     // Check that the second argument (removed DCs) actually contains the room
     const auto& removedDCs = spy.back().back().value<DirectChatsMap>();
@@ -778,41 +772,32 @@ TEST_IMPL(visitResources)
         QSignalSpy spy(&ud, signal);
         for (const auto& uriString: uris) {
             const Uri uri { uriString };
-            clog << "Checking " << uriString.toStdString()
-                 << " -> " << uri.toDisplayString().toStdString() << endl;
-            if (auto matrixToUrl = uri.toUrl(Uri::MatrixToUri).toDisplayString();
-                !matrixToUrl.startsWith("https://matrix.to/#/"_L1)) {
-                clog << "Incorrect matrix.to representation:"
-                     << matrixToUrl.toStdString() << endl;
-            }
+            qInfo() << "Checking" << uriString << "->" << uri.toDisplayString();
+            FAIL_TEST_IF(auto matrixToUrl = uri.toUrl(Uri::MatrixToUri).toDisplayString();
+                         !matrixToUrl.startsWith("https://matrix.to/#/"_L1),
+                         u"Incorrect matrix.to representation:" % matrixToUrl);
+
             const auto checkResult = checkResource(connection(), uriString);
             if ((checkResult != UriResolved && uri.type() != Uri::NonMatrix)
-                || (uri.type() == Uri::NonMatrix
-                    && checkResult != CouldNotResolve)) {
-                clog << "checkResource() returned incorrect result:"
-                     << checkResult;
+                || (uri.type() == Uri::NonMatrix && checkResult != CouldNotResolve)) {
+                qWarning() << "checkResource() returned incorrect result:" << checkResult;
                 FAIL_TEST();
             }
             ud.visitResource(connection(), uriString);
             if (spy.size() != 1) {
-                clog << "Wrong number of signal emissions (" << spy.size()
-                     << ')' << endl;
+                qWarning() << "Wrong number of signal emissions (" << spy.size() << ')';
                 FAIL_TEST();
             }
             const auto& emission = spy.front();
             Q_ASSERT(emission.size() >= 2);
-            if (emission.front().value<decltype(target)>() != target) {
-                clog << "Signal emitted with an incorrect target" << endl;
-                FAIL_TEST();
-            }
+            FAIL_TEST_IF(emission.front().value<decltype(target)>() != target,
+                         "Signal emitted with an incorrect target");
             if (!otherArgs.empty()) {
-                if (emission.size() < otherArgs.size() + 1) {
-                    clog << "Emission doesn't include all arguments" << endl;
-                    FAIL_TEST();
-                }
+                FAIL_TEST_IF(emission.size() < otherArgs.size() + 1,
+                             "Emission doesn't include all arguments");
                 for (auto i = 0; i < otherArgs.size(); ++i)
                     if (otherArgs[i] != emission[i + 1]) {
-                        clog << "Mismatch in argument #" << i + 1 << endl;
+                        qWarning() << "Mismatch in argument #" << i + 1;
                         FAIL_TEST();
                     }
             }
@@ -823,25 +808,15 @@ TEST_IMPL(visitResources)
 
     // Basic tests
     for (const auto& u: { Uri {}, Uri { QUrl {} } })
-        if (u.isValid() || !u.isEmpty()) {
-            clog << "Empty Matrix URI test failed" << endl;
-            FAIL_TEST();
-        }
-    if (Uri { u"#"_s }.isValid()) {
-        clog << "Bare sigil URI test failed" << endl;
-        FAIL_TEST();
-    }
+        FAIL_TEST_IF(u.isValid() || !u.isEmpty(), "Empty Matrix URI test failed");
+    FAIL_TEST_IF(Uri { u"#"_s }.isValid(), "Bare sigil URI test failed");
     QUrl invalidUrl { "https://"_L1 };
     invalidUrl.setAuthority("---:@@@"_L1);
     const Uri matrixUriFromInvalidUrl{ invalidUrl }, invalidMatrixUri{ u"matrix:&invalid@"_s };
-    if (matrixUriFromInvalidUrl.isEmpty() || matrixUriFromInvalidUrl.isValid()) {
-        clog << "Invalid Matrix URI test failed" << endl;
-        FAIL_TEST();
-    }
-    if (invalidMatrixUri.isEmpty() || invalidMatrixUri.isValid()) {
-        clog << "Invalid sigil in a Matrix URI - test failed" << endl;
-        FAIL_TEST();
-    }
+    FAIL_TEST_IF(matrixUriFromInvalidUrl.isEmpty() || matrixUriFromInvalidUrl.isValid(),
+                 "Invalid Matrix URI test failed");
+    FAIL_TEST_IF(invalidMatrixUri.isEmpty() || invalidMatrixUri.isValid(),
+                 "Invalid sigil in a Matrix URI - test failed");
 
     // Matrix identifiers used throughout all URI tests
     const auto& roomId = room()->id();
@@ -929,22 +904,6 @@ TEST_IMPL(thread)
     return false;
 }
 
-bool checkPrettyPrint(
-    std::initializer_list<std::pair<const char*, const char*>> tests)
-{
-    bool result = true;
-    for (const auto& [test, etalon] : tests) {
-        const auto is = prettyPrint(QString::fromUtf8(test)).toStdString();
-        const auto shouldBe = std::string("<span style='white-space:pre-wrap'>")
-                              + etalon + "</span>";
-        if (is == shouldBe)
-            continue;
-        clog << is << " != " << shouldBe << endl;
-        result = false;
-    }
-    return result;
-}
-
 void TestManager::conclude()
 {
     // Clean up the room (best effort)
@@ -985,11 +944,12 @@ void TestManager::conclude()
                                           return pe.deliveryStatus() < EventStatus::ReachedServer;
                                       });
             stillFlyingCount > 0) {
-            clog << "Events to reach the server: " << stillFlyingCount << ", not leaving yet\n";
+            qInfo().nospace() << "Events to reach the server: " << stillFlyingCount
+                              << ", not leaving yet";
             return false;
         }
 
-        clog << "Leaving the room" << endl;
+        qInfo("Leaving the room");
         room->leaveRoom().then(this, std::bind_front(&TestManager::finalize, this, plainReport));
         return true;
     });
@@ -998,31 +958,23 @@ void TestManager::conclude()
 void TestManager::finalize(const QString& lastWords)
 {
     if (!c->isLoggedIn()) {
-        clog << "No usable connection reached" << endl;
-        QCoreApplication::exit(-2);
-        return; // NB: QCoreApplication::exit() does return to the caller
+        qCritical("No usable connection reached");
+        exit(2);
+        return; // NB: QCoreApplication::exit() still returns to the caller
     }
-    clog << "Logging out" << endl;
+    qInfo("Logging out");
     c->logout().then(
         this, [this, lastWords] {
-            clog << lastWords.toStdString() << endl;
-            QCoreApplication::exit(!testSuite ? -3
-                                   : succeeded.empty() && failed.empty()
-                                           && running.empty()
-                                       ? -4
-                                       : static_cast<int>(failed.size() + running.size()));
+            qInfo().noquote() << lastWords;
+            exit(!testSuite ? 3
+                 : succeeded.empty() && failed.empty() && running.empty()
+                     ? 4
+                     : -static_cast<int>(failed.size() + running.size()));
         });
 }
 
 int main(int argc, char* argv[])
 {
-    // TODO: use QCommandLineParser
-    if (argc < 5) {
-        clog << "Usage: quotest <user> <passwd> <device_name> <room_alias> [origin]"
-             << endl;
-        return -1;
-    }
-    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     return TestManager(argc, argv).exec();
 }
 
