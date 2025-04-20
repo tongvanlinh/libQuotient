@@ -30,10 +30,6 @@ public:
     QImage get(int dimension, get_callback_t callback) const;
     QImage get(int width, int height, get_callback_t callback) const;
 
-    [[deprecated("Use the QFuture-returning overload instead")]]
-    bool upload(const QString& fileName, upload_callback_t callback) const;
-    [[deprecated("Use the QFuture-returning overload instead")]]
-    bool upload(QIODevice* source, upload_callback_t callback) const;
     QFuture<QUrl> upload(const QString& fileName) const;
     QFuture<QUrl> upload(QIODevice* source) const;
 

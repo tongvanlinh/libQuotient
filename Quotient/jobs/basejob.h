@@ -34,7 +34,6 @@ struct JobBackoffStrategy {
 class QUOTIENT_API BaseJob : public QObject {
     Q_OBJECT
     Q_PROPERTY(QUrl requestUrl READ requestUrl CONSTANT)
-    Q_PROPERTY(int maxRetries READ maxRetries WRITE setMaxRetries)
     Q_PROPERTY(int statusCode READ error NOTIFY statusChanged)
 
     static QByteArray encodeIfParam(const QString& paramPart);
@@ -213,11 +212,6 @@ public:
 
     //! A URL to help/clarify the error, if provided by the server
     QUrl errorUrl() const;
-
-    [[deprecated("Use currentBackoffStrategy().maxRetries instead")]]
-    int maxRetries() const;
-    [[deprecated("Use setBackoffStrategy() instead")]]
-    void setMaxRetries(int newMaxRetries);
 
     //! Get the back-off strategy for this job instance
     JobBackoffStrategy currentBackoffStrategy() const;

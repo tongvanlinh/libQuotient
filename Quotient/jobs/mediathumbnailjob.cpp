@@ -53,11 +53,6 @@ MediaThumbnailJob::MediaThumbnailJob(const QUrl& mxcUri, QSize requestedSize,
 
 QImage MediaThumbnailJob::thumbnail() const { return _thumbnail; }
 
-QImage MediaThumbnailJob::scaledThumbnail(QSize toSize) const
-{
-    return _thumbnail.scaled(toSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-}
-
 void MediaThumbnailJob::doPrepare(const ConnectionData* connectionData)
 {
     const auto url = makeRequestUrl(connectionData->homeserverData(), serverName, mediaId,

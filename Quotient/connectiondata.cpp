@@ -130,15 +130,9 @@ void ConnectionData::setAccessToken(QByteArray accessToken)
     NetworkAccessManager::setAccessToken(d->userId, d->accessToken);
 }
 
-void ConnectionData::setToken(QByteArray accessToken) { setAccessToken(std::move(accessToken)); }
-
 const QString& ConnectionData::deviceId() const { return d->deviceId; }
 
 const QString& ConnectionData::userId() const { return d->userId; }
-
-void ConnectionData::setDeviceId(const QString& deviceId) { d->deviceId = deviceId; }
-
-void ConnectionData::setUserId(const QString& userId) { setIdentity(userId, d->deviceId); }
 
 void ConnectionData::setIdentity(const QString& userId, const QString& deviceId,
                                  QByteArray accessToken)

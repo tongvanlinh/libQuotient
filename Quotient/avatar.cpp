@@ -60,22 +60,6 @@ QImage Avatar::get(int width, int height, get_callback_t callback) const
     return d->get({ width, height }, std::move(callback));
 }
 
-bool Avatar::upload(const QString& fileName, upload_callback_t callback) const
-{
-    if (isJobPending(d->uploadRequest))
-        return false;
-    upload(fileName).then(std::move(callback));
-    return true;
-}
-
-bool Avatar::upload(QIODevice* source, upload_callback_t callback) const
-{
-    if (isJobPending(d->uploadRequest) || !source->isReadable())
-        return false;
-    upload(source).then(std::move(callback));
-    return true;
-}
-
 QFuture<QUrl> Avatar::upload(const QString& fileName) const
 {
     d->uploadRequest = d->connection->uploadFile(fileName);

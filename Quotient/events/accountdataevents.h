@@ -12,8 +12,6 @@ constexpr inline auto FavouriteTag = "m.favourite"_L1;
 constexpr inline auto LowPriorityTag = "m.lowpriority"_L1;
 constexpr inline auto ServerNoticeTag = "m.server_notice"_L1;
 
-using TagRecord [[deprecated("Use Tag from csapi/definitions/tag.h instead")]] = Tag;
-
 inline std::partial_ordering operator<=>(
     const Tag& lhs, const Tag& rhs) // clazy:exclude=function-args-by-value
 {

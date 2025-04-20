@@ -113,7 +113,6 @@ class QUOTIENT_API Connection : public QObject {
     Q_PROPERTY(QString defaultRoomVersion READ defaultRoomVersion NOTIFY capabilitiesLoaded)
     Q_PROPERTY(QUrl homeserver READ homeserver WRITE setHomeserver NOTIFY homeserverChanged)
     Q_PROPERTY(QVector<GetLoginFlowsJob::LoginFlow> loginFlows READ loginFlows NOTIFY loginFlowsChanged)
-    Q_PROPERTY(bool isUsable READ isUsable NOTIFY loginFlowsChanged STORED false)
     Q_PROPERTY(bool supportsSso READ supportsSso NOTIFY loginFlowsChanged STORED false)
     Q_PROPERTY(bool supportsPasswordAuth READ supportsPasswordAuth NOTIFY loginFlowsChanged STORED false)
     Q_PROPERTY(bool cacheState READ cacheState WRITE setCacheState NOTIFY cacheStateChanged)
@@ -253,10 +252,6 @@ public:
     //! Check whether a particular user id is in the ignore list
     Q_INVOKABLE bool isIgnored(const QString& userId) const;
 
-    //! Check whether a particular user is in the ignore list
-    [[deprecated("Use the overload accepting UserId instead")]]
-    Q_INVOKABLE bool isIgnored(const Quotient::User* user) const;
-
     //! Get the whole list of ignored users
     Q_INVOKABLE Quotient::IgnoredUsersList ignoredUsers() const;
 
@@ -282,9 +277,6 @@ public:
     QUrl homeserver() const;
     //! Get the domain name used for ids/aliases on the server
     QString domain() const;
-    //! Check if the homeserver is known to be reachable and working
-    [[deprecated("Check the result returned by Connection::loginFlows() instead")]]
-    bool isUsable() const;
     //! Get the list of supported login flows
     QVector<GetLoginFlowsJob::LoginFlow> loginFlows() const;
     //! Get the login flow of a given type
@@ -399,9 +391,6 @@ public:
 
     //! Find out if homeserver capabilites have been loaded
     Q_INVOKABLE bool capabilitiesReady() const;
-
-    [[deprecated("Use capabilitiesReady() instead; don't forget to negate the returned value")]]
-    Q_INVOKABLE bool loadingCapabilities() const;
 
     //! Get the list of Matrix CS API spec versions supported by the homeserver
     QStringList supportedMatrixSpecVersions() const;
@@ -685,8 +674,6 @@ public Q_SLOTS:
     //! Request capabilities and room versions from the server
     JobHandle<GetCapabilitiesJob> loadCapabilities();
 
-    [[deprecated("Use loadCapabilities() instead")]] void reloadCapabilities();
-
     QFuture<void> logout();
 
     void sync(int timeout = -1);
@@ -707,8 +694,6 @@ public Q_SLOTS:
                                               const QString& overrideContentType = {});
     JobHandle<UploadContentJob> uploadFile(const QString& fileName,
                                            const QString& overrideContentType = {});
-    [[deprecated("Use downloadFile() instead")]] BaseJob* getContent(const QString& mediaId);
-    [[deprecated("Use downloadFile() instead")]] BaseJob* getContent(const QUrl& url);
 
     // If localFilename is empty, a temporary file will be created
     JobHandle<DownloadFileJob> downloadFile(const QUrl& url, const QString& localFilename = {});

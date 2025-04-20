@@ -37,16 +37,6 @@ inline auto connectUntil(auto* sender, auto signal, QObject* context, SmartSlotT
         connType);
 }
 
-//! Create a connection that self-disconnects after triggering on the signal
-template <typename ContextT, typename SlotT>
-[[deprecated("Use QObject::connect() with Qt::SingleShotConnection, or QtFuture::connect()")]] //
-inline auto connectSingleShot(auto* sender, auto signal, ContextT* context, SlotT slot,
-                              Qt::ConnectionType connType = Qt::AutoConnection)
-{
-    return QObject::connect(sender, signal, context, slot,
-                            Qt::ConnectionType(connType | Qt::SingleShotConnection));
-}
-
 /*! \brief A guard pointer that disconnects an interested object upon destruction
  *
  * It's almost QPointer<> except that you have to initialise it with one
