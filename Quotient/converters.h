@@ -46,8 +46,8 @@ struct JsonObjectConverter;
 //static void dumpTo(QJsonObject&, const T&); // For toJson() and fillJson() to work
 //static void fillFrom(const QJsonObject&, T&); // For fromJson() and fillFromJson() to work
 
-template <typename PodT, typename JsonT>
-PodT fromJson(const JsonT&);
+template <typename PodT>
+PodT fromJson(const auto&);
 
 template <typename T>
 struct JsonObjectUnpacker {
@@ -121,8 +121,8 @@ inline void fillJson(QJsonObject& json, const T& data)
     JsonObjectConverter<T>::dumpTo(json, data);
 }
 
-template <typename PodT, typename JsonT>
-inline PodT fromJson(const JsonT& json)
+template <typename PodT>
+inline PodT fromJson(const auto& json)
 {
     // JsonT here can be whatever the respective JsonConverter specialisation
     // accepts but by default it's QJsonValue, QJsonDocument, or QJsonObject
@@ -133,8 +133,8 @@ inline PodT fromJson(const JsonT& json)
 // the coder to explicitly type it. It still enforces the
 // overwrite-everything semantics of fromJson(), unlike fillFromJson()
 
-template <typename JsonT, typename PodT>
-inline void fromJson(const JsonT& json, PodT& pod)
+template <typename PodT>
+inline void fromJson(const auto& json, PodT& pod)
 {
     pod = fromJson<PodT>(json);
 }
@@ -161,8 +161,8 @@ namespace _impl {
 //! iterable container of string'y values (const char*, QLatin1String, etc.)
 //! matching respective enum values, 0-based.
 //! \sa enumToJsonString
-template <typename EnumT, typename EnumStringValuesT>
-inline std::optional<EnumT> enumFromJsonString(const QString& s, const EnumStringValuesT& enumValues)
+template <typename EnumT>
+inline std::optional<EnumT> enumFromJsonString(const QString& s, const auto& enumValues)
 {
     static_assert(std::is_unsigned_v<std::underlying_type_t<EnumT>>);
     if (const auto it = std::ranges::find(enumValues, s); it != cend(enumValues))
@@ -180,8 +180,8 @@ inline std::optional<EnumT> enumFromJsonString(const QString& s, const EnumStrin
 //!       should be defined as <tt>{ "", "Value1", "", "Value2", "", "Value3"
 //!       }</tt> (mind the gap at value 0, in particular).
 //! \sa enumFromJsonString
-template <typename EnumT, typename EnumStringValuesT>
-inline QString enumToJsonString(EnumT v, const EnumStringValuesT& enumValues)
+template <typename EnumT>
+inline QString enumToJsonString(EnumT v, const auto& enumValues)
 {
     static_assert(std::is_unsigned_v<std::underlying_type_t<EnumT>>);
     if (v < size(enumValues))
@@ -202,8 +202,8 @@ inline QString enumToJsonString(EnumT v, const EnumStringValuesT& enumValues)
 //! \note Unlike enumFromJsonString, the values start from 1 and not from 0.
 //! \note This function does not support flag combinations.
 //! \sa QUO_DECLARE_FLAGS, QUO_DECLARE_FLAGS_NS
-template <typename FlagT, typename FlagStringValuesT>
-inline std::optional<FlagT> flagFromJsonString(const QString& s, const FlagStringValuesT& flagValues)
+template <typename FlagT>
+inline std::optional<FlagT> flagFromJsonString(const QString& s, const auto& flagValues)
 {
     // Enums based on signed integers don't make much sense for flag types
     static_assert(std::is_unsigned_v<std::underlying_type_t<FlagT>>);
@@ -213,8 +213,8 @@ inline std::optional<FlagT> flagFromJsonString(const QString& s, const FlagStrin
     return std::nullopt;
 }
 
-template <typename FlagT, typename FlagStringValuesT>
-inline QString flagToJsonString(FlagT v, const FlagStringValuesT& flagValues)
+template <typename FlagT>
+inline QString flagToJsonString(FlagT v, const auto& flagValues)
 {
     static_assert(std::is_unsigned_v<std::underlying_type_t<FlagT>>);
     if (const auto offset = std::countr_zero(std::to_underlying(v)); offset < ssize(flagValues))
@@ -551,8 +551,8 @@ namespace _impl {
  *               by default; passing IfNotEmpty or false for this parameter
  *               enables emptiness checks as described above
  */
-template <bool Force = true, typename ContT, typename KeyT, typename ValT>
-inline void addParam(ContT& container, KeyT&& key, ValT&& value)
+template <bool Force = true, typename KeyT, typename ValT>
+inline void addParam(auto& container, KeyT&& key, ValT&& value)
 {
     _impl::AddNode<std::decay_t<ValT>, Force>::impl(container, std::forward<KeyT>(key),
                                                     std::forward<ValT>(value));

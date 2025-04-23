@@ -210,10 +210,10 @@ asKeyValueRange(U&&) -> asKeyValueRange<U>;
  * Convenient for cases when you need to know which particular "first of"
  * [sFirst, sLast) has been found in [first, last).
  */
-template <typename InputIt, typename ForwardIt, typename Pred>
+template <typename InputIt, typename ForwardIt>
 inline std::pair<InputIt, ForwardIt> findFirstOf(InputIt first, InputIt last,
                                                  ForwardIt sFirst,
-                                                 ForwardIt sLast, Pred pred)
+                                                 ForwardIt sLast, auto pred)
 {
     for (; first != last; ++first)
         for (auto it = sFirst; it != sLast; ++it)

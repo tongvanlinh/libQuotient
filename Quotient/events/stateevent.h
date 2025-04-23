@@ -90,8 +90,7 @@ public:
 
     const ContentT& content() const { return _content; }
 
-    template <typename VisitorT>
-    void editContent(VisitorT&& visitor)
+    void editContent(auto&& visitor)
     {
         visitor(_content);
         editJson()[ContentKey] = toJson(_content);
