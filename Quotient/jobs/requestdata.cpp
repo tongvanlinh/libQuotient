@@ -12,7 +12,7 @@
 
 using namespace Quotient;
 
-auto fromData(const QByteArray& data)
+auto bufferFromData(const QByteArray& data)
 {
     auto source = makeImpl<QBuffer, QIODevice>();
     source->setData(data);
@@ -21,16 +21,17 @@ auto fromData(const QByteArray& data)
 }
 
 template <typename JsonDataT>
-inline auto fromJson(const JsonDataT& jdata)
+    requires std::constructible_from<QJsonDocument, JsonDataT>
+inline auto bufferFromJson(const JsonDataT& jdata)
 {
-    return fromData(QJsonDocument(jdata).toJson(QJsonDocument::Compact));
+    return bufferFromData(QJsonDocument(jdata).toJson(QJsonDocument::Compact));
 }
 
-RequestData::RequestData(const QByteArray& a) : _source(fromData(a)) {}
+RequestData::RequestData(const QByteArray& a) : _source(bufferFromData(a)) {}
 
-RequestData::RequestData(const QJsonObject& jo) : _source(fromJson(jo)) {}
+RequestData::RequestData(const QJsonObject& jo) : _source(bufferFromJson(jo)) {}
 
-RequestData::RequestData(const QJsonArray& ja) : _source(fromJson(ja)) {}
+RequestData::RequestData(const QJsonArray& ja) : _source(bufferFromJson(ja)) {}
 
 RequestData::RequestData(QIODevice* source)
     : _source(acquireImpl(source))
