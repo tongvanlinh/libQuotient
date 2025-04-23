@@ -13,7 +13,8 @@ namespace Quotient {
 template <typename RangeT, typename ValT, typename ProjT = std::identity>
     requires std::indirectly_comparable<std::ranges::iterator_t<RangeT>, const ValT*,
                                         std::ranges::equal_to, ProjT>
-inline auto findIndex(const RangeT& range, const ValT& value, ProjT proj = {})
+[[nodiscard]] constexpr inline auto findIndex(const RangeT& range, const ValT& value,
+                                              ProjT proj = {})
 {
     using namespace std::ranges;
     return distance(begin(range), find(range, value, std::move(proj)));
@@ -27,7 +28,7 @@ inline auto findIndex(const RangeT& range, const ValT& value, ProjT proj = {})
 //! available; otherwise, returns the result of calling
 //! `TargetT(ranges::begin(sourceRange), ranges::end(sourceRange))`.
 template <class TargetT, typename SourceT>
-[[nodiscard]] constexpr auto rangeTo(SourceT&& sourceRange)
+[[nodiscard]] constexpr inline auto rangeTo(SourceT&& sourceRange)
 {
 #if defined(__cpp_lib_ranges_to_container)
     return std::ranges::to<TargetT>(std::forward<SourceT>(sourceRange));
@@ -39,7 +40,7 @@ template <class TargetT, typename SourceT>
 
 //! An overload that accepts unspecialised container template
 template <template <typename> class TargetT, typename SourceT>
-[[nodiscard]] constexpr auto rangeTo(SourceT&& sourceRange)
+[[nodiscard]] constexpr inline auto rangeTo(SourceT&& sourceRange)
 {
     // Avoid template argument deduction because Xcode still can't do it when TargetT is an alias
 #if defined(__cpp_lib_ranges_to_container)
@@ -52,9 +53,9 @@ template <template <typename> class TargetT, typename SourceT>
 }
 
 #ifdef __cpp_lib_ranges_contains
-constexpr auto rangeContains = std::ranges::contains;
+constexpr inline auto rangeContains = std::ranges::contains;
 #else
-[[nodiscard]] constexpr auto rangeContains(const auto& c, const auto& v, auto proj)
+[[nodiscard]] constexpr inline auto rangeContains(const auto& c, const auto& v, auto proj)
 {
     return std::ranges::find(c, v, std::move(proj)) != std::ranges::end(c);
 }
