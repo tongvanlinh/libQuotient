@@ -62,14 +62,14 @@ namespace _impl {
 //! based on QUO_CSTR() contents if you need to store it).
 #define QUO_CSTR(StringConvertible_) std::data(::Quotient::_impl::toUtf8(StringConvertible_))
 
-inline bool alarmX(bool alarmCondition, const auto& msg,
+inline bool alarmX(bool alarmCondition, const auto& msg, bool invertReturnValue = false,
                    [[maybe_unused]] std::source_location loc = std::source_location::current())
 {
     if (alarmCondition) [[unlikely]] {
         qt_assert_x(loc.function_name(), QUO_CSTR(msg), loc.file_name(), loc.line());
         qCritical() << msg;
     }
-    return alarmCondition;
+    return alarmCondition != invertReturnValue;
 }
 
 //! \brief A negative assertion facility that can be put in an if statement
@@ -88,7 +88,7 @@ inline bool alarmX(bool alarmCondition, const auto& msg,
 
 //! Evaluate the boolean expression and, in Debug mode, assert it to be true
 #define QUO_CHECK(...) \
-    !::Quotient::alarmX(!(__VA_ARGS__) ? true : false, "Failing expression: " #__VA_ARGS__)
+    ::Quotient::alarmX((__VA_ARGS__) ? false : true, "Failing expression: " #__VA_ARGS__, true)
 
 //! A substitute for QtFuture::makeReadyVoidFuture() for compatibility with Qt pre-6.6
 inline auto makeReadyVoidFuture()
