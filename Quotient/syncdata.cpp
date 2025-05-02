@@ -51,8 +51,8 @@ void JsonObjectConverter<RoomSummary>::fillFrom(const QJsonObject& jo,
     fromJson(jo["m.heroes"_L1], rs.heroes);
 }
 
-template <typename EventsArrayT, typename StrT>
-inline EventsArrayT load(const QJsonObject& batches, StrT keyName)
+template <typename EventsArrayT>
+inline EventsArrayT load(const QJsonObject& batches, auto keyName)
 {
     return fromJson<EventsArrayT>(batches[keyName].toObject().value("events"_L1));
 }

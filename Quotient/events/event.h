@@ -514,9 +514,8 @@ inline bool is(const Event& e)
 //! can be either "dumb" (BaseEventT*) or "smart" (`event_ptr_tt<>`). This
 //! overload doesn't affect the event ownership - if the original pointer owns
 //! the event it must outlive the downcast pointer to keep it from dangling.
-template <EventClass EventT, typename BasePtrT>
-inline auto eventCast(const BasePtrT& eptr)
-    -> decltype(static_cast<EventT*>(std::to_address(eptr)))
+template <EventClass EventT>
+inline auto eventCast(const auto& eptr) -> decltype(static_cast<EventT*>(std::to_address(eptr)))
 {
     return eptr && is<std::decay_t<EventT>>(*eptr)
                ? static_cast<EventT*>(std::to_address(eptr))
