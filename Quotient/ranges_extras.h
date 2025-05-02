@@ -33,8 +33,39 @@ template <class TargetT, typename SourceT>
 #if defined(__cpp_lib_ranges_to_container)
     return std::ranges::to<TargetT>(std::forward<SourceT>(sourceRange));
 #else
-    using std::begin, std::end;
-    return TargetT(begin(sourceRange), end(sourceRange));
+    // Provide the minimal necessary subset of what std::ranges::to() can do
+    using namespace std::ranges;
+    if constexpr (std::constructible_from<TargetT, SourceT>)
+        return TargetT(std::forward<SourceT>(sourceRange));
+    else {
+        using iter_t = iterator_t<SourceT>;
+        using iter_category_t = typename std::iterator_traits<iter_t>::iterator_category;
+        if constexpr (requires {
+                          requires common_range<SourceT>;
+                          typename iter_category_t;
+                          requires std::derived_from<iter_category_t, std::input_iterator_tag>;
+                          requires std::constructible_from<TargetT, iter_t, sentinel_t<SourceT>>;
+                      })
+            return TargetT(begin(sourceRange), end(sourceRange));
+        else {
+            TargetT c{};
+            if constexpr (sized_range<SourceT>
+                          && requires(range_size_t<TargetT> n) { c.reserve(n); })
+                c.reserve(static_cast<range_size_t<TargetT>>(size(sourceRange)));
+            using ValT = std::iter_value_t<iter_t>;
+            for (auto&& e : sourceRange) {
+                if constexpr (requires { c.emplace_back(std::forward<ValT>(e)); })
+                    c.emplace_back(std::forward<ValT>(e));
+                else if constexpr (requires { c.push_back(std::forward<ValT>(e)); })
+                    c.push_back(std::forward<ValT>(e));
+                else if constexpr (requires { c.emplace(c.end(), std::forward<ValT>(e)); })
+                    c.emplace(c.end(), std::forward<ValT>(e));
+                else
+                    c.insert(c.end(), std::forward<ValT>(e));
+            }
+            return c;
+        }
+    }
 #endif
 }
 
@@ -47,8 +78,7 @@ template <template <typename> class TargetT, typename SourceT>
     return std::ranges::to<TargetT<std::ranges::range_value_t<SourceT>>>(
         std::forward<SourceT>(sourceRange));
 #else
-    using std::begin, std::end;
-    return TargetT<std::ranges::range_value_t<SourceT>>(begin(sourceRange), end(sourceRange));
+    return rangeTo<TargetT<std::ranges::range_value_t<SourceT>>>(std::forward<SourceT>(sourceRange));
 #endif
 }
 
@@ -61,4 +91,4 @@ constexpr inline auto rangeContains = std::ranges::contains;
 }
 #endif
 
-}
+} // namespace Quotient
