@@ -43,29 +43,29 @@ class QUOTIENT_API AbstractEventMetaType {
 public:
     // The public fields here are const and are not to be changeable anyway.
     // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
-    const char* const className; ///< C++ class name this metatype is for
-    const AbstractEventMetaType* const baseType;
+    const std::type_info &typeInfo;
+    const char *const className;
+    const AbstractEventMetaType *const baseType;
     const event_type_t matrixId;
     // NOLINTEND(misc-non-private-member-variables-in-classes)
 
-    explicit AbstractEventMetaType(const char* className,
-                                   AbstractEventMetaType* nearestBase = nullptr,
-                                   const char* matrixId = nullptr)
-        : className(className), baseType(nearestBase), matrixId(matrixId)
-    {
-        if (nearestBase)
-            nearestBase->addDerived(this);
-    }
-
-    void addDerived(const AbstractEventMetaType* newType);
     auto derivedTypes() const { return std::span(_derivedTypes); }
 
     virtual ~AbstractEventMetaType() = default;
+
+    friend bool operator==(const AbstractEventMetaType &lhs, const AbstractEventMetaType &rhs)
+    {
+        return lhs.typeInfo == rhs.typeInfo;
+    }
 
 protected:
     // Allow template specialisations to call into one another
     template <class EventT>
     friend class EventMetaType;
+
+    explicit AbstractEventMetaType(const std::type_info &typeInfo, const char *className,
+                                   AbstractEventMetaType *nearestBase = nullptr,
+                                   event_type_t matrixId = nullptr);
 
     // The returned value indicates whether a generic object has to be created
     // on the top level when `event` is empty, instead of returning nullptr
@@ -76,14 +76,6 @@ private:
     std::vector<const AbstractEventMetaType*> _derivedTypes{};
     Q_DISABLE_COPY_MOVE(AbstractEventMetaType)
 };
-
-// Any event metatype is unique (note Q_DISABLE_COPY_MOVE above) so can be
-// identified by its address
-inline bool operator==(const AbstractEventMetaType& lhs,
-                       const AbstractEventMetaType& rhs)
-{
-    return &lhs == &rhs;
-}
 
 //! \brief A family of event meta-types to load and match events
 //!
@@ -98,9 +90,17 @@ inline bool operator==(const AbstractEventMetaType& lhs,
 template <class EventT>
 class QUOTIENT_API EventMetaType : public AbstractEventMetaType {
     // Above: can't constrain EventT to be EventClass because it's incomplete
-    // at the point of EventMetaType<EventT> instantiation.
+    // at the point of EventMetaType<EventT> instantiation (see QUO_BASE_EVENT and QUO_EVENT)
 public:
-    using AbstractEventMetaType::AbstractEventMetaType;
+    explicit EventMetaType(AbstractEventMetaType *nearestBase = nullptr,
+                           const char* matrixTypeId = {})
+        // NB: typeid(T&) == typeid(T) but typeid(T&) can be used with an incomplete type
+        // NB2: it would be lovely to "just" use QMetaType::fromType<> instead of QtPrivate API
+        //      but QMetaType tries to instantiate constructor wrappers and it's not possible while
+        //      the type is incomplete
+        : AbstractEventMetaType(typeid(EventT &), QtPrivate::QMetaTypeForType<EventT>().getName(),
+                                nearestBase, event_type_t(matrixTypeId))
+    {}
 
     //! \brief Try to load an event from JSON, with dynamic type resolution
     //!
@@ -230,7 +230,7 @@ struct JsonConverter<event_ptr_tt<EventT>>
 
 class QUOTIENT_API Event {
 public:
-    static inline EventMetaType<Event> BaseMetaType { "Event" };
+    static inline EventMetaType<Event> BaseMetaType{};
     virtual const AbstractEventMetaType& metaType() const
     {
         return BaseMetaType;
@@ -405,17 +405,13 @@ public:
 //! initialised by parameters passed to the macro, and a metaType() override
 //! pointing to that BaseMetaType.
 //! \sa EventMetaType
-#define QUO_BASE_EVENT(CppType_, BaseCppType_, ...)                       \
-    friend class EventMetaType<CppType_>;                                 \
-    static inline EventMetaType<CppType_> BaseMetaType{                   \
-        #CppType_, &BaseCppType_::BaseMetaType __VA_OPT__(, ) __VA_ARGS__ \
-    };                                                                    \
-    static_assert(&CppType_::BaseMetaType == &BaseMetaType,               \
-                  #CppType_ " is wrong here - check for copy-pasta");     \
-    const AbstractEventMetaType& metaType() const override                \
-    {                                                                     \
-        return BaseMetaType;                                              \
-    }                                                                     \
+#define QUO_BASE_EVENT(CppType_, BaseCppType_, ...)                                      \
+    friend class EventMetaType<CppType_>;                                                \
+    static inline auto BaseMetaType =                                                    \
+        EventMetaType<CppType_>(&BaseCppType_::BaseMetaType __VA_OPT__(, ) __VA_ARGS__); \
+    static_assert(&CppType_::BaseMetaType == &BaseMetaType,                              \
+                  #CppType_ " is wrong here - check for copy-pasta");                    \
+    const AbstractEventMetaType &metaType() const override { return BaseMetaType; }      \
     // End of macro
 
 //! \brief Supply event metatype information in (specific) event types
@@ -433,18 +429,13 @@ public:
 //! parameters if you need to include the same event type in more than one
 //! event factory hierarchy (e.g., EncryptedEvent).
 //! \sa EventMetaType
-#define QUO_EVENT(CppType_, MatrixType_)                                 \
-    friend class EventMetaType<CppType_>;                                \
-    static inline const EventMetaType<CppType_> MetaType{ #CppType_,     \
-                                                          &BaseMetaType, \
-                                                          MatrixType_ }; \
-    static_assert(&CppType_::MetaType == &MetaType,                      \
-                  #CppType_ " is wrong here - check for copy-pasta");    \
-    static inline const auto& TypeId = MetaType.matrixId;                \
-    const AbstractEventMetaType& metaType() const override               \
-    {                                                                    \
-        return MetaType;                                                 \
-    }                                                                    \
+#define QUO_EVENT(CppType_, MatrixType_)                                                     \
+    friend class EventMetaType<CppType_>;                                                    \
+    static inline const auto MetaType = EventMetaType<CppType_>(&BaseMetaType, MatrixType_); \
+    static_assert(&CppType_::MetaType == &MetaType,                                          \
+                  #CppType_ " is wrong here - check for copy-pasta");                        \
+    static inline const auto &TypeId = MetaType.matrixId;                                    \
+    const AbstractEventMetaType &metaType() const override { return MetaType; }              \
     // End of macro
 
 #define QUO_CONTENT_GETTER_X(PartType_, PartName_, JsonKey_) \
