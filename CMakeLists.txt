@@ -91,6 +91,9 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 find_package(${Qt} ${QtMinVersion} REQUIRED Core Network Gui Test Sql)
+if (${Qt}Core_VERSION VERSION_GREATER_EQUAL "6.10.0")
+    find_package(Qt6CorePrivate ${QtMinVersion} REQUIRED NO_MODULE)
+endif()
 get_filename_component(Qt_Prefix "${${Qt}_DIR}/../../../.." ABSOLUTE)
 
 find_package(${Qt}Keychain REQUIRED)
