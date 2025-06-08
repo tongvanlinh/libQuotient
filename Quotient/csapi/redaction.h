@@ -19,7 +19,8 @@ namespace Quotient {
 //! of the room, the user may redact events sent by other users.
 //!
 //! Server administrators may redact events sent by users on their server.
-class QUOTIENT_API RedactEventJob : public BaseJob {
+class QUOTIENT_API RedactEventJob : public BaseJob
+{
 public:
     //! \param roomId
     //!   The room from which to redact the event.
@@ -34,8 +35,8 @@ public:
     //!
     //! \param reason
     //!   The reason for the event being redacted.
-    explicit RedactEventJob(const QString& roomId, const QString& eventId, const QString& txnId,
-                            const QString& reason = {});
+    explicit RedactEventJob(const QString &roomId, const QString &eventId, const QString &txnId,
+                            const QString &reason = {});
 
     // Result properties
 
@@ -43,6 +44,6 @@ public:
     QString eventId() const { return loadFromJson<QString>("event_id"_L1); }
 };
 
-inline auto collectResponse(const RedactEventJob* job) { return job->eventId(); }
+inline auto collectResponse(const RedactEventJob *job) { return job->eventId(); }
 
 } // namespace Quotient

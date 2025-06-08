@@ -48,7 +48,8 @@ namespace Quotient {
 //!
 //! If a token is requested from the identity server, the homeserver will
 //! append a `m.room.third_party_invite` event to the room.
-class QUOTIENT_API InviteBy3PIDJob : public BaseJob {
+class QUOTIENT_API InviteBy3PIDJob : public BaseJob
+{
 public:
     //! \param roomId
     //!   The room identifier (not alias) to which to invite the user.
@@ -68,9 +69,9 @@ public:
     //!
     //! \param address
     //!   The invitee's third-party identifier.
-    explicit InviteBy3PIDJob(const QString& roomId, const QString& idServer,
-                             const QString& idAccessToken, const QString& medium,
-                             const QString& address);
+    explicit InviteBy3PIDJob(const QString &roomId, const QString &idServer,
+                             const QString &idAccessToken, const QString &medium,
+                             const QString &address);
 };
 
 } // namespace Quotient

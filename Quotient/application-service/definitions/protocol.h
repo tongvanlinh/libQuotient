@@ -6,7 +6,8 @@
 
 namespace Quotient {
 //! Definition of valid values for a field.
-struct QUOTIENT_API FieldType {
+struct QUOTIENT_API FieldType
+{
     //! A regular expression for validation of a field's value. This may be relatively
     //! coarse to verify the value as the application service providing this protocol
     //! may apply additional validation or filtering.
@@ -17,20 +18,22 @@ struct QUOTIENT_API FieldType {
 };
 
 template <>
-struct JsonObjectConverter<FieldType> {
-    static void dumpTo(QJsonObject& jo, const FieldType& pod)
+struct JsonObjectConverter<FieldType>
+{
+    static void dumpTo(QJsonObject &jo, const FieldType &pod)
     {
         addParam(jo, "regexp"_L1, pod.regexp);
         addParam(jo, "placeholder"_L1, pod.placeholder);
     }
-    static void fillFrom(const QJsonObject& jo, FieldType& pod)
+    static void fillFrom(const QJsonObject &jo, FieldType &pod)
     {
         fillFromJson(jo.value("regexp"_L1), pod.regexp);
         fillFromJson(jo.value("placeholder"_L1), pod.placeholder);
     }
 };
 
-struct QUOTIENT_API ProtocolInstance {
+struct QUOTIENT_API ProtocolInstance
+{
     //! A human-readable description for the protocol, such as the name.
     QString desc;
 
@@ -46,15 +49,16 @@ struct QUOTIENT_API ProtocolInstance {
 };
 
 template <>
-struct JsonObjectConverter<ProtocolInstance> {
-    static void dumpTo(QJsonObject& jo, const ProtocolInstance& pod)
+struct JsonObjectConverter<ProtocolInstance>
+{
+    static void dumpTo(QJsonObject &jo, const ProtocolInstance &pod)
     {
         addParam(jo, "desc"_L1, pod.desc);
         addParam(jo, "fields"_L1, pod.fields);
         addParam(jo, "network_id"_L1, pod.networkId);
         addParam<IfNotEmpty>(jo, "icon"_L1, pod.icon);
     }
-    static void fillFrom(const QJsonObject& jo, ProtocolInstance& pod)
+    static void fillFrom(const QJsonObject &jo, ProtocolInstance &pod)
     {
         fillFromJson(jo.value("desc"_L1), pod.desc);
         fillFromJson(jo.value("fields"_L1), pod.fields);
@@ -63,7 +67,8 @@ struct JsonObjectConverter<ProtocolInstance> {
     }
 };
 
-struct QUOTIENT_API ThirdPartyProtocol {
+struct QUOTIENT_API ThirdPartyProtocol
+{
     //! Fields which may be used to identify a third-party user. These should be
     //! ordered to suggest the way that entities may be grouped, where higher
     //! groupings are ordered first. For example, the name of a network should be
@@ -93,8 +98,9 @@ struct QUOTIENT_API ThirdPartyProtocol {
 };
 
 template <>
-struct JsonObjectConverter<ThirdPartyProtocol> {
-    static void dumpTo(QJsonObject& jo, const ThirdPartyProtocol& pod)
+struct JsonObjectConverter<ThirdPartyProtocol>
+{
+    static void dumpTo(QJsonObject &jo, const ThirdPartyProtocol &pod)
     {
         addParam(jo, "user_fields"_L1, pod.userFields);
         addParam(jo, "location_fields"_L1, pod.locationFields);
@@ -102,7 +108,7 @@ struct JsonObjectConverter<ThirdPartyProtocol> {
         addParam(jo, "field_types"_L1, pod.fieldTypes);
         addParam(jo, "instances"_L1, pod.instances);
     }
-    static void fillFrom(const QJsonObject& jo, ThirdPartyProtocol& pod)
+    static void fillFrom(const QJsonObject &jo, ThirdPartyProtocol &pod)
     {
         fillFromJson(jo.value("user_fields"_L1), pod.userFields);
         fillFromJson(jo.value("location_fields"_L1), pod.locationFields);

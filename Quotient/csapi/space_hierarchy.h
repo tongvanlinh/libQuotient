@@ -16,11 +16,13 @@ namespace Quotient {
 //!
 //! Only [`m.space.child`](#mspacechild) state events of the room are considered. Invalid child
 //! rooms and parent events are not covered by this endpoint.
-class QUOTIENT_API GetSpaceHierarchyJob : public BaseJob {
+class QUOTIENT_API GetSpaceHierarchyJob : public BaseJob
+{
 public:
     // Inner data structures
 
-    struct QUOTIENT_API SpaceHierarchyRoomsChunk {
+    struct QUOTIENT_API SpaceHierarchyRoomsChunk
+    {
         //! The number of members joined to the room.
         int numJoinedMembers;
 
@@ -89,20 +91,20 @@ public:
     //! \param from
     //!   A pagination token from a previous result. If specified, `max_depth` and `suggested_only`
     //!   cannot be changed from the first request.
-    explicit GetSpaceHierarchyJob(const QString& roomId,
+    explicit GetSpaceHierarchyJob(const QString &roomId,
                                   std::optional<bool> suggestedOnly = std::nullopt,
                                   std::optional<int> limit = std::nullopt,
                                   std::optional<int> maxDepth = std::nullopt,
-                                  const QString& from = {});
+                                  const QString &from = {});
 
     //! \brief Construct a URL without creating a full-fledged job object
     //!
     //! This function can be used when a URL for GetSpaceHierarchyJob
     //! is necessary but the job itself isn't.
-    static QUrl makeRequestUrl(const HomeserverData& hsData, const QString& roomId,
+    static QUrl makeRequestUrl(const HomeserverData &hsData, const QString &roomId,
                                std::optional<bool> suggestedOnly = std::nullopt,
                                std::optional<int> limit = std::nullopt,
-                               std::optional<int> maxDepth = std::nullopt, const QString& from = {});
+                               std::optional<int> maxDepth = std::nullopt, const QString &from = {});
 
     // Result properties
 
@@ -116,7 +118,8 @@ public:
     //! no further results.
     QString nextBatch() const { return loadFromJson<QString>("next_batch"_L1); }
 
-    struct Response {
+    struct Response
+    {
         //! The rooms for the current page, with the current filters.
         std::vector<SpaceHierarchyRoomsChunk> rooms{};
 
@@ -128,12 +131,13 @@ public:
 
 template <std::derived_from<GetSpaceHierarchyJob> JobT>
 constexpr inline auto doCollectResponse<JobT> =
-    [](JobT* j) -> GetSpaceHierarchyJob::Response { return { j->rooms(), j->nextBatch() }; };
+    [](JobT *j) -> GetSpaceHierarchyJob::Response { return {j->rooms(), j->nextBatch()}; };
 
 template <>
-struct QUOTIENT_API JsonObjectConverter<GetSpaceHierarchyJob::SpaceHierarchyRoomsChunk> {
-    static void fillFrom(const QJsonObject& jo,
-                         GetSpaceHierarchyJob::SpaceHierarchyRoomsChunk& result)
+struct QUOTIENT_API JsonObjectConverter<GetSpaceHierarchyJob::SpaceHierarchyRoomsChunk>
+{
+    static void fillFrom(const QJsonObject &jo,
+                         GetSpaceHierarchyJob::SpaceHierarchyRoomsChunk &result)
     {
         fillFromJson(jo.value("num_joined_members"_L1), result.numJoinedMembers);
         fillFromJson(jo.value("room_id"_L1), result.roomId);

@@ -3,7 +3,6 @@
 #pragma once
 
 #include <Quotient/csapi/definitions/third_party_signed.h>
-
 #include <Quotient/jobs/basejob.h>
 
 namespace Quotient {
@@ -21,7 +20,8 @@ namespace Quotient {
 //! After a user has joined a room, the room will appear as an entry in the
 //! response of the [`/initialSync`](/client-server-api/#get_matrixclientv3initialsync)
 //! and [`/sync`](/client-server-api/#get_matrixclientv3sync) APIs.
-class QUOTIENT_API JoinRoomByIdJob : public BaseJob {
+class QUOTIENT_API JoinRoomByIdJob : public BaseJob
+{
 public:
     //! \param roomId
     //!   The room identifier (not alias) to join.
@@ -34,9 +34,9 @@ public:
     //! \param reason
     //!   Optional reason to be included as the `reason` on the subsequent
     //!   membership event.
-    explicit JoinRoomByIdJob(const QString& roomId,
-                             const std::optional<ThirdPartySigned>& thirdPartySigned = std::nullopt,
-                             const QString& reason = {});
+    explicit JoinRoomByIdJob(const QString &roomId,
+                             const std::optional<ThirdPartySigned> &thirdPartySigned = std::nullopt,
+                             const QString &reason = {});
 
     // Result properties
 
@@ -44,7 +44,7 @@ public:
     QString roomId() const { return loadFromJson<QString>("room_id"_L1); }
 };
 
-inline auto collectResponse(const JoinRoomByIdJob* job) { return job->roomId(); }
+inline auto collectResponse(const JoinRoomByIdJob *job) { return job->roomId(); }
 
 //! \brief Start the requesting user participating in a particular room.
 //!
@@ -58,7 +58,8 @@ inline auto collectResponse(const JoinRoomByIdJob* job) { return job->roomId(); 
 //! After a user has joined a room, the room will appear as an entry in the
 //! response of the [`/initialSync`](/client-server-api/#get_matrixclientv3initialsync)
 //! and [`/sync`](/client-server-api/#get_matrixclientv3sync) APIs.
-class QUOTIENT_API JoinRoomJob : public BaseJob {
+class QUOTIENT_API JoinRoomJob : public BaseJob
+{
 public:
     //! \param roomIdOrAlias
     //!   The room identifier or alias to join.
@@ -79,10 +80,10 @@ public:
     //! \param reason
     //!   Optional reason to be included as the `reason` on the subsequent
     //!   membership event.
-    explicit JoinRoomJob(const QString& roomIdOrAlias, const QStringList& serverName = {},
-                         const QStringList& via = {},
-                         const std::optional<ThirdPartySigned>& thirdPartySigned = std::nullopt,
-                         const QString& reason = {});
+    explicit JoinRoomJob(const QString &roomIdOrAlias, const QStringList &serverName = {},
+                         const QStringList &via = {},
+                         const std::optional<ThirdPartySigned> &thirdPartySigned = std::nullopt,
+                         const QString &reason = {});
 
     // Result properties
 
@@ -90,6 +91,6 @@ public:
     QString roomId() const { return loadFromJson<QString>("room_id"_L1); }
 };
 
-inline auto collectResponse(const JoinRoomJob* job) { return job->roomId(); }
+inline auto collectResponse(const JoinRoomJob *job) { return job->roomId(); }
 
 } // namespace Quotient

@@ -17,7 +17,8 @@ namespace Quotient {
 //! will require the homeserver to check whether a user is joined to
 //! the room. To combat this, homeserver implementations should add
 //! a random delay when generating a response.
-class QUOTIENT_API ReportContentJob : public BaseJob {
+class QUOTIENT_API ReportContentJob : public BaseJob
+{
 public:
     //! \param roomId
     //!   The room in which the event being reported is located.
@@ -31,8 +32,8 @@ public:
     //!
     //! \param reason
     //!   The reason the content is being reported. May be blank.
-    explicit ReportContentJob(const QString& roomId, const QString& eventId,
-                              std::optional<int> score = std::nullopt, const QString& reason = {});
+    explicit ReportContentJob(const QString &roomId, const QString &eventId,
+                              std::optional<int> score = std::nullopt, const QString &reason = {});
 };
 
 } // namespace Quotient
