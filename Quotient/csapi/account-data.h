@@ -11,7 +11,7 @@ namespace Quotient {
 //! Set some account data for the client. This config is only visible to the user
 //! that set the account data. The config will be available to clients through the
 //! top-level `account_data` field in the homeserver response to
-//! [/sync](#get_matrixclientv3sync).
+//! [/sync](/client-server-api/#get_matrixclientv3sync).
 class QUOTIENT_API SetAccountDataJob : public BaseJob
 {
 public:
@@ -64,7 +64,7 @@ inline auto collectResponse(const GetAccountDataJob *job) { return job->data(); 
 //!
 //! Set some account data for the client on a given room. This config is only
 //! visible to the user that set the account data. The config will be delivered to
-//! clients in the per-room entries via [/sync](#get_matrixclientv3sync).
+//! clients in the per-room entries via [/sync](/client-server-api/#get_matrixclientv3sync).
 class QUOTIENT_API SetAccountDataPerRoomJob : public BaseJob
 {
 public:

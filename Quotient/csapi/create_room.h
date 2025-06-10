@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <Quotient/csapi/definitions/invite_3pid.h>
 #include <Quotient/jobs/basejob.h>
 
 namespace Quotient {
@@ -54,25 +55,6 @@ class QUOTIENT_API CreateRoomJob : public BaseJob
 {
 public:
     // Inner data structures
-
-    struct QUOTIENT_API Invite3pid
-    {
-        //! The hostname+port of the identity server which should be used for third-party identifier
-        //! lookups.
-        QString idServer;
-
-        //! An access token previously registered with the identity server. Servers
-        //! can treat this as optional to distinguish between r0.5-compatible clients
-        //! and this specification version.
-        QString idAccessToken;
-
-        //! The kind of address being passed in the address field, for example `email`
-        //! (see [the list of recognised values](/appendices/#3pid-types)).
-        QString medium;
-
-        //! The invitee's third-party identifier.
-        QString address;
-    };
 
     struct QUOTIENT_API StateEvent
     {
@@ -184,18 +166,6 @@ public:
 };
 
 inline auto collectResponse(const CreateRoomJob *job) { return job->roomId(); }
-
-template <>
-struct QUOTIENT_API JsonObjectConverter<CreateRoomJob::Invite3pid>
-{
-    static void dumpTo(QJsonObject &jo, const CreateRoomJob::Invite3pid &pod)
-    {
-        addParam(jo, "id_server"_L1, pod.idServer);
-        addParam(jo, "id_access_token"_L1, pod.idAccessToken);
-        addParam(jo, "medium"_L1, pod.medium);
-        addParam(jo, "address"_L1, pod.address);
-    }
-};
 
 template <>
 struct QUOTIENT_API JsonObjectConverter<CreateRoomJob::StateEvent>

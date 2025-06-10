@@ -118,7 +118,7 @@ public:
     // Result properties
 
     //! The fully-qualified Matrix ID for the account.
-    QString userId() const { return loadFromJson<QString>("user_id"_L1); }
+    UserId userId() const { return loadFromJson<UserId>("user_id"_L1); }
 
     //! An access token for the account.
     //! This access token can then be used to authorize other requests.
@@ -156,7 +156,7 @@ public:
     struct Response
     {
         //! The fully-qualified Matrix ID for the account.
-        QString userId{};
+        UserId userId{};
 
         //! An access token for the account.
         //! This access token can then be used to authorize other requests.

@@ -123,13 +123,17 @@ public:
     // Inner data structures
 
     //! Required if `kind` is not `null`. A dictionary of information
-    //! for the pusher implementation itself. If `kind` is `http`,
-    //! this should contain `url` which is the URL to use to send
-    //! notifications to.
+    //! for the pusher implementation itself.
+    //!
+    //! If `kind` is `http`, this MUST contain `url` which is the URL
+    //! to use for sending notifications. Clients MAY use this object
+    //! to pass custom data to their push gateway. Servers MUST forward
+    //! the entire content including `format` and any custom keys but excluding `url`
+    //! when calling [`/_matrix/push/v1/notify`](/push-gateway-api/#post_matrixpushv1notify).
     struct QUOTIENT_API PusherData
     {
-        //! Required if `kind` is `http`. The URL to use to send
-        //! notifications to. MUST be an HTTPS URL with a path of
+        //! Required if `kind` is `http`. The URL to use for sending
+        //! notifications. MUST be an HTTPS URL with a path of
         //! `/_matrix/push/v1/notify`.
         QUrl url{};
 
@@ -185,9 +189,13 @@ public:
     //!
     //! \param data
     //!   Required if `kind` is not `null`. A dictionary of information
-    //!   for the pusher implementation itself. If `kind` is `http`,
-    //!   this should contain `url` which is the URL to use to send
-    //!   notifications to.
+    //!   for the pusher implementation itself.
+    //!
+    //!   If `kind` is `http`, this MUST contain `url` which is the URL
+    //!   to use for sending notifications. Clients MAY use this object
+    //!   to pass custom data to their push gateway. Servers MUST forward
+    //!   the entire content including `format` and any custom keys but excluding `url`
+    //!   when calling [`/_matrix/push/v1/notify`](/push-gateway-api/#post_matrixpushv1notify).
     //!
     //! \param append
     //!   If true, the homeserver should add another pusher with the

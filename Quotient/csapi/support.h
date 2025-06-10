@@ -45,13 +45,13 @@ public:
         //!
         //! At least one of `matrix_id` or `email_address` is
         //! required.
-        QString matrixId{};
+        UserId matrixId{};
 
         //! An email address to reach the administrator.
         //!
         //! At least one of `matrix_id` or `email_address` is
         //! required.
-        QString emailAddress{};
+        QUrl emailAddress{};
     };
 
     // Construction/destruction
@@ -77,7 +77,7 @@ public:
     //! homeserver, like extra login/registration steps.
     //!
     //! At least one of `contacts` or `support_page` is required.
-    QString supportPage() const { return loadFromJson<QString>("support_page"_L1); }
+    QUrl supportPage() const { return loadFromJson<QUrl>("support_page"_L1); }
 
     struct Response
     {
@@ -92,7 +92,7 @@ public:
         //! homeserver, like extra login/registration steps.
         //!
         //! At least one of `contacts` or `support_page` is required.
-        QString supportPage{};
+        QUrl supportPage{};
     };
 };
 

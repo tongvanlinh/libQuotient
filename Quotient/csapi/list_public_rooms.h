@@ -186,6 +186,10 @@ public:
     //! \param thirdPartyInstanceId
     //!   The specific third-party network/protocol to request from the
     //!   homeserver. Can only be used if `include_all_networks` is false.
+    //!
+    //!   This is the `instance_id` of a `Protocol Instance` returned by
+    //!   [`GET
+    //!   /_matrix/client/v3/thirdparty/protocols`](/client-server-api/#get_matrixclientv3thirdpartyprotocols).
     explicit QueryPublicRoomsJob(const QString &server = {},
                                  std::optional<int> limit = std::nullopt, const QString &since = {},
                                  const std::optional<Filter> &filter = std::nullopt,

@@ -84,8 +84,6 @@ PutRoomKeyBySessionIdJob::PutRoomKeyBySessionIdJob(const QString &roomId, const 
               queryToPutRoomKeyBySessionId(version))
 {
     setRequestData({toJson(data)});
-    addExpectedKey(u"etag"_s);
-    addExpectedKey(u"count"_s);
 }
 
 auto queryToGetRoomKeyBySessionId(const QString &version)
@@ -133,10 +131,7 @@ DeleteRoomKeyBySessionIdJob::DeleteRoomKeyBySessionIdJob(const QString &roomId,
     : BaseJob(HttpVerb::Delete, u"DeleteRoomKeyBySessionIdJob"_s,
               makePath("/_matrix/client/v3", "/room_keys/keys/", roomId, "/", sessionId),
               queryToDeleteRoomKeyBySessionId(version))
-{
-    addExpectedKey(u"etag"_s);
-    addExpectedKey(u"count"_s);
-}
+{}
 
 auto queryToPutRoomKeysByRoomId(const QString &version)
 {
@@ -152,8 +147,6 @@ PutRoomKeysByRoomIdJob::PutRoomKeysByRoomIdJob(const QString &roomId, const QStr
               queryToPutRoomKeysByRoomId(version))
 {
     setRequestData({toJson(backupData)});
-    addExpectedKey(u"etag"_s);
-    addExpectedKey(u"count"_s);
 }
 
 auto queryToGetRoomKeysByRoomId(const QString &version)
@@ -196,10 +189,7 @@ DeleteRoomKeysByRoomIdJob::DeleteRoomKeysByRoomIdJob(const QString &roomId, cons
     : BaseJob(HttpVerb::Delete, u"DeleteRoomKeysByRoomIdJob"_s,
               makePath("/_matrix/client/v3", "/room_keys/keys/", roomId),
               queryToDeleteRoomKeysByRoomId(version))
-{
-    addExpectedKey(u"etag"_s);
-    addExpectedKey(u"count"_s);
-}
+{}
 
 auto queryToPutRoomKeys(const QString &version)
 {
@@ -215,8 +205,6 @@ PutRoomKeysJob::PutRoomKeysJob(const QString &version, const QHash<RoomId, RoomK
     QJsonObject _dataJson;
     addParam(_dataJson, "rooms"_L1, rooms);
     setRequestData({_dataJson});
-    addExpectedKey(u"etag"_s);
-    addExpectedKey(u"count"_s);
 }
 
 auto queryToGetRoomKeys(const QString &version)
@@ -255,7 +243,4 @@ QUrl DeleteRoomKeysJob::makeRequestUrl(const HomeserverData &hsData, const QStri
 DeleteRoomKeysJob::DeleteRoomKeysJob(const QString &version)
     : BaseJob(HttpVerb::Delete, u"DeleteRoomKeysJob"_s,
               makePath("/_matrix/client/v3", "/room_keys/keys"), queryToDeleteRoomKeys(version))
-{
-    addExpectedKey(u"etag"_s);
-    addExpectedKey(u"count"_s);
-}
+{}

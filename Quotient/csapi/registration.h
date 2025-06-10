@@ -103,7 +103,7 @@ public:
     //!
     //! Any user ID returned by this API must conform to the grammar given in the
     //! [Matrix specification](/appendices/#user-identifiers).
-    QString userId() const { return loadFromJson<QString>("user_id"_L1); }
+    UserId userId() const { return loadFromJson<UserId>("user_id"_L1); }
 
     //! An access token for the account.
     //! This access token can then be used to authorize other requests.
@@ -141,7 +141,7 @@ public:
         //!
         //! Any user ID returned by this API must conform to the grammar given in the
         //! [Matrix specification](/appendices/#user-identifiers).
-        QString userId{};
+        UserId userId{};
 
         //! An access token for the account.
         //! This access token can then be used to authorize other requests.

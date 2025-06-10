@@ -11,7 +11,7 @@ struct QUOTIENT_API AuthenticationData
     //! The authentication type that the client is attempting to complete.
     //! May be omitted if `session` is given, and the client is reissuing a
     //! request which it believes has been completed out-of-band (for example,
-    //! via the [fallback mechanism](#fallback)).
+    //! via the [fallback mechanism](/client-server-api/#fallback)).
     QString type{};
 
     //! The value of the session key given by the homeserver.

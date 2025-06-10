@@ -15,7 +15,7 @@ struct QUOTIENT_API EmailValidationData
     QString clientSecret;
 
     //! The email address to validate.
-    QString email;
+    QUrl email;
 
     //! The server will only send an email if the `send_attempt`
     //! is a number greater than the most recent one which it has seen,
@@ -30,7 +30,7 @@ struct QUOTIENT_API EmailValidationData
     //! Optional. When the validation is completed, the identity server will
     //! redirect the user to this URL. This option is ignored when submitting
     //! 3PID validation information through a POST request.
-    QString nextLink{};
+    QUrl nextLink{};
 
     //! The hostname of the identity server to communicate with. May optionally
     //! include a port. This parameter is ignored when the homeserver handles

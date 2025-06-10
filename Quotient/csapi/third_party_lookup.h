@@ -2,9 +2,9 @@
 
 #pragma once
 
+#include <Quotient/csapi/definitions/protocol.h>
 #include <Quotient/jobs/basejob.h>
 #include <Quotient/application-service/definitions/location.h>
-#include <Quotient/application-service/definitions/protocol.h>
 #include <Quotient/application-service/definitions/user.h>
 
 namespace Quotient {
@@ -28,9 +28,9 @@ public:
     // Result properties
 
     //! The protocols supported by the homeserver.
-    QHash<QString, ThirdPartyProtocol> protocols() const
+    QHash<QString, Protocol> protocols() const
     {
-        return fromJson<QHash<QString, ThirdPartyProtocol>>(jsonData());
+        return fromJson<QHash<QString, Protocol>>(jsonData());
     }
 };
 
@@ -55,7 +55,7 @@ public:
     // Result properties
 
     //! The protocol was found and metadata returned.
-    ThirdPartyProtocol data() const { return fromJson<ThirdPartyProtocol>(jsonData()); }
+    Protocol data() const { return fromJson<Protocol>(jsonData()); }
 };
 
 inline auto collectResponse(const GetProtocolMetadataJob *job) { return job->data(); }
@@ -76,17 +76,18 @@ public:
     //! \param protocol
     //!   The protocol used to communicate to the third-party network.
     //!
-    //! \param searchFields
+    //! \param fields
     //!   One or more custom fields to help identify the third-party
     //!   location.
-    explicit QueryLocationByProtocolJob(const QString &protocol, const QString &searchFields = {});
+    explicit QueryLocationByProtocolJob(const QString &protocol,
+                                        const QHash<QString, QString> &fields = {});
 
     //! \brief Construct a URL without creating a full-fledged job object
     //!
     //! This function can be used when a URL for QueryLocationByProtocolJob
     //! is necessary but the job itself isn't.
     static QUrl makeRequestUrl(const HomeserverData &hsData, const QString &protocol,
-                               const QString &searchFields = {});
+                               const QHash<QString, QString> &fields = {});
 
     // Result properties
 

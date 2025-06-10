@@ -7,12 +7,12 @@
 
 namespace Quotient {
 
-//! \brief Start the requesting user participating in a particular room.
+//! \brief Join the requesting user to a particular room.
 //!
 //! *Note that this API requires a room ID, not alias.*
 //! `/join/{roomIdOrAlias}` *exists if you have a room alias.*
 //!
-//! This API starts a user participating in a particular room, if that user
+//! This API starts a user's participation in a particular room, if that user
 //! is allowed to participate in that room. After this call, the client is
 //! allowed to see all current state events in the room, and all subsequent
 //! events associated with the room until the user leaves the room.
@@ -46,11 +46,11 @@ public:
 
 inline auto collectResponse(const JoinRoomByIdJob *job) { return job->roomId(); }
 
-//! \brief Start the requesting user participating in a particular room.
+//! \brief Join the requesting user to a particular room.
 //!
 //! *Note that this API takes either a room ID or alias, unlike* `/rooms/{roomId}/join`.
 //!
-//! This API starts a user participating in a particular room, if that user
+//! This API starts a user's participation in a particular room, if that user
 //! is allowed to participate in that room. After this call, the client is
 //! allowed to see all current state events in the room, and all subsequent
 //! events associated with the room until the user leaves the room.

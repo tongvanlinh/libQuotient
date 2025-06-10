@@ -32,41 +32,6 @@ struct JsonObjectConverter<FieldType>
     }
 };
 
-struct QUOTIENT_API ProtocolInstance
-{
-    //! A human-readable description for the protocol, such as the name.
-    QString desc;
-
-    //! Preset values for `fields` the client may use to search by.
-    QJsonObject fields;
-
-    //! A unique identifier across all instances.
-    QString networkId;
-
-    //! An optional content URI representing the protocol. Overrides the one provided
-    //! at the higher level Protocol object.
-    QString icon{};
-};
-
-template <>
-struct JsonObjectConverter<ProtocolInstance>
-{
-    static void dumpTo(QJsonObject &jo, const ProtocolInstance &pod)
-    {
-        addParam(jo, "desc"_L1, pod.desc);
-        addParam(jo, "fields"_L1, pod.fields);
-        addParam(jo, "network_id"_L1, pod.networkId);
-        addParam<IfNotEmpty>(jo, "icon"_L1, pod.icon);
-    }
-    static void fillFrom(const QJsonObject &jo, ProtocolInstance &pod)
-    {
-        fillFromJson(jo.value("desc"_L1), pod.desc);
-        fillFromJson(jo.value("fields"_L1), pod.fields);
-        fillFromJson(jo.value("network_id"_L1), pod.networkId);
-        fillFromJson(jo.value("icon"_L1), pod.icon);
-    }
-};
-
 struct QUOTIENT_API ThirdPartyProtocol
 {
     //! Fields which may be used to identify a third-party user. These should be
@@ -90,11 +55,6 @@ struct QUOTIENT_API ThirdPartyProtocol
     //!
     //! May be an empty object if no fields are defined.
     QHash<QString, FieldType> fieldTypes;
-
-    //! A list of objects representing independent instances of configuration.
-    //! For example, multiple networks on IRC if multiple are provided by the
-    //! same application service.
-    QVector<ProtocolInstance> instances;
 };
 
 template <>
@@ -106,7 +66,6 @@ struct JsonObjectConverter<ThirdPartyProtocol>
         addParam(jo, "location_fields"_L1, pod.locationFields);
         addParam(jo, "icon"_L1, pod.icon);
         addParam(jo, "field_types"_L1, pod.fieldTypes);
-        addParam(jo, "instances"_L1, pod.instances);
     }
     static void fillFrom(const QJsonObject &jo, ThirdPartyProtocol &pod)
     {
@@ -114,7 +73,6 @@ struct JsonObjectConverter<ThirdPartyProtocol>
         fillFromJson(jo.value("location_fields"_L1), pod.locationFields);
         fillFromJson(jo.value("icon"_L1), pod.icon);
         fillFromJson(jo.value("field_types"_L1), pod.fieldTypes);
-        fillFromJson(jo.value("instances"_L1), pod.instances);
     }
 };
 

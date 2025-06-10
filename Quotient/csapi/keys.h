@@ -220,6 +220,20 @@ struct QUOTIENT_API JsonObjectConverter<QueryKeysJob::DeviceInformation>
 //! \brief Claim one-time encryption keys.
 //!
 //! Claims one-time keys for use in pre-key messages.
+//!
+//! The request contains the user ID, device ID and algorithm name of the
+//! keys that are required. If a key matching these requirements can be
+//! found, the response contains it. The returned key is a one-time key
+//! if one is available, and otherwise a fallback key.
+//!
+//! One-time keys are given out in the order that they were uploaded via
+//! [/keys/upload](/client-server-api/#post_matrixclientv3keysupload). (All
+//! keys uploaded within a given call to `/keys/upload` are considered
+//! equivalent in this regard; no ordering is specified within them.)
+//!
+//! Servers must ensure that each one-time key is returned at most once,
+//! so when a key has been returned, no other request will ever return
+//! the same key.
 class QUOTIENT_API ClaimKeysJob : public BaseJob
 {
 public:
