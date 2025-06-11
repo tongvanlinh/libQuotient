@@ -144,7 +144,9 @@ analyzer:
     inline:
     # Inline whatever is used from the identity spec
     - /identity/definitions/
-    - /protocol_instance.yaml$/
+    # These two are only used once each within CS (the other use is in AS API), with CS adding
+    # fields to each - excess normalisation for our needs, so denormalise back
+    - /protocol_(base|instance).yaml$/
     # Despite being used in two calls, it's more practical to have those
     # fields available as getters right from the respective job classes
     - /public_rooms_response.yaml$/
