@@ -28,9 +28,9 @@ public:
     // Result properties
 
     //! The protocols supported by the homeserver.
-    QHash<QString, Protocol> protocols() const
+    QHash<QString, ThirdPartyProtocol> protocols() const
     {
-        return fromJson<QHash<QString, Protocol>>(jsonData());
+        return fromJson<QHash<QString, ThirdPartyProtocol>>(jsonData());
     }
 };
 
@@ -55,7 +55,7 @@ public:
     // Result properties
 
     //! The protocol was found and metadata returned.
-    Protocol data() const { return fromJson<Protocol>(jsonData()); }
+    ThirdPartyProtocol data() const { return fromJson<ThirdPartyProtocol>(jsonData()); }
 };
 
 inline auto collectResponse(const GetProtocolMetadataJob *job) { return job->data(); }

@@ -21,14 +21,7 @@ public:
     //! \param reason
     //!   The reason the room is being reported. May be blank.
     explicit ReportRoomJob(const QString &roomId, const QString &reason);
-
-    // Result properties
-
-    //! The room has been reported successfully.
-    QJsonObject data() const { return fromJson<QJsonObject>(jsonData()); }
 };
-
-inline auto collectResponse(const ReportRoomJob *job) { return job->data(); }
 
 //! \brief Report an event in a joined room as inappropriate.
 //!
@@ -85,14 +78,6 @@ public:
     //! \param reason
     //!   The reason the room is being reported. May be blank.
     explicit ReportUserJob(const UserId &userId, const QString &reason);
-
-    // Result properties
-
-    //! The user has been reported successfully or the server chose
-    //! to not disclose whether the users exists.
-    QJsonObject data() const { return fromJson<QJsonObject>(jsonData()); }
 };
-
-inline auto collectResponse(const ReportUserJob *job) { return job->data(); }
 
 } // namespace Quotient
