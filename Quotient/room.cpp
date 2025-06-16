@@ -839,7 +839,11 @@ Room::Changes Room::Private::setLocalLastReadReceipt(const rev_iter_t& newMarker
         return Change::None;
     Changes changes = Change::Other;
     if (!deferStatsUpdate) {
-        if (unreadStats.updateOnMarkerMove(q, q->findInTimeline(*prevEventId),
+        const auto prevMarker = q->findInTimeline(*prevEventId);
+        if (newMarker >= prevMarker) {
+            return Change::None;
+        }
+        if (unreadStats.updateOnMarkerMove(q, prevMarker,
                                            newMarker)) {
             qDebug(MESSAGES)
                 << "Updated unread event statistics in" << q->objectName()
