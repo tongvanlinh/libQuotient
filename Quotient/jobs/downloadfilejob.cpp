@@ -25,7 +25,7 @@ public:
         , mediaId(std::move(mediaId))
         , targetFile(!localFilename.isEmpty() ? std::make_unique<QFile>(localFilename) : nullptr)
         , tempFile(!localFilename.isEmpty()
-                       ? std::make_unique<QFile>(targetFile->fileName() + ".qtntdownload"_L1)
+                       ? std::make_unique<QFile>(targetFile->fileName() + ".part"_L1)
                        : std::make_unique<QTemporaryFile>())
     {}
 
