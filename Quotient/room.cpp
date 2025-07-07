@@ -3228,7 +3228,7 @@ Room::Change Room::Private::processStateEvent(const RoomEvent& curEvent,
         [this](const EncryptionEvent&) {
             // As encryption can only be switched on once, emit the signal here
             // instead of aggregating and emitting in updateData()
-            qCInfo(MAIN) << "E2EE switched on in" << q->objectName();
+            qCDebug(MAIN) << "E2EE switched on in" << q->objectName();
             emit q->encryption();
             return Change::Other;
         },
