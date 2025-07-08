@@ -127,7 +127,6 @@ QFuture<bool> ConnectionEncryptionData::setup(Connection* connection,
 
 void ConnectionEncryptionData::saveDevicesList()
 {
-    database.transaction();
     auto query = database.prepareQuery(u"DELETE FROM tracked_users"_s);
     database.execute(query);
     query.prepare(u"INSERT INTO tracked_users(matrixId) VALUES(:matrixId);"_s);
@@ -148,18 +147,15 @@ void ConnectionEncryptionData::saveDevicesList()
         u"INSERT INTO tracked_devices"
         "(matrixId, deviceId, curveKeyId, curveKey, edKeyId, edKey, verified, selfVerified) "
         "VALUES (:matrixId, :deviceId, :curveKeyId, :curveKey, :edKeyId, :edKey, :verified, :selfVerified);"_s);
-    for (const auto& [user, devices] : deviceKeys.asKeyValueRange()) {
-        auto deleteQuery =
-            database.prepareQuery(u"DELETE FROM tracked_devices WHERE matrixId=:matrixId;"_s);
+
+    auto deleteQuery =
+        database.prepareQuery(u"DELETE FROM tracked_devices WHERE matrixId=:matrixId;"_s);
+
+    for (const auto& [user, devices] : std::as_const(deviceKeys).asKeyValueRange()) {
         deleteQuery.bindValue(u":matrixId"_s, user);
         database.execute(deleteQuery);
         for (const auto& device : std::as_const(devices)) {
             const auto keys = device.keys.asKeyValueRange();
-            deleteQuery.prepare(
-                u"DELETE FROM tracked_devices WHERE matrixId=:matrixId AND deviceId=:deviceId;"_s);
-            deleteQuery.bindValue(u":matrixId"_s, user);
-            deleteQuery.bindValue(u":deviceId"_s, device.deviceId);
-            database.execute(deleteQuery);
 
             if (device.deviceId.isEmpty()) {
                 qCCritical(E2EE) << "Clearing an invalid tracked device record with empty deviceId";
@@ -189,7 +185,6 @@ void ConnectionEncryptionData::saveDevicesList()
             database.execute(query);
         }
     }
-    database.commit();
 }
 
 void ConnectionEncryptionData::loadDevicesList()
@@ -428,7 +423,6 @@ void ConnectionEncryptionData::handleMasterKeys(const QHash<QString, CrossSignin
                 continue;
             }
             qCWarning(E2EE) << "New master key for" << key.userId;
-            database.transaction();
             auto query = database.prepareQuery(
                 "UPDATE tracked_devices SET verified=0, selfVerified=0 WHERE matrixId=:matrixId;"_L1);
             query.bindValue(":matrixId"_L1, userId);
@@ -436,7 +430,6 @@ void ConnectionEncryptionData::handleMasterKeys(const QHash<QString, CrossSignin
             query = database.prepareQuery("DELETE FROM self_signing_keys WHERE userId=:userId;"_L1);
             query.bindValue(":userId"_L1, userId);
             database.execute(query);
-            database.commit();
         }
 
         auto query = database.prepareQuery("DELETE FROM master_keys WHERE userId=:userId;"_L1);
@@ -479,12 +472,10 @@ void ConnectionEncryptionData::handleSelfSigningKeys(const QHash<QString, CrossS
             auto oldKey = checkQuery.value("key"_L1).toString();
             if (oldKey != key.keys.values()[0]) {
                 qCWarning(E2EE) << "New self-signing key for" << userId << ". Marking all devices as unverified.";
-                database.transaction();
                 auto query = database.prepareQuery(
                     "UPDATE tracked_devices SET verified=0, selfVerified=0 WHERE matrixId=:matrixId;"_L1);
                 query.bindValue(":matrixId"_L1, userId);
                 database.execute(query);
-                database.commit();
             }
         }
 
@@ -525,11 +516,9 @@ void ConnectionEncryptionData::handleUserSigningKeys(const QHash<QString, CrossS
             auto oldKey = checkQuery.value("key"_L1).toString();
             if (oldKey != key.keys.values()[0]) {
                 qCWarning(E2EE) << "New user signing key; marking all master signing keys as unverified" << userId;
-                database.transaction();
                 auto query = database.prepareQuery(
                     "UPDATE master_keys SET verified=0;"_L1);
                 database.execute(query);
-                database.commit();
             }
         }
 
@@ -637,9 +626,8 @@ void ConnectionEncryptionData::handleQueryKeys(const QueryKeysJob::Response& key
     handleUserSigningKeys(keys.userSigningKeys);
     checkVerifiedMasterKeys(keys.masterKeys);
     handleDevicesList(keys.deviceKeys);
-    database.commit();
-
     saveDevicesList();
+    database.commit();
 
     // A completely faithful code would call std::partition() with bare
     // isKnownCurveKey(), then handleEncryptedToDeviceEvent() on each event
@@ -956,7 +944,7 @@ void ConnectionEncryptionData::doSendSessionKeyToDevices(
 
     q->callApi<ClaimKeysJob>(hash).then(q, [this, sendKey](const ClaimKeysJob* job) {
         for (const auto& [userId, userDevices] : job->oneTimeKeys().asKeyValueRange())
-            for (const auto& [deviceId, keys] : userDevices.asKeyValueRange())
+            for (const auto& [deviceId, keys] : std::as_const(userDevices).asKeyValueRange())
                 createOlmSession(userId, deviceId, keys);
 
         sendKey();
