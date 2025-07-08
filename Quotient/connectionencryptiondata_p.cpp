@@ -147,18 +147,15 @@ void ConnectionEncryptionData::saveDevicesList()
         u"INSERT INTO tracked_devices"
         "(matrixId, deviceId, curveKeyId, curveKey, edKeyId, edKey, verified, selfVerified) "
         "VALUES (:matrixId, :deviceId, :curveKeyId, :curveKey, :edKeyId, :edKey, :verified, :selfVerified);"_s);
+
+    auto deleteQuery =
+        database.prepareQuery(u"DELETE FROM tracked_devices WHERE matrixId=:matrixId;"_s);
+
     for (const auto& [user, devices] : std::as_const(deviceKeys).asKeyValueRange()) {
-        auto deleteQuery =
-            database.prepareQuery(u"DELETE FROM tracked_devices WHERE matrixId=:matrixId;"_s);
         deleteQuery.bindValue(u":matrixId"_s, user);
         database.execute(deleteQuery);
         for (const auto& device : std::as_const(devices)) {
             const auto keys = device.keys.asKeyValueRange();
-            deleteQuery.prepare(
-                u"DELETE FROM tracked_devices WHERE matrixId=:matrixId AND deviceId=:deviceId;"_s);
-            deleteQuery.bindValue(u":matrixId"_s, user);
-            deleteQuery.bindValue(u":deviceId"_s, device.deviceId);
-            database.execute(deleteQuery);
 
             if (device.deviceId.isEmpty()) {
                 qCCritical(E2EE) << "Clearing an invalid tracked device record with empty deviceId";
