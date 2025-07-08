@@ -147,7 +147,7 @@ void ConnectionEncryptionData::saveDevicesList()
         u"INSERT INTO tracked_devices"
         "(matrixId, deviceId, curveKeyId, curveKey, edKeyId, edKey, verified, selfVerified) "
         "VALUES (:matrixId, :deviceId, :curveKeyId, :curveKey, :edKeyId, :edKey, :verified, :selfVerified);"_s);
-    for (const auto& [user, devices] : deviceKeys.asKeyValueRange()) {
+    for (const auto& [user, devices] : std::as_const(deviceKeys).asKeyValueRange()) {
         auto deleteQuery =
             database.prepareQuery(u"DELETE FROM tracked_devices WHERE matrixId=:matrixId;"_s);
         deleteQuery.bindValue(u":matrixId"_s, user);
@@ -945,7 +945,7 @@ void ConnectionEncryptionData::doSendSessionKeyToDevices(
 
     q->callApi<ClaimKeysJob>(hash).then(q, [this, sendKey](const ClaimKeysJob* job) {
         for (const auto& [userId, userDevices] : job->oneTimeKeys().asKeyValueRange())
-            for (const auto& [deviceId, keys] : userDevices.asKeyValueRange())
+            for (const auto& [deviceId, keys] : std::as_const(userDevices).asKeyValueRange())
                 createOlmSession(userId, deviceId, keys);
 
         sendKey();
