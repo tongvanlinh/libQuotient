@@ -158,7 +158,7 @@ BaseJob::Status DownloadFileJob::prepareResult()
     } else {
         if (d->encryptedFileMetadata.has_value()) {
             std::unique_ptr<QFile> tempTempFile = std::make_unique<QTemporaryFile>();
-            if (!tempTempFile->isWritable()) {
+            if (!tempTempFile->open(QFile::WriteOnly)) {
                 qCWarning(JOBS) << "Failed to open temporary file for decryption"
                                 << tempTempFile->errorString();
                 return { FileError, "Couldn't open temporary file for decryption"_L1 };
