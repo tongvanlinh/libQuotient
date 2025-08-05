@@ -29,6 +29,7 @@
 
 #include <QtCore/QJsonObject>
 #include <QtGui/QImage>
+#include <QtQmlIntegration/qqmlintegration.h>
 
 #include <deque>
 #include <utility>
@@ -118,8 +119,11 @@ private:
 
 class QUOTIENT_API Room : public QObject {
     Q_OBJECT
-    Q_PROPERTY(Connection* connection READ connection CONSTANT)
-    Q_PROPERTY(RoomMember localMember READ localMember CONSTANT)
+    QML_ELEMENT
+    QML_UNCREATABLE("")
+
+    Q_PROPERTY(Quotient::Connection* connection READ connection CONSTANT)
+    Q_PROPERTY(Quotient::RoomMember localMember READ localMember CONSTANT)
     Q_PROPERTY(QString id READ id CONSTANT)
     Q_PROPERTY(QString version READ version NOTIFY baseStateLoaded)
     Q_PROPERTY(bool isUnstable READ isUnstable NOTIFY stabilityUpdated)
@@ -143,8 +147,8 @@ class QUOTIENT_API Room : public QObject {
     Q_PROPERTY(int joinedCount READ joinedCount NOTIFY memberListChanged)
     Q_PROPERTY(int invitedCount READ invitedCount NOTIFY memberListChanged)
     Q_PROPERTY(int totalMemberCount READ totalMemberCount NOTIFY memberListChanged)
-    Q_PROPERTY(QList<RoomMember> membersTyping READ membersTyping NOTIFY typingChanged)
-    Q_PROPERTY(QList<RoomMember> otherMembersTyping READ otherMembersTyping NOTIFY typingChanged)
+    Q_PROPERTY(QList<Quotient::RoomMember> membersTyping READ membersTyping NOTIFY typingChanged)
+    Q_PROPERTY(QList<Quotient::RoomMember> otherMembersTyping READ otherMembersTyping NOTIFY typingChanged)
     Q_PROPERTY(int localMemberEffectivePowerLevel READ memberEffectivePowerLevel NOTIFY changed)
 
     Q_PROPERTY(bool displayed READ displayed WRITE setDisplayed NOTIFY
@@ -159,14 +163,14 @@ class QUOTIENT_API Room : public QObject {
                    NOTIFY highlightCountChanged)
     Q_PROPERTY(qsizetype notificationCount READ notificationCount
                    NOTIFY notificationCountChanged)
-    Q_PROPERTY(EventStats partiallyReadStats READ partiallyReadStats NOTIFY partiallyReadStatsChanged)
-    Q_PROPERTY(EventStats unreadStats READ unreadStats NOTIFY unreadStatsChanged)
+    Q_PROPERTY(Quotient::EventStats partiallyReadStats READ partiallyReadStats NOTIFY partiallyReadStatsChanged)
+    Q_PROPERTY(Quotient::EventStats unreadStats READ unreadStats NOTIFY unreadStatsChanged)
     Q_PROPERTY(bool allHistoryLoaded READ allHistoryLoaded NOTIFY allHistoryLoadedChanged
                    STORED false)
     Q_PROPERTY(QStringList tagNames READ tagNames NOTIFY tagsChanged)
     Q_PROPERTY(bool isFavourite READ isFavourite NOTIFY tagsChanged STORED false)
     Q_PROPERTY(bool isLowPriority READ isLowPriority NOTIFY tagsChanged STORED false)
-    Q_PROPERTY(JoinRule joinRule READ joinRule WRITE setJoinRule NOTIFY joinRuleChanged)
+    Q_PROPERTY(Quotient::JoinRule joinRule READ joinRule WRITE setJoinRule NOTIFY joinRuleChanged)
     Q_PROPERTY(QList<QString> allowIds READ allowIds NOTIFY joinRuleChanged)
 
     Q_PROPERTY(GetRoomEventsJob* eventsHistoryJob READ eventsHistoryJob NOTIFY eventsHistoryJobChanged)
