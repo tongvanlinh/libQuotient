@@ -166,6 +166,7 @@ SyncDataList SyncData::takeRoomData() { return std::move(roomData); }
 QString SyncData::fileNameForRoom(QString roomId)
 {
     roomId.replace(u':', u'_');
+    roomId.replace(u'/', u'_');
     return roomId + ".json"_L1;
 }
 
