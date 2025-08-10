@@ -23,5 +23,6 @@ public:
     Predecessor predecessor() const;
     bool isUpgrade() const;
     RoomType roomType() const;
+    QStringList additionalCreators() const;
 };
 } // namespace Quotient
