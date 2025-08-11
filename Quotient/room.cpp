@@ -1327,20 +1327,8 @@ QFuture<Room *> Room::upgrade(QString newVersion, const QStringList &additionalC
     }
     return connection()
         ->callApi<Matrix_v16::UpgradeRoomJob>(id(), newVersion, additionalCreators)
-        .then([this](const QString &replacementRoom) {
-        QPromise<Room *> promise;
-        auto ft = promise.future();
-        connectUntil(connection(), &Connection::syncDone, this,
-                     [this, replacementRoom, p = std::move(promise)]() mutable {
-            if (auto *r = connection()->room(replacementRoom)) {
-                p.addResult(r);
-                p.finish();
-                return true;
-            }
-            return false;
-        });
-        return ft;
-    }, [this](const auto *sameJob) {
+        .then(std::bind_front(&Connection::waitForNewRoom, connection()),
+              [this](const auto *sameJob) {
         emit upgradeFailed(sameJob ? sameJob->errorString() : tr("Couldn't initiate upgrade"));
         return QFuture<Room *>{};
     }).unwrap();
@@ -3301,18 +3289,8 @@ Room::Change Room::Private::processStateEvent(const RoomEvent& curEvent,
             return Change::Other;
         },
         [this](const RoomTombstoneEvent& evt) {
-            const auto successorId = evt.successorRoomId();
-            if (auto* successor = connection->room(successorId))
-                emit q->upgraded(evt.serverMessage(), successor);
-            else
-                connectUntil(connection, &Connection::loadedRoomState, q,
-                    [this,successorId,serverMsg=evt.serverMessage()]
-                    (Room* newRoom) {
-                        if (newRoom->id() != successorId)
-                            return false;
-                        emit q->upgraded(serverMsg, newRoom);
-                        return true;
-                    });
+            connection->waitForNewRoom(evt.successorRoomId())
+                .then(std::bind_front(/* emit */ &Room::upgraded, q, evt.serverMessage()));
 
             return Change::Other;
         },

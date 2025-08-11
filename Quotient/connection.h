@@ -665,6 +665,8 @@ public:
     Q_INVOKABLE QFuture<Room*> joinAndGetRoom(const QString& roomAlias,
                                               const QStringList& serverNames = {});
 
+    Q_INVOKABLE QFuture<Room *> waitForNewRoom(const QString &roomId);
+
 public Q_SLOTS:
     //! \brief Log in using a username and password pair
     //!
