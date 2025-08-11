@@ -681,6 +681,25 @@ QFuture<Room*> Connection::joinAndGetRoom(const QString& roomAlias, const QStrin
         .then([this](const QString& roomId) { return provideRoom(roomId); });
 }
 
+QFuture<Room *> Connection::waitForNewRoom(const QString &roomId)
+{
+    if (auto *newRoom = room(roomId))
+        return makeReadyValueFuture(newRoom);
+
+    QPromise<Room *> promise;
+    auto ft = promise.future();
+    connectUntil(this, &Connection::loadedRoomState, this,
+                 [roomId, p = std::move(promise)](Room *newRoom) mutable {
+        if (newRoom->id() == roomId) {
+            p.addResult(newRoom);
+            p.finish();
+            return true;
+        }
+        return false;
+    });
+    return ft;
+}
+
 JobHandle<LeaveRoomJob> Connection::leaveRoom(Room* room)
 {
     const auto& roomId = room->id();
