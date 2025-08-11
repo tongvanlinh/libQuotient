@@ -243,45 +243,46 @@ bool Connection::capabilitiesReady() const
 
 QStringList Connection::supportedMatrixSpecVersions() const { return d->data->homeserverData().supportedSpecVersions; }
 
+namespace {
+QFuture<QKeychain::Job*> runKeychainJob(QKeychain::Job* j, const QString& keychainId)
+{
+    j->setAutoDelete(true);
+    j->setKey(keychainId);
+    auto ft = QtFuture::connect(j, &QKeychain::Job::finished);
+    j->start();
+    return ft;
+}
+}
+
 void Connection::Private::saveAccessTokenToKeychain() const
 {
     qCDebug(MAIN) << "Saving access token to keychain for" << q->userId();
-    auto job = new QKeychain::WritePasswordJob(qAppName());
-    job->setKey(q->userId());
+    using namespace QKeychain;
+    auto job = new WritePasswordJob(qAppName());
     job->setBinaryData(data->accessToken());
-    job->start();
-    QObject::connect(job, &QKeychain::Job::finished, q, [job] {
-        if (job->error() == QKeychain::Error::NoError)
+    runKeychainJob(job, q->userId()).then([](const Job* j) {
+        if (j->error() == Error::NoError)
             return;
-        qWarning(MAIN).noquote()
-            << "Could not save access token to the keychain:"
-            << qUtf8Printable(job->errorString());
+        qWarning(MAIN).noquote() << "Could not save access token to the keychain:"
+                                 << qUtf8Printable(j->errorString());
         // TODO: emit a signal
     });
-
 }
 
 void Connection::Private::dropAccessToken()
 {
     // TODO: emit a signal on important (i.e. access denied) keychain errors
     using namespace QKeychain;
-    qCDebug(MAIN) << "Removing access token from keychain for" << q->userId();
-    auto job = new DeletePasswordJob(qAppName());
-    job->setKey(q->userId());
-    job->start();
-    QObject::connect(job, &Job::finished, q, [job] {
-        if (job->error() == Error::NoError
-            || job->error() == Error::EntryNotFound)
+    qCDebug(MAIN) << "Removing access token and pickle from keychain for" << q->userId();
+    runKeychainJob(new DeletePasswordJob(qAppName()), q->userId()).then([](const Job* job) {
+        if (job->error() == Error::NoError || job->error() == Error::EntryNotFound)
             return;
-        qWarning(MAIN).noquote()
-            << "Could not delete access token from the keychain:"
-            << qUtf8Printable(job->errorString());
+        qWarning(MAIN).noquote() << "Could not delete access token from the keychain:"
+                                 << qUtf8Printable(job->errorString());
     });
 
-    auto pickleJob = new DeletePasswordJob(qAppName());
-    pickleJob->setKey(q->userId() + "-Pickle"_L1);
-    pickleJob->start();
-    QObject::connect(job, &Job::finished, q, [job] {
+    runKeychainJob(new DeletePasswordJob(qAppName()), q->userId() + "-Pickle"_L1)
+        .then([](const Job* job) {
         if (job->error() == Error::NoError
             || job->error() == Error::EntryNotFound)
             return;

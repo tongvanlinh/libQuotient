@@ -839,7 +839,11 @@ Room::Changes Room::Private::setLocalLastReadReceipt(const rev_iter_t& newMarker
         return Change::None;
     Changes changes = Change::Other;
     if (!deferStatsUpdate) {
-        if (unreadStats.updateOnMarkerMove(q, q->findInTimeline(*prevEventId),
+        const auto prevMarker = q->findInTimeline(*prevEventId);
+        if (newMarker >= prevMarker) {
+            return Change::None;
+        }
+        if (unreadStats.updateOnMarkerMove(q, prevMarker,
                                            newMarker)) {
             qDebug(MESSAGES)
                 << "Updated unread event statistics in" << q->objectName()
@@ -1779,6 +1783,7 @@ void Room::Private::updateThread(const RoomEvent* event)
     }
 
     auto& thread = threads[rme->threadRootEventId()];
+    const auto isNew = thread.threadRootId.isEmpty();
     if (thread.threadRootId.isEmpty()) {
         thread.threadRootId = rme->threadRootEventId();
         // If we can't find the root we assume it's a historical event and will be loaded later.
@@ -1800,6 +1805,8 @@ void Room::Private::updateThread(const RoomEvent* event)
     thread.addEvent(rme,
                     (threadLatestIndex == eventsIndex.cend() || *eventIndexIt > *threadLatestIndex),
                     rme->senderId() == connection->userId());
+
+    if (isNew) { emit q->newThread(thread); }
 }
 
 const Avatar& Room::memberAvatarObject(const QString& memberId) const
@@ -3221,7 +3228,7 @@ Room::Change Room::Private::processStateEvent(const RoomEvent& curEvent,
         [this](const EncryptionEvent&) {
             // As encryption can only be switched on once, emit the signal here
             // instead of aggregating and emitting in updateData()
-            qCInfo(MAIN) << "E2EE switched on in" << q->objectName();
+            qCDebug(MAIN) << "E2EE switched on in" << q->objectName();
             emit q->encryption();
             return Change::Other;
         },

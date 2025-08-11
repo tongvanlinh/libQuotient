@@ -25,7 +25,7 @@ public:
         , mediaId(std::move(mediaId))
         , targetFile(!localFilename.isEmpty() ? std::make_unique<QFile>(localFilename) : nullptr)
         , tempFile(!localFilename.isEmpty()
-                       ? std::make_unique<QFile>(targetFile->fileName() + ".qtntdownload"_L1)
+                       ? std::make_unique<QFile>(targetFile->fileName() + ".part"_L1)
                        : std::make_unique<QTemporaryFile>())
     {}
 
@@ -158,7 +158,7 @@ BaseJob::Status DownloadFileJob::prepareResult()
     } else {
         if (d->encryptedFileMetadata.has_value()) {
             std::unique_ptr<QFile> tempTempFile = std::make_unique<QTemporaryFile>();
-            if (!tempTempFile->isWritable()) {
+            if (!tempTempFile->open(QFile::WriteOnly)) {
                 qCWarning(JOBS) << "Failed to open temporary file for decryption"
                                 << tempTempFile->errorString();
                 return { FileError, "Couldn't open temporary file for decryption"_L1 };
