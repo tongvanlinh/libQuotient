@@ -1463,7 +1463,7 @@ QFuture<QList<LoginFlow>> Connection::setHomeserver(const QUrl& baseUrl)
             d->loginFlows.clear();
         emit loginFlowsChanged();
     });
-    return d->loginFlowsJob.responseFuture();
+    return d->loginFlowsJob.toFuture();
 }
 
 void Connection::saveRoomState(Room* r) const

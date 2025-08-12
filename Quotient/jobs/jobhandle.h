@@ -5,6 +5,8 @@
 #include <QtCore/QFuture>
 #include <QtCore/QPointer>
 
+#include <expected>
+
 namespace Quotient {
 
 template <typename FnT, typename JobT>
@@ -191,9 +193,14 @@ public:
     }
 
     //! Get a QFuture for the value returned by `collectResponse()` called on the underlying job
-    auto responseFuture()
+    auto toFuture()
     {
-        return future_type::then([](auto* j) { return collectResponse(j); });
+        return future_type::then([](future_type ft) mutable {
+            auto *const job = ft.result();
+            if (!job->status().good())
+                ft.cancel();
+            return collectResponse(job);
+        });
     }
 
     //! \brief Abandon the underlying job, if there's one pending
