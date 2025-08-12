@@ -56,6 +56,8 @@ struct EncryptedFileMetadata;
 class QOlmAccount;
 class QOlmInboundGroupSession;
 
+using Invite3pid = CreateRoomJob::Invite3pid;
+
 using LoginFlow = GetLoginFlowsJob::LoginFlow;
 using LoginFlowType = QString;
 
@@ -668,6 +670,8 @@ public:
     Q_INVOKABLE QFuture<Room*> joinAndGetRoom(const QString& roomAlias,
                                               const QStringList& serverNames = {});
 
+    Q_INVOKABLE QFuture<Room *> waitForNewRoom(const QString &roomId);
+
 public Q_SLOTS:
     //! \brief Log in using a username and password pair
     //!
@@ -749,6 +753,19 @@ public Q_SLOTS:
                const QVector<CreateRoomJob::StateEvent>& initialState = {},
                const QVector<CreateRoomJob::Invite3pid>& invite3pids = {},
                const QJsonObject& creationContent = {});
+
+    //! \brief Create a room with additional creators
+    //!
+    //! This is a temporary (until post-0.10) overload that accepts \p additionalCreators.
+    //! After 0.10 both overloads will merge into one again.
+    JobHandle<CreateRoomJob> createRoom(RoomVisibility visibility, const QString &alias,
+                                        const QString &name, const QString &topic,
+                                        QStringList invites, const QString &presetName,
+                                        const QString &roomVersion, bool isDirect,
+                                        const QVector<CreateRoomJob::StateEvent> &initialState,
+                                        const QStringList &additionalCreators,
+                                        const QVector<Invite3pid> &invite3pids = {},
+                                        QJsonObject creationContent = {});
 
     //! \brief Get a direct chat with a single user
     //!

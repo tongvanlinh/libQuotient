@@ -681,6 +681,25 @@ QFuture<Room*> Connection::joinAndGetRoom(const QString& roomAlias, const QStrin
         .then([this](const QString& roomId) { return provideRoom(roomId); });
 }
 
+QFuture<Room *> Connection::waitForNewRoom(const QString &roomId)
+{
+    if (auto *newRoom = room(roomId))
+        return makeReadyValueFuture(newRoom);
+
+    QPromise<Room *> promise;
+    auto ft = promise.future();
+    connectUntil(this, &Connection::loadedRoomState, this,
+                 [roomId, p = std::move(promise)](Room *newRoom) mutable {
+        if (newRoom->id() == roomId) {
+            p.addResult(newRoom);
+            p.finish();
+            return true;
+        }
+        return false;
+    });
+    return ft;
+}
+
 JobHandle<LeaveRoomJob> Connection::leaveRoom(Room* room)
 {
     const auto& roomId = room->id();
@@ -799,7 +818,24 @@ JobHandle<CreateRoomJob> Connection::createRoom(
     const QVector<CreateRoomJob::StateEvent>& initialState,
     const QVector<CreateRoomJob::Invite3pid>& invite3pids, const QJsonObject& creationContent)
 {
+    return createRoom(visibility, alias, name, topic, std::move(invites), presetName, roomVersion,
+                      isDirect, initialState, {}, invite3pids, creationContent);
+}
+
+JobHandle<CreateRoomJob> Connection::createRoom(
+    RoomVisibility visibility, const QString &alias, const QString &name, const QString &topic,
+    QStringList invites, const QString &presetName, const QString &roomVersion, bool isDirect,
+    const QVector<CreateRoomJob::StateEvent> &initialState, const QStringList &additionalCreators,
+    const QVector<Invite3pid> &invite3pids, QJsonObject creationContent)
+{
     invites.removeOne(userId()); // The creator is by definition in the room
+    if (!additionalCreators.empty()) {
+        auto creators = creationContent.take("additional_creators"_L1).toArray();
+        for (const auto &ac : additionalCreators)
+            if (!creators.contains(ac))
+                creators.append(ac);
+        creationContent.insert("additional_creators"_L1, creators);
+    }
     return callApi<CreateRoomJob>(visibility == PublishRoom ? u"public"_s : u"private"_s,
                                   alias, name, topic, invites, invite3pids, roomVersion,
                                   creationContent, initialState, presetName, isDirect)
