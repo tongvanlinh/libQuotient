@@ -1606,11 +1606,13 @@ void Connection::setLazyLoading(bool newValue)
 
 void Connection::run(BaseJob* job, RunningPolicy runningPolicy)
 {
-    // Reparent to protect from #397, #398 and to prevent BaseJob* from being
-    // garbage-collected if made by or returned to QML/JavaScript.
-    job->setParent(this);
-    connect(job, &BaseJob::failure, this, &Connection::requestFailed);
-    job->initiate(d->data.get(), runningPolicy & BackgroundRequest);
+    if (job) {
+        // Reparent to protect from #397, #398 and to prevent BaseJob* from being
+        // garbage-collected if made by or returned to QML/JavaScript.
+        job->setParent(this);
+        connect(job, &BaseJob::failure, this, &Connection::requestFailed);
+        job->initiate(d->data.get(), runningPolicy & BackgroundRequest);
+    }
 }
 
 void Connection::getTurnServers()
