@@ -26,7 +26,6 @@ jobs:
           qt-version: '6.4' # That's what is in Ubuntu 22.04
           override-compiler: GCC
           update-api: update-api
-          static-analysis: sonar # NB: to use sonar with Clang, replace gcov usage with lcov
         - os: ubuntu-22.04
           qt-version: '6.4'
           override-compiler: ''
