@@ -1303,35 +1303,45 @@ qsizetype Room::highlightCount() const { return d->serverHighlightCount; }
 
 void Room::switchVersion(QString newVersion) { this->upgrade(newVersion); }
 
-namespace Matrix_v16 {
-// The CS API backend in libQuotient does not support additionalCreators yet, instead we build on
-// the old UpgradeRoomJob code but write our own request body.
-class UpgradeRoomJob : public Quotient::UpgradeRoomJob
-{
-public:
-    UpgradeRoomJob(const QString &roomId, const QString &version,
-                   const QStringList &additionalCreators)
-        : Quotient::UpgradeRoomJob(roomId, {})
-    {
-        setRequestData(QJsonObject{{"new_version"_L1, toJson(version)},
-                                   {"additional_creators"_L1, toJson(additionalCreators)}});
-    }
-};
+namespace CSAPI {
+inline namespace v16 {
+    // The CS API backend in libQuotient does not support additionalCreators yet, instead we build
+    // on the old UpgradeRoomJob code but write our own request body.
+    class UpgradeRoomJob : public Quotient::UpgradeRoomJob {
+    public:
+        UpgradeRoomJob(const QString& roomId, const QString& version,
+                       const QStringList& additionalCreators)
+            : Quotient::UpgradeRoomJob(roomId, {})
+        {
+            setRequestData(QJsonObject{ { "new_version"_L1, toJson(version) },
+                                        { "additional_creators"_L1, toJson(additionalCreators) } });
+        }
+    };
+}
 }
 
-QFuture<Room *> Room::upgrade(QString newVersion, const QStringList &additionalCreators)
+QFuture<Expected<Room*, BaseJob::Status>> Room::upgrade(QString newVersion,
+                                                        const QStringList& additionalCreators)
 {
     if (!successorId().isEmpty()) {
         Q_ASSERT(!successorId().isEmpty());
         emit upgradeFailed(tr("The room is already upgraded"));
     }
+    using future_t = Expected<Room*, BaseJob::Status>;
     return connection()
-        ->callApi<Matrix_v16::UpgradeRoomJob>(id(), newVersion, additionalCreators)
-        .then(std::bind_front(&Connection::waitForNewRoom, connection()),
-              [this](const auto *sameJob) {
-        emit upgradeFailed(sameJob ? sameJob->errorString() : tr("Couldn't initiate upgrade"));
-        return QFuture<Room *>{};
-    }).unwrap();
+        ->callApi<CSAPI::v16::UpgradeRoomJob>(id(), newVersion, additionalCreators)
+        .then(
+            connection(),
+            [this](const QString& newRoomId) {
+                return connection()->waitForNewRoom(newRoomId).then(
+                    [](Room* r) { return future_t(r); });
+            },
+            [this](const BaseJob* sameJob) {
+                auto&& status = sameJob->status();
+                emit upgradeFailed(status.message);
+                return makeReadyValueFuture<future_t>(std::move(status));
+            })
+        .unwrap();
 }
 
 bool Room::hasAccountData(const QString& type) const
