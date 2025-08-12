@@ -37,3 +37,8 @@ RoomType RoomCreateEvent::roomType() const
 {
     return contentPart<RoomType>("type"_L1);
 }
+
+QStringList RoomCreateEvent::additionalCreators() const
+{
+    return contentPart<QStringList>("additional_creators"_L1);
+}

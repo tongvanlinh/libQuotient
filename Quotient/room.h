@@ -324,6 +324,13 @@ public:
     //! Get a list of all member Matrix IDs known to the room.
     QStringList memberIds() const;
 
+    //! \brief Get Matrix IDs for room creator(s)
+    //!
+    //! As long as the create event for the room is known, the returned list will start with
+    //! MXID of the room creation event sender. For room versions 12 and newer, the returned list
+    //! will further include additional creators if there are any.
+    QStringList creatorIds() const;
+
     //! Whether the name for the given member should be disambiguated
     bool needsDisambiguation(const QString& userId) const;
 
@@ -691,13 +698,14 @@ public:
     //! \note This is a generic method that only gets the power level to send events with a given
     //!       type. Some operations have additional restrictions or enablers though: e.g.,
     //!       room member changes (kicks, invites) have special power levels; on the other hand,
-    //!       redactions of one's own messages are allowed regardless of the power level. To check
-    //!       effective ability to perform an operation, use Room's can*() methods instead of
-    //!       comparing the power levels (those are also slightly more efficient).
+    //!       redactions of one's own messages are allowed regardless of the power level.
+    //!       The library has no method to check effective ability to perform an operation as yet;
+    //!       you have to either blindly make a call to the homeserver or implement the logic
+    //!       described in the Federation API and respective room versions, in the client code.
     //! \note Unlike the template version below, this method determines at runtime whether an event
     //!       type is that of a state event, assuming unknown event types to be non-state; pass
     //!       `true` as the second parameter to override that.
-    //! \sa canSend, canRedact, canSwitchVersions
+    //! \sa canSwitchVersions
     Q_INVOKABLE int powerLevelFor(const QString& eventTypeId, bool forceStateEvent = false) const;
 
     //! \brief Get the power level required to send events of the given type
@@ -773,6 +781,16 @@ public:
 
     QJsonArray exportMegolmSessions();
 
+    //! \brief Upgrade the room to \p newVersion
+    //!
+    //! Triggers an upgrade process that puts the tombstone event on the current room and creates
+    //! a new room of the specified version. It is possible to specify \p additionalCreators for
+    //! room versions that support those (unfortunately it is only possible to find out whether
+    //! a given room version supports additional creators by attempting to upgrade a room).
+    //! \return a future eventually holding a new room once it arrives via sync
+    QFuture<Expected<Room*, BaseJob::Status>> upgrade(QString newVersion,
+                                                      const QStringList& additionalCreators = {});
+
 public Q_SLOTS:
     /** Check whether the room should be upgraded */
     void checkVersion();
@@ -839,7 +857,7 @@ public Q_SLOTS:
     //! Put the fully-read marker at the latest message in the room
     void markAllMessagesAsRead();
 
-    /// Switch the room's version (aka upgrade)
+    //! Switch the room's version (aka upgrade)
     void switchVersion(QString newVersion);
 
     void inviteCall(const QString& callId, const int lifetime,

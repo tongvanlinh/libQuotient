@@ -341,6 +341,28 @@ public:
 
     bool isLocalMember(const QString& memberId) const { return memberId == connection->userId(); }
 
+    //! \brief Check whether room (co-)creators have infinite power
+    //!
+    //! Since version 12, room (co-)creators have immutable infinite power. Coincidentally,
+    //! room ids as hashes have been introduced in the same version; so we use this instead of
+    //! checking the version number which, for unstable versions, may not necessarily start with 12
+    //! (or a larger number), neither even contain it.
+    bool creatorsHaveInfinitePower() const { return !id.contains(u':'); }
+
+    //! \brief Check whether the user is a/the room creator and has infinite power
+    //! \return `true` if creatorsHaveInfinitePower() returns `true` for this room version and
+    //!         \p mxId is either equal to the sender of the room creation event or is among
+    //!         additional_creators listed in that event; `false` otherwise
+    bool isAlmightyCreator(const UserId &mxId) const
+    {
+        return creatorsHaveInfinitePower() && q->creatorIds().contains(mxId);
+    }
+
+    int defaultCreatorPowerLevel() const
+    {
+        return creatorsHaveInfinitePower() ? std::numeric_limits<int>::max() : 100;
+    }
+
     std::unordered_map<QByteArray, QOlmInboundGroupSession> groupSessions;
     std::optional<QOlmOutboundGroupSession> currentOutboundMegolmSession = {};
 
@@ -657,6 +679,18 @@ RoomMember Room::member(const QString& userId) const
         return {};
     }
     return RoomMember(this, currentState().get<RoomMemberEvent>(userId));
+}
+
+QStringList Room::creatorIds() const
+{
+    if (auto createEvent = creation())
+#if defined(__cpp_lib_ranges_concat) && __cpp_lib_ranges_concat >= 202'403L
+        return rangeTo<QStringList>(std::views::concat(std::views::single(createEvent->senderId()),
+                                                       createEvent->additionalCreators()));
+#else
+        return QStringList{createEvent->senderId()} + createEvent->additionalCreators();
+#endif
+    return {};
 }
 
 QList<RoomMember> Room::joinedMembers() const
@@ -1033,6 +1067,9 @@ bool Room::canSwitchVersions() const
     if (!successorId().isEmpty())
         return false; // No one can upgrade a room that's already upgraded
 
+    if (d->isAlmightyCreator(connection()->userId()))
+        return true;
+
     if (const auto* plEvt = currentState().get<RoomPowerLevelsEvent>()) {
         const auto currentUserLevel =
             plEvt->powerLevelForUser(localMember().id());
@@ -1268,15 +1305,47 @@ qsizetype Room::notificationCount() const
 
 qsizetype Room::highlightCount() const { return d->serverHighlightCount; }
 
-void Room::switchVersion(QString newVersion)
+void Room::switchVersion(QString newVersion) { this->upgrade(newVersion); }
+
+namespace CSAPI {
+inline namespace v16 {
+    // The CS API backend in libQuotient does not support additionalCreators yet, instead we build
+    // on the old UpgradeRoomJob code but write our own request body.
+    class UpgradeRoomJob : public Quotient::UpgradeRoomJob {
+    public:
+        UpgradeRoomJob(const QString& roomId, const QString& version,
+                       const QStringList& additionalCreators)
+            : Quotient::UpgradeRoomJob(roomId, {})
+        {
+            setRequestData(QJsonObject{ { "new_version"_L1, toJson(version) },
+                                        { "additional_creators"_L1, toJson(additionalCreators) } });
+        }
+    };
+}
+}
+
+QFuture<Expected<Room*, BaseJob::Status>> Room::upgrade(QString newVersion,
+                                                        const QStringList& additionalCreators)
 {
     if (!successorId().isEmpty()) {
         Q_ASSERT(!successorId().isEmpty());
         emit upgradeFailed(tr("The room is already upgraded"));
     }
-    connection()->callApi<UpgradeRoomJob>(id(), newVersion).onFailure([this](const auto* job) {
-        emit upgradeFailed(job ? job->errorString() : tr("Couldn't initiate upgrade"));
-    });
+    using future_t = Expected<Room*, BaseJob::Status>;
+    return connection()
+        ->callApi<CSAPI::v16::UpgradeRoomJob>(id(), newVersion, additionalCreators)
+        .then(
+            connection(),
+            [this](const QString& newRoomId) {
+                return connection()->waitForNewRoom(newRoomId).then(
+                    [](Room* r) { return future_t(r); });
+            },
+            [this](const BaseJob* sameJob) {
+                auto&& status = sameJob->status();
+                emit upgradeFailed(status.message);
+                return makeReadyValueFuture<future_t>(std::move(status));
+            })
+        .unwrap();
 }
 
 bool Room::hasAccountData(const QString& type) const
@@ -1540,8 +1609,10 @@ RoomStateView Room::currentState() const
 
 int Room::memberEffectivePowerLevel(const UserId& memberId) const
 {
-    return currentState().get<RoomPowerLevelsEvent>()->powerLevelForUser(
-        memberId.isEmpty() ? connection()->userId() : memberId);
+    auto actualMemberId = memberId.isEmpty() ? connection()->userId() : memberId;
+    return d->isAlmightyCreator(actualMemberId)
+               ? std::numeric_limits<int>::max()
+               : currentState().get<RoomPowerLevelsEvent>()->powerLevelForUser(actualMemberId);
 }
 
 int Room::powerLevelFor(const QString& eventTypeId, bool forceStateEvent) const
@@ -1919,14 +1990,16 @@ void Room::updateData(SyncRoomData&& data, bool fromCache)
         if (createEventPreviouslyMissing && creation()
             && currentState().get<RoomPowerLevelsEvent>() == d->defaultPowerLevels.get()) {
             // Handle a special case when RoomCreateEvent just arrived but RoomPowerLevelsEvent
-            // did not. Usually that means that a power levels event is not in the room at all,
-            // which is a somewhat extreme but still valid situation. In such a case the spec says
-            // to rely on the default power levels save for the room creator who is effectively
-            // allowed to do everything.
+            // did not. Usually that means that a power levels event is not in the room at all;
+            // in older room versions this is a somewhat extreme but still valid situation; since
+            // room version 12, this is (almost) normal for rooms that only contain the creators
+            // (e.g. private 1:1 chats). In such a case the spec says to rely on the default power
+            // levels save for the room creator who is allowed to do everything.
             // The entire defaultPowerLevels event gets replaced in order to maintain its constness
             // everywhere else.
-            d->defaultPowerLevels = std::make_unique<const RoomPowerLevelsEvent>(
-                PowerLevelsEventContent{ .users = { { creation()->senderId(), 100 } } });
+            d->defaultPowerLevels =
+                std::make_unique<const RoomPowerLevelsEvent>(PowerLevelsEventContent{
+                    .users = {{creation()->senderId(), d->defaultCreatorPowerLevel()}}});
             d->currentState[{ RoomPowerLevelsEvent::TypeId, {} }] = d->defaultPowerLevels.get();
         }
 
@@ -3233,18 +3306,8 @@ Room::Change Room::Private::processStateEvent(const RoomEvent& curEvent,
             return Change::Other;
         },
         [this](const RoomTombstoneEvent& evt) {
-            const auto successorId = evt.successorRoomId();
-            if (auto* successor = connection->room(successorId))
-                emit q->upgraded(evt.serverMessage(), successor);
-            else
-                connectUntil(connection, &Connection::loadedRoomState, q,
-                    [this,successorId,serverMsg=evt.serverMessage()]
-                    (Room* newRoom) {
-                        if (newRoom->id() != successorId)
-                            return false;
-                        emit q->upgraded(serverMsg, newRoom);
-                        return true;
-                    });
+            connection->waitForNewRoom(evt.successorRoomId())
+                .then(std::bind_front(/* emit */ &Room::upgraded, q, evt.serverMessage()));
 
             return Change::Other;
         },
