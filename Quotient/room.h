@@ -1063,22 +1063,17 @@ private:
     void setJoinState(JoinState state);
 };
 
-template <template <class> class ContT>
-inline typename ContT<RoomMember>::size_type lowerBoundMemberIndex(const ContT<RoomMember>& c,
-                                                                   const auto& v,
-                                                                   MemberSorter ms = {})
+template <typename RangeT, typename ValT, typename CompT = MemberSorter,
+          typename ProjT = std::identity>
+    requires (std::indirect_strict_weak_order<
+              CompT, const ValT *, std::projected<std::ranges::iterator_t<RangeT>, ProjT>>)
+[[deprecated("Use std::ranges::lower_bound(range, ...) - std::ranges::begin(range)")]]
+inline std::ranges::range_size_t<RangeT> lowerBoundMemberIndex(const RangeT &rng, const ValT &val,
+                                                               CompT comp = {}, ProjT proj = {})
 {
-    return std::ranges::lower_bound(c, v, ms) - c.begin();
+    return std::ranges::lower_bound(rng, val, std::move(comp), std::move(proj))
+           - std::ranges::begin(rng);
 }
-
-template <template <class> class ContT>
-inline typename ContT<QString>::size_type lowerBoundMemberIndex(const ContT<QString>& c,
-                                                                const auto& v, const Room* r,
-                                                                MemberSorter ms = {})
-{
-    return std::ranges::lower_bound(c, v, ms, std::bind_front(&Room::member, r)) - c.begin();
-}
-
 } // namespace Quotient
 Q_DECLARE_METATYPE(Quotient::FileTransferInfo)
 Q_DECLARE_METATYPE(Quotient::ReadReceipt)
