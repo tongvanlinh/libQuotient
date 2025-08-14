@@ -235,14 +235,6 @@ struct QUOTIENT_API MemberSorter {
     {
         return operator()(u1.displayName(), u2.displayName());
     }
-    bool operator()(const RoomMember& u1, QStringView u2name) const
-    {
-        return operator()(u1.displayName(), u2name);
-    }
-    bool operator()(QStringView u1name, const RoomMember& u2) const
-    {
-        return operator()(u1name, u2.displayName());
-    }
     bool operator()(QStringView u1name, QStringView u2name) const;
 };
 
