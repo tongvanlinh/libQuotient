@@ -46,6 +46,7 @@ class QUOTIENT_API RoomMember {
     Q_PROPERTY(QColor color READ color CONSTANT)
     Q_PROPERTY(QUrl avatarUrl READ avatarUrl CONSTANT)
     Q_PROPERTY(int powerLevel READ powerLevel CONSTANT)
+    Q_PROPERTY(bool isCreator READ isCreator CONSTANT)
 
 public:
     RoomMember() = default;
@@ -210,6 +211,15 @@ public:
     //! This is in the context of the current room. Will return the default power
     //! level for the room if not specifically set.
     int powerLevel() const;
+
+    //! \brief Whether the room member is listed in room creators
+    //!
+    //! For room versions prior to 12, exactly one room member is a creator. Room version 12
+    //! introduces the concept of additional creators, so the room can have several creators with
+    //! the same (infinite) power level. This function does not distinguish whether the member
+    //! is the actual room create event sender or is only among additional creators; if you really
+    //! need to find the actual creator of the room, use `room->creation()->senderId()`.
+    bool isCreator() const;
 
 private:
     const Room* _room = nullptr;

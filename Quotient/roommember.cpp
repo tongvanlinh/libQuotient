@@ -143,6 +143,8 @@ QImage RoomMember::avatar(int dimension, Avatar::get_callback_t callback) const
     return avatar(dimension, dimension, std::move(callback));
 }
 
+bool RoomMember::isCreator() const { return _room->creatorIds().contains(id()); }
+
 namespace {
 inline QStringView removeLeadingAt(QStringView sv) { return sv.mid(sv.startsWith(u'@') ? 1 : 0); }
 }
