@@ -449,9 +449,7 @@ void KeyVerificationSession::handleReady(const KeyVerificationReadyEvent& event)
 void KeyVerificationSession::handleStart(const KeyVerificationStartEvent& event)
 {
     if (startSentByUs) {
-        if (m_remoteUserId > m_connection->userId()
-            || (m_remoteUserId == m_connection->userId()
-                && m_remoteDeviceId > m_connection->deviceId())) {
+        if (m_remoteUserId > m_connection->userId()) {
             return;
         }
         startSentByUs = false;
