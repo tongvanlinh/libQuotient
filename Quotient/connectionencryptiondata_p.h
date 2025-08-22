@@ -76,7 +76,7 @@ namespace _impl {
         void sendSessionKeyToDevices(
             const QString& roomId,
             const QOlmOutboundGroupSession& outboundSession,
-            const QMultiHash<QString, QString>& devices);
+            const QMultiHash<QString, QString> devices);
 
         template <typename... ArgTs>
         KeyVerificationSession* setupKeyVerificationSession(ArgTs&&... sessionArgs)

@@ -951,7 +951,7 @@ void ConnectionEncryptionData::doSendSessionKeyToDevices(
 
 void ConnectionEncryptionData::sendSessionKeyToDevices(
     const QString& roomId, const QOlmOutboundGroupSession& outboundSession,
-    const QMultiHash<QString, QString>& devices)
+    const QMultiHash<QString, QString> devices)
 {
     const auto& sessionId = outboundSession.sessionId();
     const auto& sessionKey = outboundSession.sessionKey();
