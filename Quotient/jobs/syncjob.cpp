@@ -23,7 +23,7 @@ SyncJob::SyncJob(const QString& since, const QString& filter, int timeout, const
         query.addQueryItem(u"timeout"_s, QString::number(timeout));
         backoffStrategy.jobTimeouts = { std::chrono::seconds(timeout / 1000 + 10) };
     } else
-        backoffStrategy.jobTimeouts = { std::chrono::years { 1000 } }; // effectively disable the timeout
+        backoffStrategy.jobTimeouts = { std::chrono::weeks { 3 } }; // effectively disable the timeout
     setBackoffStrategy(std::move(backoffStrategy));
     addParam<IfNotEmpty>(query, u"since"_s, since);
     setRequestQuery(query);
