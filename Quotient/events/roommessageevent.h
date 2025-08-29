@@ -6,7 +6,6 @@
 #pragma once
 
 #include "eventcontent.h"
-#include "eventrelation.h"
 #include "roomevent.h"
 
 class QFileInfo;
@@ -94,12 +93,6 @@ public:
     //! Retrieve a thumbnail from the message event
     EventContent::Thumbnail getThumbnail() const;
 
-    //! \brief The EventRelation for this event.
-    //!
-    //! \return an EventRelation object which can be checked for type if it exists,
-    //!         std::nullopt otherwise.
-    std::optional<EventRelation> relatesTo() const;
-
     //! \brief The upstream event ID for the relation.
     //!
     //! \warning If your client is not thread aware use replyEventId() as this will
@@ -121,28 +114,6 @@ public:
     bool isReplaced() const;
 
     QString replacedBy() const;
-
-    //! \brief Determine whether the event is a reply to another message.
-    //!
-    //! \param includeFallbacks include thread fallback replies for non-threaded clients.
-    //!
-    //! \return true if this event is a reply, i.e. it has `"m.in_reply_to"`
-    //!         event ID and is not a thread fallback (except where \p includeFallbacks is true);
-    //!         false otherwise.
-    //!
-    //! \note It's possible to reply to another message in a thread so this function
-    //!       will return true for a `"rel_type"` of `"m.thread"` if `"is_falling_back"`
-    //!       is false.
-    bool isReply(bool includeFallbacks = false) const;
-
-    //! \brief The ID for the event being replied to.
-    //!
-    //! \param includeFallbacks include thread fallback replies for non-threaded clients.
-    //!
-    //!
-    //! \return The event ID for a reply, this includes threaded replies where `"rel_type"`
-    //!         is `"m.thread"` and `"is_falling_back"` is false (except where \p includeFallbacks is true).
-    QString replyEventId(bool includeFallbacks = false)const;
 
     //! \brief Determine whether the event is part of a thread.
     //!

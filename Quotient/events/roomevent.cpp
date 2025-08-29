@@ -115,3 +115,30 @@ bool Quotient::isStateEvent(const QString& eventTypeId)
 {
     return containsEventType(StateEvent::BaseMetaType.derivedTypes(), eventTypeId);
 }
+
+bool RoomEvent::isReply(bool includeFallbacks) const
+{
+    const auto relation = relatesTo();
+    return relation.has_value() &&
+    (relation.value().type == EventRelation::ReplyType ||
+    (relation.value().type == EventRelation::ThreadType &&
+    (relation.value().isFallingBack == false || includeFallbacks)));
+}
+
+QString RoomEvent::replyEventId(bool includeFallbacks) const
+{
+    if (const auto relation = relatesTo()) {
+        if (relation.value().type == EventRelation::ReplyType) {
+            return relation.value().eventId;
+        } else if (relation.value().type == EventRelation::ThreadType &&
+            (relation.value().isFallingBack == false || includeFallbacks)) {
+            return relation.value().inThreadReplyEventId;
+            }
+    }
+    return {};
+}
+
+std::optional<EventRelation> RoomEvent::relatesTo() const
+{
+    return contentPart<std::optional<EventRelation>>(RelatesToKey);
+}
