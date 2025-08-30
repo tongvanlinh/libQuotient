@@ -249,11 +249,6 @@ bool RoomMessageEvent::has<LocationContent>() const
     return rawMsgtype() == LocationTypeId;
 }
 
-std::optional<EventRelation> RoomMessageEvent::relatesTo() const
-{
-    return contentPart<std::optional<EventRelation>>(RelatesToKey);
-}
-
 QString RoomMessageEvent::upstreamEventId() const
 {
     const auto relation = relatesTo();
@@ -278,28 +273,6 @@ QString RoomMessageEvent::replacedBy() const
 {
     return unsignedPart<QJsonObject>("m.relations"_L1)[EventRelation::ReplacementType][EventIdKey]
         .toString();
-}
-
-bool RoomMessageEvent::isReply(bool includeFallbacks) const
-{
-    const auto relation = relatesTo();
-    return relation.has_value() &&
-            (relation.value().type == EventRelation::ReplyType ||
-            (relation.value().type == EventRelation::ThreadType &&
-            (relation.value().isFallingBack == false || includeFallbacks)));
-}
-
-QString RoomMessageEvent::replyEventId(bool includeFallbacks) const
-{
-    if (const auto relation = relatesTo()) {
-        if (relation.value().type == EventRelation::ReplyType) {
-            return relation.value().eventId;
-        } else if (relation.value().type == EventRelation::ThreadType &&
-                (relation.value().isFallingBack == false || includeFallbacks)) {
-            return relation.value().inThreadReplyEventId;
-        }
-    }
-    return {};
 }
 
 bool RoomMessageEvent::isThreaded() const
