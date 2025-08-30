@@ -26,7 +26,14 @@ MxcReply::MxcReply(QNetworkReply* reply,
 
         if (d->m_reply->error() != NoError) {
             const QJsonDocument doc = QJsonDocument::fromJson(d->m_reply->readAll());
-            setErrorString(QStringLiteral("%1 (%2)").arg(doc["error"_L1].toString(), d->m_reply->url().toString()));
+            QString errorString;
+            if (doc.object().contains("error"_L1)) {
+                errorString = doc["error"_L1].toString();
+            } else {
+                errorString = d->m_reply->errorString();
+            }
+            setErrorString(QStringLiteral("%1 (%2)").arg(errorString,
+                                                         d->m_reply->url().toString()));
         } else if (fileMetadata.isValid()) {
             auto buffer = new QBuffer(this);
             buffer->setData(decryptFile(d->m_reply->readAll(), fileMetadata));
