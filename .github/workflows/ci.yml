@@ -133,7 +133,7 @@ jobs:
     - name: Set up Sonar Cloud tools
       id: sonar
       if: matrix.static-analysis == 'sonar'
-      uses: sonarsource/sonarcloud-github-c-cpp@v2
+      uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v5
 
     - name: Build and install QtKeychain
       run: |
@@ -212,22 +212,24 @@ jobs:
       if: matrix.static-analysis == 'codeql'
       uses: github/codeql-action/analyze@v3
 
-    - name: Run sonar-scanner
+    - name: Prepare coverage files for Sonar analysis
       if: matrix.static-analysis == 'sonar'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_SERVER_URL: 'https://sonarcloud.io'
       run: |
         mkdir .coverage && pushd .coverage
-        find $BUILD_PATH -name '*.gcda' -print0 \
-            | xargs -0 gcov$GCC_VERSION -s $GITHUB_WORKSPACE -pr
+        find $BUILD_PATH -name '*.gcda' -print0 | xargs -0 gcov$GCC_VERSION -s $GITHUB_WORKSPACE -pr
         # Coverage of the test source code is not tracked, as it is always 100%
         # (if not, some tests failed and broke the build at an earlier stage)
         rm -f quotest* autotests*
         popd
-        ${{ steps.sonar.outputs.sonar-scanner-binary }} \
-            -Dsonar.host.url="$SONAR_SERVER_URL" \
-            -Dsonar.cfamily.compile-commands="$BUILD_PATH/sonar/compile_commands.json" \
-            -Dsonar.cfamily.threads=2 \
-            -Dsonar.cfamily.gcov.reportsPath=.coverage
+
+    - name: Run sonar-scanner
+      if: matrix.static-analysis == 'sonar'
+      uses: SonarSource/sonarqube-scan-action@v5
+      env:
+        # GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      with:
+        args: >
+          -Dsonar.cfamily.compile-commands="$BUILD_PATH/compile_commands.json"
+          -Dsonar.cfamily.threads=2
+          -Dsonar.cfamily.gcov.reportsPath=.coverage
