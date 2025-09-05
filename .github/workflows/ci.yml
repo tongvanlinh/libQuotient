@@ -38,6 +38,7 @@ jobs:
     env:
       GCC_VERSION: -13
       CLANG_VERSION: -17
+      SONAR_DIR: sonar
 
     steps:
     - uses: actions/checkout@v4
@@ -105,7 +106,7 @@ jobs:
             "
 
         if [ '${{ matrix.static-analysis }}' == 'sonar' ]; then
-            mkdir -p $HOME/.sonar
+            # mkdir -p $HOME/.sonar
             CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_CXX_FLAGS=--coverage"
         fi
 
@@ -175,12 +176,12 @@ jobs:
 
     - name: Regenerate API code
       if: matrix.update-api
-      run: cmake --build ../build/libQuotient --target update-api
+      run: cmake --build $BUILD_PATH --target update-api
 
     - name: Build and install libQuotient
       run: |
         if [[ '${{ matrix.static-analysis }}' == 'sonar' ]]; then
-            BUILD_WRAPPER="${{ steps.sonar.outputs.build-wrapper-binary }} --out-dir $BUILD_PATH/sonar"
+            BUILD_WRAPPER="${{ steps.sonar.outputs.build-wrapper-binary }} --out-dir $SONAR_DIR"
         fi
         $BUILD_WRAPPER cmake --build $BUILD_PATH --target all
         cmake --build $BUILD_PATH --target install
@@ -228,6 +229,6 @@ jobs:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       with:
         args: >
-          -Dsonar.cfamily.compile-commands="$BUILD_PATH/compile_commands.json"
+          -Dsonar.cfamily.compile-commands=${{ env.SONAR_DIR }}/compile_commands.json
           -Dsonar.cfamily.threads=2
           -Dsonar.cfamily.gcov.reportsPath=.coverage
