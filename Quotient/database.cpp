@@ -629,9 +629,7 @@ void Database::setMasterKeyVerified(const QString& masterKey)
 {
     auto query = prepareQuery(u"UPDATE master_keys SET verified=true WHERE key=:key;"_s);
     query.bindValue(u":key"_s, masterKey);
-    transaction();
     execute(query);
-    commit();
 }
 
 QString Database::userSigningPublicKey()
