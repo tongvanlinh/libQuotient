@@ -143,7 +143,8 @@ jobs:
         cmake -S qtkeychain -B qtkeychain/build -DBUILD_WITH_QT6=ON -DBUILD_TRANSLATIONS=OFF $CMAKE_ARGS
         cmake --build qtkeychain/build --target install
 
-    - name: Build and install Olm
+    - name: Build and install Olm (non-Linux)
+      if: "!startsWith(matrix.os, 'ubuntu')"
       run: |
         cd ..
         git clone https://gitlab.matrix.org/matrix-org/olm.git
