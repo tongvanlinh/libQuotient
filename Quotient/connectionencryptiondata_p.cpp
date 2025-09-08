@@ -955,15 +955,11 @@ void ConnectionEncryptionData::sendSessionKeyToDevices(
     const QString& roomId, const QOlmOutboundGroupSession& outboundSession,
     const QMultiHash<QString, QString>& devices)
 {
-    const auto& sessionId = outboundSession.sessionId();
-    const auto& sessionKey = outboundSession.sessionKey();
-    const auto& index = outboundSession.sessionMessageIndex();
-
-    const auto closure = [this, roomId, sessionId, sessionKey, index, devices] {
-        doSendSessionKeyToDevices(roomId, sessionId, sessionKey, index, devices);
-    };
+    auto closure = std::bind_front(&ConnectionEncryptionData::doSendSessionKeyToDevices, this,
+                                   roomId, outboundSession.sessionId(), outboundSession.sessionKey(),
+                                   outboundSession.sessionMessageIndex(), devices);
     if (currentQueryKeysJob != nullptr) {
-        currentQueryKeysJob = currentQueryKeysJob.onResult(q, closure);
+        currentQueryKeysJob = currentQueryKeysJob.onResult(q, std::move(closure));
     } else
         closure();
 }
