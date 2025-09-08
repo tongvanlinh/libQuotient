@@ -213,6 +213,7 @@ public:
 private:
     //! A function object that can be passed to QFuture::then and QFuture::onCanceled
     template <typename FnT>
+        requires (!std::is_reference_v<FnT>)
     struct BoundFn {
         auto operator()() { return callFn<false>(nullptr); } // For QFuture::onCanceled
         auto operator()(future_value_type job) { return callFn(job); } // For QFuture::then
@@ -247,6 +248,9 @@ private:
 
     template <typename FnT>
     BoundFn(FnT&&) -> BoundFn<FnT>;
+
+    template <typename FnT>
+    BoundFn(const FnT &) -> BoundFn<FnT>;
 
     template <typename FnT, typename ConfigT = Skip>
     static auto bindToContext(FnT&& fn, ConfigT config = {})
