@@ -85,15 +85,16 @@ inline std::pair<int, bool> checkedSize(
     } while (false)                                                            \
 // End of macro
 
-std::optional<std::unexpected<SslErrorCode>> Quotient::_impl::pbkdf2HmacSha512(
-    const QByteArray& passphrase, const QByteArray& salt, int iterations, byte_span_t<> output)
+SslExpected<std::monostate> Quotient::_impl::pbkdf2HmacSha512(const QByteArray &passphrase,
+                                                              const QByteArray &salt,
+                                                              int iterations, byte_span_t<> output)
 {
     CLAMP_SIZE(passphraseSize, passphrase);
     CLAMP_SIZE(saltSize, salt);
     CLAMP_SIZE(outputSize, output);
     CALL_OPENSSL(PKCS5_PBKDF2_HMAC(passphrase.data(), passphraseSize, asCBytes(salt).data(),
                                    saltSize, iterations, EVP_sha512(), outputSize, output.data()));
-    return {}; // OpenSSL doesn't have a special constant for success code, so using std::optional
+    return {};
 }
 
 SslExpected<QByteArray> Quotient::aesCtr256Encrypt(const QByteArray& plaintext,
