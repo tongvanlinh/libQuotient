@@ -42,7 +42,7 @@ QOlmExpected<QOlmSession> QOlmSession::unpickle(QByteArray&& pickled,
         QOLM_FAIL_OR_LOG_X(errorCode == OLM_OUTPUT_BUFFER_TOO_SMALL,
                            "Failed to unpickle an Olm session"_L1,
                            olmSession.lastError());
-        return errorCode;
+        return std::unexpected(errorCode);
     }
 
     return olmSession;
@@ -80,7 +80,7 @@ QOlmExpected<QByteArray> QOlmSession::decrypt(const QOlmMessage& message) const
     if (plaintextMaxLen == olm_error()) {
         qWarning(E2EE) << "Couldn't calculate decrypted message length:"
                        << lastError();
-        return lastErrorCode();
+        return std::unexpected(lastErrorCode());
     }
 
     auto plaintextBuf = byteArrayForOlm(plaintextMaxLen);
@@ -90,7 +90,7 @@ QOlmExpected<QByteArray> QOlmSession::decrypt(const QOlmMessage& message) const
                                           plaintextBuf.data(), plaintextMaxLen);
     if (actualLength == olm_error()) {
         QOLM_FAIL_OR_LOG(OLM_OUTPUT_BUFFER_TOO_SMALL, "Failed to decrypt the message"_L1);
-        return lastErrorCode();
+        return std::unexpected(lastErrorCode());
     }
     // actualLength cannot be more than plainTextLength because the resulting
     // text would overflow the allocated memory; but it can be less, in theory

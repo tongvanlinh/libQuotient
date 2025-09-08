@@ -5,17 +5,17 @@
 
 #pragma once
 
-#include <Quotient/converters.h>
-#include <Quotient/expected.h>
+#include "../converters.h"
+#include "../expected.h" // It's only here to not break client code still using Expected
 
 #include <QtCore/QMetaType>
 #include <QtCore/QStringBuilder>
 
+#include <olm/error.h>
+
 #include <array>
 #include <span>
 #include <variant>
-
-#include <olm/error.h>
 
 namespace Quotient {
 
@@ -59,7 +59,7 @@ inline bool isSupportedAlgorithm(const QString& algorithm)
     QOLM_FAIL_OR_LOG_X(lastErrorCode() == (InternalFailureValue_), (Message_), lastError())
 
 template <typename T>
-using QOlmExpected = Expected<T, OlmErrorCode>;
+using QOlmExpected = std::expected<T, OlmErrorCode>;
 
 //! \brief Initialise a buffer object for use with Olm calls
 //!

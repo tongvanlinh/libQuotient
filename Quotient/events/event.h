@@ -332,10 +332,6 @@ public:
         return dbg;
     }
 
-#if Quotient_VERSION_MAJOR == 0 && Quotient_VERSION_MINOR <= 9
-    [[deprecated("isStateEvent() has moved to RoomEvent")]] bool isStateEvent() const;
-#endif
-
 protected:
     friend class EventMetaType<Event>; // To access the below constructor
 

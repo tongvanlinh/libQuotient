@@ -22,8 +22,6 @@ public:
                       std::optional<bool> animated = std::nullopt);
 
     QImage thumbnail() const;
-    [[deprecated("Use thumbnail().scaled() instead")]]
-    QImage scaledThumbnail(QSize toSize) const;
 
 private:
     QString serverName;

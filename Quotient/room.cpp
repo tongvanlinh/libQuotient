@@ -1325,14 +1325,14 @@ inline namespace v16 {
 }
 }
 
-QFuture<Expected<Room*, BaseJob::Status>> Room::upgrade(QString newVersion,
-                                                        const QStringList& additionalCreators)
+QFuture<std::expected<Room *, BaseJob::Status>> Room::upgrade(QString newVersion,
+                                                              const QStringList &additionalCreators)
 {
     if (!successorId().isEmpty()) {
         Q_ASSERT(!successorId().isEmpty());
         emit upgradeFailed(tr("The room is already upgraded"));
     }
-    using future_t = Expected<Room*, BaseJob::Status>;
+    using future_t = std::expected<Room*, BaseJob::Status>;
     return connection()
         ->callApi<CSAPI::v16::UpgradeRoomJob>(id(), newVersion, additionalCreators)
         .then(
@@ -1344,7 +1344,7 @@ QFuture<Expected<Room*, BaseJob::Status>> Room::upgrade(QString newVersion,
             [this](const BaseJob* sameJob) {
                 auto&& status = sameJob->status();
                 emit upgradeFailed(status.message);
-                return makeReadyValueFuture<future_t>(std::move(status));
+                return makeReadyValueFuture<future_t>(std::unexpected(status));
             })
         .unwrap();
 }

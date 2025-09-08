@@ -36,8 +36,7 @@ QByteArray Quotient::decryptFile(const QByteArray& ciphertext,
         return {};
     }
 
-    return aesCtr256Decrypt(ciphertext, asCBytes<32>(key), asCBytes<16>(iv))
-        .move_value_or({});
+    return aesCtr256Decrypt(ciphertext, asCBytes<32>(key), asCBytes<16>(iv)).value_or(QByteArray());
 }
 
 std::pair<EncryptedFileMetadata, QByteArray> Quotient::encryptFile(

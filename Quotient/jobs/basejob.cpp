@@ -658,17 +658,6 @@ BaseJob::duration_ms_t BaseJob::millisToRetry() const
     return timeToRetry().count();
 }
 
-int BaseJob::maxRetries() const
-{
-    return d->backoffStrategy.maxRetries ? static_cast<int>(*d->backoffStrategy.maxRetries)
-                                         : std::numeric_limits<int>::max();
-}
-
-void BaseJob::setMaxRetries(int newMaxRetries)
-{
-    d->backoffStrategy.maxRetries = newMaxRetries;
-}
-
 JobBackoffStrategy BaseJob::currentBackoffStrategy() const { return d->backoffStrategy; }
 
 void BaseJob::setBackoffStrategy(JobBackoffStrategy strategy)

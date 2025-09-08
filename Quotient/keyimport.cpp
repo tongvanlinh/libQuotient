@@ -26,7 +26,8 @@ const auto PayloadOffset = RoundsOffset + RoundsLength;
 const auto MacLength = 32;
 const auto HeaderLength = VersionLength + AesBlockSize + AesBlockSize + RoundsLength + MacLength;
 
-Expected<QJsonArray, KeyImport::Error> KeyImport::decrypt(QString data, const QString& passphrase)
+std::expected<QJsonArray, KeyImport::Error> KeyImport::decrypt(QString data,
+                                                               const QString& passphrase)
 {
     data.remove("-----BEGIN MEGOLM SESSION DATA-----"_L1);
     data.remove("-----END MEGOLM SESSION DATA-----"_L1);
@@ -34,12 +35,12 @@ Expected<QJsonArray, KeyImport::Error> KeyImport::decrypt(QString data, const QS
     auto decoded = QByteArray::fromBase64(data.toLatin1());
     if (decoded[0] != 1) {
         qCWarning(E2EE) << "Wrong version byte";
-        return InvalidData;
+        return std::unexpected(InvalidData);
     }
 
     if (decoded.size() < HeaderLength) {
         qCWarning(E2EE) << "Data not long enough";
-        return InvalidData;
+        return std::unexpected(InvalidData);
     }
 
     const auto salt = decoded.mid(SaltOffset, AesBlockSize);
@@ -51,24 +52,24 @@ Expected<QJsonArray, KeyImport::Error> KeyImport::decrypt(QString data, const QS
     auto keys = pbkdf2HmacSha512<64>(passphrase.toLatin1(), salt, rounds);
     if (!keys.has_value()) {
         qCWarning(E2EE) << "Failed to calculate pbkdf:" << keys.error();
-        return OtherError;
+        return std::unexpected(OtherError);
     }
 
     auto actualMac = hmacSha256(key_view_t(keys.value().begin() + 32, 32), decoded.left(decoded.size() - MacLength));
     if (!actualMac.has_value()) {
         qCWarning(E2EE) << "Failed to calculate hmac:" << actualMac.error();
-        return OtherError;
+        return std::unexpected(OtherError);
     }
 
     if (actualMac.value() != expectedMac) {
         qCWarning(E2EE) << "Mac incorrect";
-        return InvalidPassphrase;
+        return std::unexpected(InvalidPassphrase);
     }
 
     auto plain = aesCtr256Decrypt(payload, byte_view_t<Aes256KeySize>(keys.value().begin(), Aes256KeySize), asCBytes<AesBlockSize>(iv));
     if (!plain.has_value()) {
         qCWarning(E2EE) << "Failed to decrypt data";
-        return OtherError;
+        return std::unexpected(OtherError);
     }
     return QJsonDocument::fromJson(plain.value()).array();
 }
@@ -112,7 +113,8 @@ inline QByteArray lineWrapped(QByteArray text, int wrapAt)
 #endif
 }
 
-Quotient::Expected<QByteArray, KeyImport::Error> KeyImport::encrypt(QJsonArray sessions, const QString& passphrase)
+std::expected<QByteArray, KeyImport::Error> KeyImport::encrypt(QJsonArray sessions,
+                                                               const QString& passphrase)
 {
     auto plainText = QJsonDocument(sessions).toJson(QJsonDocument::Compact);
 
@@ -123,14 +125,14 @@ Quotient::Expected<QByteArray, KeyImport::Error> KeyImport::encrypt(QJsonArray s
     auto keys = pbkdf2HmacSha512<64>(passphrase.toLatin1(), salt.viewAsByteArray(), rounds);
     if (!keys.has_value()) {
         qCWarning(E2EE) << "Failed to calculate pbkdf:" << keys.error();
-        return OtherError;
+        return std::unexpected(OtherError);
     }
 
     auto result = aesCtr256Encrypt(plainText, byte_view_t<Aes256KeySize>(keys.value().begin(), Aes256KeySize), asCBytes<AesBlockSize>(iv.viewAsByteArray()));
 
     if (!result.has_value()) {
         qCWarning(E2EE) << "Failed to encrypt export" << result.error();
-        return OtherError;
+        return std::unexpected(OtherError);
     }
 
     QByteArray data;
@@ -144,7 +146,7 @@ Quotient::Expected<QByteArray, KeyImport::Error> KeyImport::encrypt(QJsonArray s
     auto mac = hmacSha256(key_view_t(keys.value().begin() + 32, 32), data);
     if (!mac.has_value()) {
         qCWarning(E2EE) << "Failed to calculate MAC" << mac.error();
-        return OtherError;
+        return std::unexpected(OtherError);
     }
     data.append(mac.value());
 
@@ -153,8 +155,8 @@ Quotient::Expected<QByteArray, KeyImport::Error> KeyImport::encrypt(QJsonArray s
            % "\n-----END MEGOLM SESSION DATA-----\n"_ba;
 }
 
-
-Quotient::Expected<QByteArray, KeyImport::Error> KeyImport::exportKeys(const QString& passphrase, const Connection* connection)
+std::expected<QByteArray, KeyImport::Error> KeyImport::exportKeys(const QString& passphrase,
+                                                                  const Connection* connection)
 {
     QJsonArray sessions;
     for (const auto& room : connection->allRooms()) {

@@ -191,8 +191,9 @@ void Connection::assumeIdentity(const QString& mxId, const QString& deviceId,
                         << ") is different from passed MXID (" << mxId << ")!";
                 return;
             case BaseJob::NetworkError:
-                QT_IGNORE_DEPRECATIONS(emit networkError(job->errorString(), job->rawDataSample(),
-                                                         job->maxRetries(), -1);)
+                emit networkError(
+                    job->errorString(), job->rawDataSample(),
+                    static_cast<int>(job->currentBackoffStrategy().maxRetries.value_or(-1)), -1);
                 return;
             default: emit loginError(job->errorString(), job->rawDataSample());
             }
@@ -229,10 +230,6 @@ JobHandle<GetCapabilitiesJob> Connection::loadCapabilities()
                                      " version upgrade recommendations won't be issued";
             });
 }
-
-void Connection::reloadCapabilities() { loadCapabilities(); }
-
-bool Connection::loadingCapabilities() const { return !capabilitiesReady(); }
 
 bool Connection::capabilitiesReady() const
 {
@@ -784,17 +781,6 @@ JobHandle<UploadContentJob> Connection::uploadFile(const QString& fileName,
                          overrideContentType);
 }
 
-BaseJob* Connection::getContent(const QString& mediaId)
-{
-    auto idParts = splitMediaId(mediaId);
-    return callApi<DownloadFileJob>(idParts.front(), idParts.back());
-}
-
-BaseJob* Connection::getContent(const QUrl& url)
-{
-    QT_IGNORE_DEPRECATIONS(return getContent(url.authority() + url.path());)
-}
-
 JobHandle<DownloadFileJob> Connection::downloadFile(const QUrl& url, const QString& localFilename)
 {
     auto mediaId = url.authority() + url.path();
@@ -989,8 +975,6 @@ SendMessageJob* Connection::sendMessage(const QString& roomId,
 QUrl Connection::homeserver() const { return d->data->baseUrl(); }
 
 QString Connection::domain() const { return userId().section(u':', 1); }
-
-bool Connection::isUsable() const { return !loginFlows().isEmpty(); }
 
 QVector<GetLoginFlowsJob::LoginFlow> Connection::loginFlows() const
 {
@@ -1324,12 +1308,6 @@ QList<QString> Connection::directChatMemberIds(const Room* room) const
 bool Connection::isIgnored(const QString& userId) const
 {
     return ignoredUsers().contains(userId);
-}
-
-bool Connection::isIgnored(const User* user) const
-{
-    Q_ASSERT(user != nullptr);
-    return isIgnored(user->id());
 }
 
 IgnoredUsersList Connection::ignoredUsers() const

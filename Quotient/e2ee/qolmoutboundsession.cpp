@@ -56,7 +56,7 @@ QOlmExpected<QOlmOutboundGroupSession> QOlmOutboundGroupSession::unpickle(
         == olm_error()) {
         qWarning(E2EE) << "Failed to unpickle an outbound group session:"
                        << groupSession.lastError();
-        return groupSession.lastErrorCode();
+        return std::unexpected(groupSession.lastErrorCode());
     }
 
     return groupSession;

@@ -3,10 +3,10 @@
 
 #pragma once
 
-#include <QObject>
-
-#include "expected.h"
+#include "expected.h" // Only here to not break client code still using Expected
 #include "quotient_export.h"
+
+#include <QtCore/QObject>
 
 class TestKeyImport;
 
@@ -35,12 +35,14 @@ public:
 
     Q_INVOKABLE Error importKeys(QString data, const QString& passphrase,
                                  const Quotient::Connection* connection);
-    Q_INVOKABLE Quotient::Expected<QByteArray, Error> exportKeys(const QString& passphrase, const Quotient::Connection* connection);
+    Q_INVOKABLE std::expected<QByteArray, Error> exportKeys(const QString& passphrase,
+                                                            const Quotient::Connection* connection);
 
     friend class ::TestKeyImport;
+
 private:
-    Quotient::Expected<QJsonArray, Error> decrypt(QString data, const QString& passphrase);
-    Quotient::Expected<QByteArray, Error> encrypt(QJsonArray sessions, const QString& passphrase);
+    std::expected<QJsonArray, Error> decrypt(QString data, const QString& passphrase);
+    std::expected<QByteArray, Error> encrypt(QJsonArray sessions, const QString& passphrase);
 };
 
 }
