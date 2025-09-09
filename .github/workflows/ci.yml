@@ -38,6 +38,7 @@ jobs:
     env:
       GCC_VERSION: -13
       CLANG_VERSION: -17
+      SONAR_DIR: sonar
 
     steps:
     - uses: actions/checkout@v4
@@ -105,7 +106,7 @@ jobs:
             "
 
         if [ '${{ matrix.static-analysis }}' == 'sonar' ]; then
-            mkdir -p $HOME/.sonar
+            # mkdir -p $HOME/.sonar
             CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_CXX_FLAGS=--coverage"
         fi
 
@@ -131,7 +132,7 @@ jobs:
     - name: Set up Sonar Cloud tools
       id: sonar
       if: matrix.static-analysis == 'sonar'
-      uses: sonarsource/sonarcloud-github-c-cpp@v2
+      uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v5
 
     - name: Build and install QtKeychain
       run: |
@@ -140,7 +141,8 @@ jobs:
         cmake -S qtkeychain -B qtkeychain/build -DBUILD_WITH_QT6=ON $CMAKE_ARGS
         cmake --build qtkeychain/build --target install
 
-    - name: Build and install Olm
+    - name: Build and install Olm (non-Linux)
+      if: "!startsWith(matrix.os, 'ubuntu')"
       run: |
         cd ..
         git clone https://gitlab.matrix.org/matrix-org/olm.git
@@ -175,12 +177,12 @@ jobs:
 
     - name: Regenerate API code
       if: matrix.update-api
-      run: cmake --build ../build/libQuotient --target update-api
+      run: cmake --build $BUILD_PATH --target update-api
 
     - name: Build and install libQuotient
       run: |
         if [[ '${{ matrix.static-analysis }}' == 'sonar' ]]; then
-            BUILD_WRAPPER="${{ steps.sonar.outputs.build-wrapper-binary }} --out-dir $BUILD_PATH/sonar"
+            BUILD_WRAPPER="${{ steps.sonar.outputs.build-wrapper-binary }} --out-dir $SONAR_DIR"
         fi
         $BUILD_WRAPPER cmake --build $BUILD_PATH --target all
         cmake --build $BUILD_PATH --target install
@@ -210,22 +212,24 @@ jobs:
       if: matrix.static-analysis == 'codeql'
       uses: github/codeql-action/analyze@v3
 
-    - name: Run sonar-scanner
+    - name: Prepare coverage files for Sonar analysis
       if: matrix.static-analysis == 'sonar'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_SERVER_URL: 'https://sonarcloud.io'
       run: |
         mkdir .coverage && pushd .coverage
-        find $BUILD_PATH -name '*.gcda' -print0 \
-            | xargs -0 gcov$GCC_VERSION -s $GITHUB_WORKSPACE -pr
+        find $BUILD_PATH -name '*.gcda' -print0 | xargs -0 gcov$GCC_VERSION -s $GITHUB_WORKSPACE -pr
         # Coverage of the test source code is not tracked, as it is always 100%
         # (if not, some tests failed and broke the build at an earlier stage)
         rm -f quotest* autotests*
         popd
-        ${{ steps.sonar.outputs.sonar-scanner-binary }} \
-            -Dsonar.host.url="$SONAR_SERVER_URL" \
-            -Dsonar.cfamily.compile-commands="$BUILD_PATH/sonar/compile_commands.json" \
-            -Dsonar.cfamily.threads=2 \
-            -Dsonar.cfamily.gcov.reportsPath=.coverage
+
+    - name: Run sonar-scanner
+      if: matrix.static-analysis == 'sonar'
+      uses: SonarSource/sonarqube-scan-action@v5
+      env:
+        # GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      with:
+        args: >
+          -Dsonar.cfamily.compile-commands=${{ env.SONAR_DIR }}/compile_commands.json
+          -Dsonar.cfamily.threads=2
+          -Dsonar.cfamily.gcov.reportsPath=.coverage
