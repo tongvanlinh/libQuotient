@@ -25,6 +25,7 @@ public Q_SLOTS:
 
 protected:
     qint64 readData(char* data, qint64 maxlen) override;
+    void ignoreSslErrorsImplementation(const QList<QSslError> &) override;
 
 private:
     class Private;
