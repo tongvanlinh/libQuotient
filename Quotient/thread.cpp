@@ -3,11 +3,11 @@
 
 #include "thread.h"
 
-#include "events/roommessageevent.h"
+#include "events/roomevent.h"
 
 using namespace Quotient;
 
-bool Thread::addEvent(const RoomMessageEvent* event, bool isLatest, bool isLocalUser)
+bool Thread::addEvent(const RoomEvent* event, bool isLatest, bool isLocalUser)
 {
     // Note: the root event may not have the thread aggregation in its unsigned on creation
     // hence checking the event id.
