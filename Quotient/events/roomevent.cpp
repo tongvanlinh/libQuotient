@@ -142,3 +142,21 @@ std::optional<EventRelation> RoomEvent::relatesTo() const
 {
     return contentPart<std::optional<EventRelation>>(RelatesToKey);
 }
+
+bool RoomEvent::isThreaded() const
+{
+    const auto relation = relatesTo();
+    return (relation && relation.value().type == EventRelation::ThreadType)
+    || unsignedPart<QJsonObject>("m.relations"_L1).contains(EventRelation::ThreadType);
+}
+
+QString RoomEvent::threadRootEventId() const
+{
+    const auto relation = relatesTo();
+    if (relation && relation.value().type == EventRelation::ThreadType) {
+        return relation.value().eventId;
+    } else if (unsignedPart<QJsonObject>("m.relations"_L1).contains(EventRelation::ThreadType)) {
+        return id();
+    }
+    return {};
+}

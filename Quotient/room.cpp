@@ -1876,37 +1876,33 @@ Room::Private::moveEventsToTimeline(RoomEventsRange events,
 
 void Room::Private::updateThread(const RoomEvent* event)
 {
-    const auto rme = eventCast<const RoomMessageEvent>(event);
-    if (rme == nullptr) {
-        return;
-    }
-    if (!rme->isThreaded()) {
+    if (!event || !event->isThreaded()) {
         return;
     }
 
-    auto& thread = threads[rme->threadRootEventId()];
+    auto& thread = threads[event->threadRootEventId()];
     const auto isNew = thread.threadRootId.isEmpty();
     if (thread.threadRootId.isEmpty()) {
-        thread.threadRootId = rme->threadRootEventId();
+        thread.threadRootId = event->threadRootEventId();
         // If we can't find the root we assume it's a historical event and will be loaded later.
         if (auto rootIt = q->findInTimeline(thread.threadRootId); rootIt != historyEdge()) {
-            thread.addEvent(rootIt->viewAs<RoomMessageEvent>(), true,
+            thread.addEvent(rootIt->event(), true,
                             (*rootIt)->senderId() == connection->userId());
         }
     }
 
     const auto threadLatestIndex = eventsIndex.constFind(thread.latestEventId);
-    const auto eventIndexIt = eventsIndex.constFind(rme->id());
+    const auto eventIndexIt = eventsIndex.constFind(event->id());
     if (QUO_ALARM_X(
             eventIndexIt == eventsIndex.cend(),
-            rme->id()
+            event->id()
                 + u"not in the timeline. Update a thread after moving the event to timeline."_s)) {
         return;
     }
 
-    thread.addEvent(rme,
+    thread.addEvent(event,
                     (threadLatestIndex == eventsIndex.cend() || *eventIndexIt > *threadLatestIndex),
-                    rme->senderId() == connection->userId());
+                    event->senderId() == connection->userId());
 
     if (isNew) { emit q->newThread(thread); }
 }

@@ -9,7 +9,7 @@
 
 namespace Quotient {
 
-class RoomMessageEvent;
+class RoomEvent;
 
 class QUOTIENT_API Thread {
 public:
@@ -18,7 +18,7 @@ public:
     int size = 0;
     bool localUserParticipated = {};
 
-    bool addEvent(const RoomMessageEvent* event, bool isLatest, bool isLocalUser);
+    bool addEvent(const RoomEvent* event, bool isLatest, bool isLocalUser);
 };
 
 } // namespace Quotient

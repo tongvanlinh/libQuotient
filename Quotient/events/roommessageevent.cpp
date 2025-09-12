@@ -275,24 +275,6 @@ QString RoomMessageEvent::replacedBy() const
         .toString();
 }
 
-bool RoomMessageEvent::isThreaded() const
-{
-    const auto relation = relatesTo();
-    return (relation && relation.value().type == EventRelation::ThreadType)
-            || unsignedPart<QJsonObject>("m.relations"_L1).contains(EventRelation::ThreadType);
-}
-
-QString RoomMessageEvent::threadRootEventId() const
-{
-    const auto relation = relatesTo();
-    if (relation && relation.value().type == EventRelation::ThreadType) {
-        return relation.value().eventId;
-    } else if (unsignedPart<QJsonObject>("m.relations"_L1).contains(EventRelation::ThreadType)) {
-        return id();
-    }
-    return {};
-}
-
 namespace {
 QString safeFileName(QString rawName)
 {

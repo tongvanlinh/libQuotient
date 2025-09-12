@@ -108,6 +108,24 @@ public:
     //!         std::nullopt otherwise.
     std::optional<EventRelation> relatesTo() const;
 
+    //! \brief Determine whether the event is part of a thread.
+    //!
+    //! \return true if this event is part of a thread, i.e. it has
+    //!         `"rel_type": "m.thread"` or  `"m.relations": { "m.thread": {}}`;
+    //!         false otherwise.
+    bool isThreaded() const;
+
+    //! \brief The event ID for the thread root event.
+    //!
+    //! \note This will return the ID of the event if it is the thread root.
+    //!
+    //! \note If the event is the thread root event and has not been updated with the server-side
+    //!       the function will return an empty string as we can't tell if the message
+    //!       is threaded.
+    //!
+    //! \return The event ID of the thread root if threaded, an empty string otherwise.
+    QString threadRootEventId()const;
+
 protected:
     explicit RoomEvent(const QJsonObject& json);
     void dumpTo(QDebug dbg) const override;
