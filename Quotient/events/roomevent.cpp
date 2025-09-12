@@ -119,10 +119,10 @@ bool Quotient::isStateEvent(const QString& eventTypeId)
 bool RoomEvent::isReply(bool includeFallbacks) const
 {
     const auto relation = relatesTo();
-    return relation.has_value() &&
-    (relation.value().type == EventRelation::ReplyType ||
-    (relation.value().type == EventRelation::ThreadType &&
-    (relation.value().isFallingBack == false || includeFallbacks)));
+    return relation.has_value()
+           && (relation.value().type == EventRelation::ReplyType
+               || (relation.value().type == EventRelation::ThreadType
+                   && (relation.value().isFallingBack == false || includeFallbacks)));
 }
 
 QString RoomEvent::replyEventId(bool includeFallbacks) const
@@ -130,10 +130,10 @@ QString RoomEvent::replyEventId(bool includeFallbacks) const
     if (const auto relation = relatesTo()) {
         if (relation.value().type == EventRelation::ReplyType) {
             return relation.value().eventId;
-        } else if (relation.value().type == EventRelation::ThreadType &&
-            (relation.value().isFallingBack == false || includeFallbacks)) {
+        } else if (relation.value().type == EventRelation::ThreadType
+                   && (relation.value().isFallingBack == false || includeFallbacks)) {
             return relation.value().inThreadReplyEventId;
-            }
+        }
     }
     return {};
 }
@@ -147,15 +147,15 @@ bool RoomEvent::isThreaded() const
 {
     const auto relation = relatesTo();
     return (relation && relation.value().type == EventRelation::ThreadType)
-    || unsignedPart<QJsonObject>("m.relations"_L1).contains(EventRelation::ThreadType);
+           || unsignedPart<QJsonObject>("m.relations"_L1).contains(EventRelation::ThreadType);
 }
 
 QString RoomEvent::threadRootEventId() const
 {
-    const auto relation = relatesTo();
-    if (relation && relation.value().type == EventRelation::ThreadType) {
-        return relation.value().eventId;
-    } else if (unsignedPart<QJsonObject>("m.relations"_L1).contains(EventRelation::ThreadType)) {
+    if (const auto relation = relatesTo(); relation && relation->type == EventRelation::ThreadType) {
+        return relation->eventId;
+    }
+    if (unsignedPart<QJsonObject>("m.relations"_L1).contains(EventRelation::ThreadType)) {
         return id();
     }
     return {};
