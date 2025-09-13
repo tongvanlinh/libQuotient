@@ -43,6 +43,7 @@ MxcReply::MxcReply(QNetworkReply* reply,
         setOpenMode(ReadOnly);
         emit finished();
     });
+    connect(d->m_reply, &QNetworkReply::sslErrors, this, &MxcReply::sslErrors);
 }
 
 MxcReply::MxcReply()
@@ -67,6 +68,11 @@ qint64 MxcReply::readData(char *data, qint64 maxlen)
         return d->m_device->read(data, maxlen);
     }
     return -1;
+}
+
+void MxcReply::ignoreSslErrorsImplementation(const QList<QSslError> &ssl_errors)
+{
+    d->m_reply->ignoreSslErrors(ssl_errors);
 }
 
 void MxcReply::abort()
