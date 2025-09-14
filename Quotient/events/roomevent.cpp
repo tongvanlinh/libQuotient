@@ -103,10 +103,11 @@ const QJsonObject RoomEvent::encryptedJson() const
 }
 
 namespace {
-bool containsEventType(const auto& haystack, const auto& needle)
+bool containsEventType(std::span<const AbstractEventMetaType *const> haystack, const QString &needle)
 {
-    return std::ranges::any_of(haystack, [needle](const AbstractEventMetaType* candidate) {
-        return candidate->matrixId == needle || containsEventType(candidate->derivedTypes(), needle);
+    return std::ranges::any_of(haystack, [needle](const AbstractEventMetaType *candidate) {
+        return std::ranges::contains(candidate->matrixIds, needle)
+               || containsEventType(candidate->derivedTypes(), needle);
     });
 }
 }
