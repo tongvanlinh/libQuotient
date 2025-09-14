@@ -2720,17 +2720,14 @@ RoomEventPtr makeRedacted(const RoomEvent& target,
     }
     if (!target.is<RoomCreateEvent>()) { // See MSC2176 on create events
         static const QHash<QString, QStringList> ContentKeysToKeepPerType{
-            { RedactionEvent::TypeId, { "redacts"_L1 } },
-            { RoomMemberEvent::TypeId,
-              { "membership"_L1, "join_authorised_via_users_server"_L1 } },
-            { RoomPowerLevelsEvent::TypeId,
-              { "ban"_L1, "events"_L1, "events_default"_L1, "invite"_L1,
-                "kick"_L1, "redact"_L1, "state_default"_L1, "users"_L1,
-                "users_default"_L1 } },
-            // TODO: Replace with RoomJoinRules::TypeId etc. once available
-            { "m.room.join_rules"_L1, { "join_rule"_L1, "allow"_L1 } },
-            { "m.room.history_visibility"_L1, { "history_visibility"_L1 } }
-        };
+            {RedactionEvent::TypeId, {RedactsKey}},
+            {RoomMemberEvent::TypeId, {"membership"_L1, "join_authorised_via_users_server"_L1}},
+            {RoomPowerLevelsEvent::TypeId,
+             {"ban"_L1, "events"_L1, "events_default"_L1, "invite"_L1, "kick"_L1, "redact"_L1,
+              "state_default"_L1, "users"_L1, "users_default"_L1}},
+            {JoinRulesEvent::TypeId, {"join_rule"_L1, "allow"_L1}},
+            // TODO: Replace with ::TypeId once available
+            {"m.room.history_visibility"_L1, {"history_visibility"_L1}}};
 
         if (const auto contentKeysToKeep = ContentKeysToKeepPerType.value(target.matrixType());
             !contentKeysToKeep.isEmpty()) //

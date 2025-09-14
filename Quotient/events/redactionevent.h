@@ -6,6 +6,8 @@
 #include "roomevent.h"
 
 namespace Quotient {
+constexpr inline auto RedactsKey = "redacts"_L1;
+
 class QUOTIENT_API RedactionEvent : public RoomEvent {
 public:
     QUO_EVENT(RedactionEvent, "m.room.redaction")
@@ -29,4 +31,9 @@ public:
 
     QUO_CONTENT_GETTER(QString, reason)
 };
+
+QUO_DEFINE_SIMPLE_EVENT(RedactionsEvent, RoomEvent,
+                        QUO_LIST("org.matrix.msc4343.redactions", "m.room.redactions"), QStringList,
+                        redactedEvents, RedactsKey)
+
 } // namespace Quotient
