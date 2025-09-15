@@ -6,8 +6,8 @@
 #include "encryptedevent.h"
 #include "redactionevent.h"
 #include "stateevent.h"
-
 #include "../logging_categories_p.h"
+#include "../ranges_extras.h"
 
 using namespace Quotient;
 
@@ -106,7 +106,7 @@ namespace {
 bool containsEventType(std::span<const AbstractEventMetaType *const> haystack, const QString &needle)
 {
     return std::ranges::any_of(haystack, [needle](const AbstractEventMetaType *candidate) {
-        return std::ranges::contains(candidate->matrixIds, needle)
+        return rangeContains(candidate->matrixIds, needle)
                || containsEventType(candidate->derivedTypes(), needle);
     });
 }
