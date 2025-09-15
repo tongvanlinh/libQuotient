@@ -430,9 +430,10 @@ TEST_IMPL(sendReaction)
             qInfo() << "Reacting to the message just sent to the room" << targetEvtId;
 
             // TODO: a separate test unit for reactionevent.h
-            FAIL_TEST_IF((loadEvent<ReactionEvent>(RoomEvent::basicJson(
+            FAIL_TEST_IF(loadEvent<ReactionEvent>(
                              ReactionEvent::TypeId,
-                             {{RelatesToKey, toJson(EventRelation::replace(targetEvtId))}}))),
+                             QJsonObject{
+                                 {RelatesToKey, toJson(EventRelation::replace(targetEvtId))}}),
                          "ReactionEvent can be created with an invalid relation type");
 
             const auto key = u"+"_s;
