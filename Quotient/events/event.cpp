@@ -8,14 +8,15 @@
 #include <QtCore/QJsonDocument>
 #include <QtCore/QStringBuilder>
 
+#include <ranges>
+
 using namespace Quotient;
+using namespace std::ranges;
 
 namespace {
 std::pair<const AbstractEventMetaType *, event_type_t> findFirstOverlap(
-    std::span<const AbstractEventMetaType *const> metaTypes,
-    std::span<event_type_t const> matrixTypeIds)
+    std::span<const AbstractEventMetaType *const> metaTypes, range auto matrixTypeIds)
 {
-    using namespace std::ranges;
     for (const auto *metaType : metaTypes)
         if (const auto overlappingIdIt = find_first_of(matrixTypeIds, metaType->matrixIds);
             overlappingIdIt != end(matrixTypeIds))
@@ -25,17 +26,44 @@ std::pair<const AbstractEventMetaType *, event_type_t> findFirstOverlap(
 }
 
 AbstractEventMetaType::AbstractEventMetaType(const std::type_info &typeInfo, const char *className,
+                                             AbstractEventMetaType *nearestBase)
+    : typeInfo(typeInfo), className(className), baseType(nearestBase)
+{
+    auto dbg = qDebug(EVENTS).nospace();
+    dbg << "New base event class " << className;
+    if (nearestBase) {
+        // We can't check attempts to use the same Matrix type ids here but we can check attempts
+        // to use the same className at least
+        if (const auto existing =
+                find(nearestBase->derivedTypes(), className, &AbstractEventMetaType::className);
+            existing != cend(nearestBase->derivedTypes())) {
+            QUO_ALARM_X(*existing == this, "Attempt to re-register the same event class");
+            QUO_ALARM_X(true, std::format("Attempt to register distinct classes with the same name "
+                                          "{:s}; check that the C++ symbol is properly exported",
+                                          className));
+            return;
+        }
+        nearestBase->_derivedTypes.emplace_back(this);
+        dbg << ", derived from " << nearestBase->className << "; "
+            << nearestBase->_derivedTypes.size() << " type(s) derived from "
+            << nearestBase->className;
+    }
+}
+
+AbstractEventMetaType::AbstractEventMetaType(const std::type_info &typeInfo, const char *className,
                                              AbstractEventMetaType *nearestBase,
-                                             std::vector<event_type_t> matrixTypeIds)
+                                             TypeIds matrixTypeIds)
     : typeInfo(typeInfo)
     , className(className)
     , baseType(nearestBase)
     , matrixIds(std::move(matrixTypeIds))
 {
+    QUO_CHECK(!matrixIds.front().isEmpty());
     if (nearestBase) {
-        if (const auto overlap = findFirstOverlap(nearestBase->derivedTypes(), matrixIds);
-            overlap.first)
-        {
+        if (const auto overlap =
+                findFirstOverlap(nearestBase->derivedTypes(),
+                                 filter_view(matrixIds, std::not_fn(&QLatin1String::isEmpty)));
+            overlap.first) {
             if (QUO_ALARM_X(overlap.first == this, "Attempt to re-register the same event class"))
                 return; // This is kinda fine but extremely fishy
 
@@ -52,11 +80,13 @@ AbstractEventMetaType::AbstractEventMetaType(const std::type_info &typeInfo, con
                                           "the latter class will never be used";
         }
         nearestBase->_derivedTypes.emplace_back(this);
-        qDebug(EVENTS).nospace().noquote()
-            << std::format("{:n:s}", matrixIds) << " -> " << className << "; "
-            << nearestBase->_derivedTypes.size() << " derived type(s) registered for "
-            << nearestBase->className;
     }
+    auto dbg = qDebug(EVENTS).nospace();
+    dbg << matrixIds.front();
+    if (!matrixIds.back().isEmpty())
+        dbg << ", " << matrixIds.back();
+    dbg << " -> " << className << "; " << nearestBase->_derivedTypes.size()
+        << " type(s) derived from " << nearestBase->className;
 }
 
 Event::Event(const QJsonObject& json) : _json(json) {}

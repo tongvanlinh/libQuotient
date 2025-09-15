@@ -41,12 +41,14 @@ bool is(const Event& e);
 //! a whole new kind of event metatypes.
 class QUOTIENT_API AbstractEventMetaType {
 public:
+    using TypeIds = std::array<event_type_t, 2>;
+
     // The public fields here are const and are not to be changeable anyway.
     // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
     const std::type_info &typeInfo;
     const char *const className;
     const AbstractEventMetaType *const baseType;
-    const std::vector<event_type_t> matrixIds;
+    const TypeIds matrixIds{};
     // NOLINTEND(misc-non-private-member-variables-in-classes)
 
     auto derivedTypes() const { return std::span(_derivedTypes); }
@@ -63,9 +65,11 @@ protected:
     template <class EventT>
     friend class EventMetaType;
 
-    explicit AbstractEventMetaType(const std::type_info &typeInfo, const char *className,
-                                   AbstractEventMetaType *nearestBase,
-                                   std::vector<event_type_t> matrixTypeIds);
+    AbstractEventMetaType(const std::type_info &typeInfo, const char *className,
+                          AbstractEventMetaType *nearestBase);
+
+    AbstractEventMetaType(const std::type_info &typeInfo, const char *className,
+                                   AbstractEventMetaType *nearestBase, TypeIds matrixTypeIds);
 
     // The returned value indicates whether a generic object has to be created
     // on the top level when `event` is empty, instead of returning nullptr
@@ -92,13 +96,20 @@ class QUOTIENT_API EventMetaType : public AbstractEventMetaType {
     // Above: can't constrain EventT to be EventClass because it's incomplete
     // at the point of EventMetaType<EventT> instantiation (see QUO_BASE_EVENT and QUO_EVENT)
 public:
-    template <std::same_as<const char *>... TypeIdTs>
-    explicit EventMetaType(AbstractEventMetaType *nearestBase = nullptr, TypeIdTs... matrixTypeIds)
-        requires (sizeof...(TypeIdTs) <= 2)
+    //! Construct an event metatype class for a base event type
+    explicit EventMetaType(AbstractEventMetaType *nearestBase = nullptr)
         // NB: typeid(T&) == typeid(T) but typeid(T&) can be used with an incomplete type
         // NB2: it would be lovely to "just" use QMetaType::fromType<> instead of QtPrivate API
         //      but QMetaType tries to instantiate constructor wrappers and it's not possible while
         //      the type is incomplete
+        : AbstractEventMetaType(typeid(EventT &), QtPrivate::QMetaTypeForType<EventT>().getName(),
+                                nearestBase)
+    {}
+
+    //! Construct an event metatype class for an event type that can be loaded from \p TypeIdTs
+    template <std::same_as<const char *>... TypeIdTs>
+    explicit EventMetaType(AbstractEventMetaType *nearestBase, TypeIdTs... matrixTypeIds)
+        requires (sizeof...(TypeIdTs) > 0 && sizeof...(TypeIdTs) <= 2)
         : AbstractEventMetaType(typeid(EventT &), QtPrivate::QMetaTypeForType<EventT>().getName(),
                                 nearestBase, {event_type_t(matrixTypeIds)...})
     {}
@@ -410,8 +421,8 @@ public:
 //! initialised by parameters passed to the macro, and a metaType() override
 //! pointing to that BaseMetaType.
 //! \sa EventMetaType
-#define QUO_BASE_EVENT(CppType_, BaseCppType_, ...) \
-    QUO_EVENT_IMPL(BaseMetaType, CppType_, &BaseCppType_::BaseMetaType __VA_OPT__(, ) __VA_ARGS__)
+#define QUO_BASE_EVENT(CppType_, BaseCppType_) \
+    QUO_EVENT_IMPL(BaseMetaType, CppType_, &BaseCppType_::BaseMetaType)
 
 //! A helper macro to pass two event type identifiers to QUO_EVENT and QUO_DEFINE_SIMPLE_EVENT
 #define QUO_LIST(...) __VA_ARGS__
