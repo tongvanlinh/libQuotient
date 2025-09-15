@@ -214,7 +214,7 @@ TestManager::TestManager(int& argc, char** argv)
 {
     setOrganizationName(u"Quotient"_s);
     setApplicationName(u"Quotest"_s);
-    setApplicationVersion(versionString());
+    setApplicationVersion(versionString() % u' ' % QStringLiteral(Quotient_PRE_STAGE));
 
     // QCommandLineParser is of limited use here, as it cannot control for the number and format
     // of positional arguments; but at least it can show a nice help block
