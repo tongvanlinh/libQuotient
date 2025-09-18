@@ -681,7 +681,7 @@ QFuture<Room*> Connection::joinAndGetRoom(const QString& roomAlias, const QStrin
 QFuture<Room *> Connection::waitForNewRoom(const QString &roomId)
 {
     if (auto *newRoom = room(roomId))
-        return makeReadyValueFuture(newRoom);
+        return QtFuture::makeReadyValueFuture(newRoom);
 
     QPromise<Room *> promise;
     auto ft = promise.future();
@@ -861,7 +861,7 @@ QFuture<Room*> Connection::getDirectChat(const QString& otherUserId)
                 continue;
             qCDebug(MAIN) << "Requested direct chat with" << otherUserId
                           << "is already available as" << r->id();
-            return makeReadyValueFuture(r);
+            return QtFuture::makeReadyValueFuture(r);
         }
         if (auto ir = invitation(roomId)) {
             Q_ASSERT(ir->id() == roomId);

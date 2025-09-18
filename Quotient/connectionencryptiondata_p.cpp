@@ -53,7 +53,7 @@ QFuture<void> setupPicklingKey(Connection* connection,
                     qDebug(E2EE) << "Successfully loaded pickling key from keychain";
                     encryptionData = std::make_unique<ConnectionEncryptionData>(
                         connection, PicklingKey::fromByteArray(std::move(data)));
-                    return makeReadyValueFuture<Job*>(nullptr);
+                    return QtFuture::makeReadyValueFuture<Job*>(nullptr);
                 }
                 qCritical(E2EE)
                     << "The pickling key loaded from" << keychainId << "has length"

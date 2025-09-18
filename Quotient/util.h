@@ -91,24 +91,18 @@ inline bool alarmX(bool alarmCondition, const auto& msg, bool invertReturnValue 
     ::Quotient::alarmX((__VA_ARGS__) ? false : true, "Failing expression: " #__VA_ARGS__, true)
 
 //! A substitute for QtFuture::makeReadyVoidFuture() for compatibility with Qt pre-6.6
+[[deprecated("Use QtFuture::makeReadyVoidFuture() directly")]]
 inline auto makeReadyVoidFuture()
 {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
     return QtFuture::makeReadyVoidFuture();
-#else
-    return QtFuture::makeReadyFuture<void>();
-#endif
 }
 
 //! A substitute for QtFuture::makeReadyValueFuture() for compatibility with Qt pre-6.6
 template <typename T>
+[[deprecated("Use QtFuture::makeReadyValueFuture() directly")]]
 inline auto makeReadyValueFuture(T&& value)
 {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
     return QtFuture::makeReadyValueFuture(std::forward<T>(value));
-#else
-    return QtFuture::makeReadyFuture(std::forward<T>(value));
-#endif
 }
 
 inline namespace Literals { using namespace Qt::Literals; }
