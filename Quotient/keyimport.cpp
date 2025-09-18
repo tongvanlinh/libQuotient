@@ -66,7 +66,7 @@ std::expected<QJsonArray, KeyImport::Error> KeyImport::decrypt(QString data,
         return std::unexpected(InvalidPassphrase);
     }
 
-    auto plain = aesCtr256Decrypt(payload, byte_view_t<Aes256KeySize>(keys.value().begin(), Aes256KeySize), asCBytes<AesBlockSize>(iv));
+    auto plain = aesCtr256Decrypt(payload, byte_view_t<Aes256KeySize>(keys->begin(), Aes256KeySize), asCBytes<AesBlockSize>(iv));
     if (!plain.has_value()) {
         qCWarning(E2EE) << "Failed to decrypt data";
         return std::unexpected(OtherError);
