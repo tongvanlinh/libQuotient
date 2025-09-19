@@ -19,22 +19,22 @@ jobs:
       max-parallel: 1
       matrix:
         os: [ ubuntu-24.04 ]
-        qt-version: [ '6.4' ]
+        qt-version: [ '6.8' ]
         override-compiler: [ '', GCC ] # Defaults: MSVC on Windows, Clang elsewhere
         include: # Attach API updating and static analysis to specific jobs
         - os: ubuntu-24.04
-          qt-version: '6.4'
+          qt-version: '6.8'
           override-compiler: GCC
           update-api: update-api
           static-analysis: sonar # NB: to use sonar with Clang, replace gcov usage with lcov
         - os: ubuntu-24.04
-          qt-version: '6.4'
+          qt-version: '6.8'
           override-compiler: ''
           static-analysis: codeql
         - os: macos-14
-          qt-version: '6.4'
+          qt-version: '6.8'
         - os: windows-latest
-          qt-version: '6.4'
+          qt-version: '6.8'
 
     env:
       GCC_VERSION: -14
@@ -57,18 +57,17 @@ jobs:
       run: |
         sudo apt-get -qq update
         sudo apt-get -q install \
-            ninja-build clang$CLANG_VERSION libsecret-1-dev libolm-dev \
-            qt6-base-dev qt6-base-private-dev gnome-keyring
+            ninja-build clang$CLANG_VERSION qtkeychain-qt6-dev libsecret-1-dev libolm-dev gnome-keyring
         gnome-keyring-daemon -d --unlock <<<'' # Create a login keyring with no password
 
-    - name: Install dependencies (non-Linux)
-      if: "!startsWith(matrix.os, 'ubuntu')"
-      uses: jurplel/install-qt-action@v4.1.1
+    - name: Install Qt and necessary tools
+      uses: jurplel/install-qt-action@v4.3.0
       with:
         version: '${{ matrix.qt-version }}.*'
         cache: true
         cache-key-prefix: Qt
-        tools: "tools_ninja ${{ startsWith(matrix.os, 'windows') && 'tools_opensslv3_x64' || '' }}"
+        tools: "${{ !startsWith(matrix.os, 'ubuntu') && 'tools_ninja' || '' }}\
+                ${{ startsWith(matrix.os, 'windows') && ' tools_opensslv3_x64' || '' }}"
 
     - name: Setup build environment
       run: |
@@ -137,6 +136,7 @@ jobs:
       uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v5
 
     - name: Build and install QtKeychain
+      if: "!startsWith(matrix.os, 'ubuntu')"
       run: |
         cd ..
         git clone -b 0.15.0 https://github.com/frankosterfeld/qtkeychain.git

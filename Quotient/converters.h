@@ -10,17 +10,15 @@
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QSet>
+#include <QtCore/QTimeZone>
 #include <QtCore/QUrlQuery>
 #include <QtCore/QVector>
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-    #include <QtCore/QTimeZone>
-#endif
 
-#include <type_traits>
-#include <vector>
 #include <array>
-#include <variant>
 #include <optional>
+#include <type_traits>
+#include <variant>
+#include <vector>
 
 class QVariant;
 
@@ -266,12 +264,7 @@ inline QJsonValue toJson(const QDateTime& val)
 template <>
 inline QDateTime fromJson(const QJsonValue& jv)
 {
-    return QDateTime::fromMSecsSinceEpoch(fromJson<qint64>(jv),
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-                                          QTimeZone::UTC);
-#else
-                                          Qt::UTC);
-#endif
+    return QDateTime::fromMSecsSinceEpoch(fromJson<qint64>(jv), QTimeZone::UTC);
 }
 
 inline QJsonValue toJson(const QDate& val) { return toJson(val.startOfDay()); }

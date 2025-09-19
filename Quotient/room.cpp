@@ -1344,7 +1344,7 @@ QFuture<std::expected<Room *, BaseJob::Status>> Room::upgrade(QString newVersion
             [this](const BaseJob* sameJob) {
                 auto&& status = sameJob->status();
                 emit upgradeFailed(status.message);
-                return makeReadyValueFuture<future_t>(std::unexpected(status));
+                return QtFuture::makeReadyValueFuture<future_t>(std::unexpected(status));
             })
         .unwrap();
 }
