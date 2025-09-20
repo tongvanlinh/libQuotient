@@ -45,6 +45,11 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Install cmake
+      uses: jwlawson/actions-setup-cmake@v2
+      with:
+        cmake-version: '3.x'
+
     # Install on Linux via apt to get everything necessary in one go
     - name: Install dependencies (Linux)
       if: startsWith(matrix.os, 'ubuntu')
