@@ -3266,17 +3266,18 @@ Room::Change Room::Private::processStateEvent(const RoomEvent& curEvent,
                     .value_or(Membership::Leave);
             switch (evt.membership()) {
             case Membership::Join: {
+                const auto &memberId = evt.userId();
+                auto member = q->member(memberId);
                 if (prevMembership != Membership::Join) {
-                    insertMemberIntoMap(evt.userId());
-                    emit q->memberJoined(q->member(evt.userId()));
+                    insertMemberIntoMap(memberId);
+                    emit q->memberJoined(member);
                 } else {
                     if (evt.newDisplayName()) {
-                        insertMemberIntoMap(evt.userId());
-                        emit q->memberNameUpdated(q->member(evt.userId()));
+                        insertMemberIntoMap(memberId);
+                        emit q->memberNameUpdated(member);
                     }
-                    if (evt.newAvatarUrl()) {
-                        emit q->memberAvatarUpdated(q->member(evt.userId()));
-                    }
+                    if (evt.newAvatarUrl())
+                        emit q->memberAvatarUpdated(member);
                 }
                 break;
             }
