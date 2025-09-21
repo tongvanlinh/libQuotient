@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <ranges>
 
 namespace Quotient {
