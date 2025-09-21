@@ -24,20 +24,6 @@ class QVariant;
 
 namespace Quotient {
 
-inline void editSubobject(QJsonObject& json, auto key, std::invocable<QJsonObject&> auto visitor)
-{
-    auto subObject = json.take(key).toObject();
-    visitor(subObject);
-    json.insert(key, subObject);
-}
-
-inline void replaceSubvalue(QJsonObject& json, auto topLevelKey, auto subKey, QJsonValue subValue)
-{
-    editSubobject(json, topLevelKey, [subKey, subValue](QJsonObject& innerJson) {
-        innerJson.insert(subKey, subValue);
-    });
-}
-
 template <typename T>
 struct JsonObjectConverter;
 // Specialisations should implement either or both of:
@@ -569,6 +555,22 @@ inline void addParam(auto& container, KeyT&& key, ValT&& value)
 {
     _impl::AddNode<std::decay_t<ValT>, Force>::impl(container, std::forward<KeyT>(key),
                                                     std::forward<ValT>(value));
+}
+
+//! Change the subobject at \p key inside \p json and store it into \p json back again
+inline void editSubobject(QJsonObject& json, auto key, std::invocable<QJsonObject&> auto visitor)
+{
+    auto subObject = json.take(key).toObject();
+    visitor(subObject);
+    json.insert(key, subObject);
+}
+
+//! Set the value at \p subKey under \p topLevelKey inside \p json to \p subValue
+inline void replaceSubvalue(QJsonObject& json, auto topLevelKey, auto subKey, const auto& subValue)
+{
+    editSubobject(json, topLevelKey, [subKey, subValue](QJsonObject& innerJson) {
+        innerJson.insert(subKey, toJson(subValue));
+    });
 }
 
 // This is a facility function to convert camelCase method/variable names
