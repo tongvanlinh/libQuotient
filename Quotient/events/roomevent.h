@@ -15,6 +15,7 @@ constexpr inline auto EventIdKey = "event_id"_L1;
 constexpr inline auto RoomIdKey = "room_id"_L1;
 constexpr inline auto StateKeyKey = "state_key"_L1;
 constexpr inline auto RedactedCauseKey = "redacted_because"_L1;
+constexpr inline auto MentionsKey = "m.mentions"_L1;
 
 class RedactionEvent;
 class EncryptedEvent;
@@ -49,6 +50,14 @@ public:
     //! The transaction_id JSON value for the event.
     QString transactionId() const;
 
+    //! \brief Get the list of user ids in the event's `m.mentions` property
+    //! \note This function does not analyse the event text, only the data from `m.mentions`
+    QStringList mentionedUserIds() const;
+
+    //! \brief Get the room notification flag from the event content
+    //! \note This function does not analyse the event text, only data from `m.mentions` property
+    bool isRoomNotification() const;
+
     // State events are special in Matrix; so isStateEvent() and stateKey() are here,
     // as an exception. For other event types (including base types), Event::is<>() and
     // Quotient::is<>() should be used
@@ -65,6 +74,12 @@ public:
     //! \param txnId - transaction id, normally obtained from
     //!        Connection::generateTxnId()
     void setTransactionId(const QString& txnId);
+
+    //! Fill the `m.mentions` property with userIds and room notification flag
+    void setMentions(const QStringList &userIds);
+
+    //! Set `m.mentions/room` flag in the event
+    void setRoomMention(bool mention = true);
 
     //! \brief Add an event id to locally created events after they are sent
     //!

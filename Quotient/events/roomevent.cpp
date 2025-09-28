@@ -49,6 +49,16 @@ QString RoomEvent::transactionId() const
     return unsignedPart<QString>("transaction_id"_L1);
 }
 
+QStringList RoomEvent::mentionedUserIds() const
+{
+    return fromJson<QStringList>(contentJson()[MentionsKey]["user_ids"_L1]);
+}
+
+bool RoomEvent::isRoomNotification() const
+{
+    return fromJson<bool>(contentJson()[MentionsKey]["room"_L1]);
+}
+
 bool RoomEvent::isStateEvent() const { return is<StateEvent>(); }
 
 QString RoomEvent::stateKey() const
@@ -72,6 +82,20 @@ void RoomEvent::setTransactionId(const QString& txnId)
     unsignedData.insert("transaction_id"_L1, txnId);
     editJson().insert(UnsignedKey, unsignedData);
     Q_ASSERT(transactionId() == txnId);
+}
+
+void RoomEvent::setMentions(const QStringList &userIds)
+{
+    editContentJson([&userIds](QJsonObject &contentJson) {
+        replaceSubvalue(contentJson, MentionsKey, "user_ids"_L1, userIds);
+    });
+}
+
+void RoomEvent::setRoomMention(bool mention)
+{
+    editContentJson([mention](QJsonObject &contentJson) {
+        replaceSubvalue(contentJson, MentionsKey, "room"_L1, mention);
+    });
 }
 
 void RoomEvent::addId(const QString& newId)
