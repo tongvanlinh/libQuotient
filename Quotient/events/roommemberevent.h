@@ -36,12 +36,17 @@ public:
 
     using KeyedStateEventBase::KeyedStateEventBase;
 
-    Membership membership() const { return content().membership; }
+    QUO_CONTENT_GETTER(Membership, membership)
+    // Membership membership() const { return content().membership; }
     QString userId() const { return stateKey(); }
-    bool isDirect() const { return content().isDirect; }
-    std::optional<QString> newDisplayName() const { return content().displayName; }
-    std::optional<QUrl> newAvatarUrl() const { return content().avatarUrl; }
-    QString reason() const { return content().reason; }
+    QUO_CONTENT_GETTER(bool, isDirect)
+    // bool isDirect() const { return content().isDirect; }
+    QUO_CONTENT_GETTER_X(std::optional<QString>, newDisplayName, "displayname"_L1)
+    // std::optional<QString> newDisplayName() const { return content().displayName; }
+    QUO_CONTENT_GETTER_X(std::optional<QUrl>, newAvatarUrl, "avatar_url"_L1)
+    // std::optional<QUrl> newAvatarUrl() const { return content().avatarUrl; }
+    QUO_CONTENT_GETTER(QString, reason)
+    // QString reason() const { return content().reason; }
     bool changesMembership() const;
     bool isBan() const;
     bool isUnban() const;
