@@ -18,15 +18,6 @@ struct QUOTIENT_API AllowCondition {
     QString type;
 };
 
-[[maybe_unused]] constexpr std::array JoinRuleStrings {
-    "public"_L1,
-    "knock"_L1,
-    "invite"_L1,
-    "private"_L1,
-    "restricted"_L1,
-    "knock_restricted"_L1,
-};
-
 //! \brief The content of a join rule event
 //!
 //! \sa https://spec.matrix.org/latest/client-server-api/#mroomjoin_rules
@@ -36,12 +27,15 @@ struct QUOTIENT_API JoinRuleContent {
 };
 } // namespace EventContent
 
+constexpr inline auto JoinRuleKey = "join_rule"_L1;
+constexpr inline auto AllowKey = "allow"_L1;
+
 template<>
 inline EventContent::AllowCondition fromJson(const QJsonObject& jo)
 {
     return EventContent::AllowCondition {
-        fromJson<QString>(jo["room_id"_L1]),
-        fromJson<QString>(jo["type"_L1])
+        fromJson<QString>(jo[RoomIdKey]),
+        fromJson<QString>(jo[TypeKey])
     };
 }
 
@@ -49,26 +43,25 @@ template<>
 inline auto toJson(const EventContent::AllowCondition& c)
 {
     QJsonObject jo;
-    addParam<IfNotEmpty>(jo, "room_id"_L1, c.roomId);
-    addParam<IfNotEmpty>(jo, "type"_L1, c.type);
+    addParam<IfNotEmpty>(jo, RoomIdKey, c.roomId);
+    addParam<IfNotEmpty>(jo, TypeKey, c.type);
     return jo;
 }
 
 template<>
 inline EventContent::JoinRuleContent fromJson(const QJsonObject& jo)
 {
-    return EventContent::JoinRuleContent {
-        enumFromJsonString<JoinRule>(jo["join_rule"_L1].toString(), EventContent::JoinRuleStrings).value_or(Public),
-        fromJson<QList<EventContent::AllowCondition>>(jo["allow"_L1])
-    };
+    return EventContent::JoinRuleContent{fromJson<JoinRule>(jo[JoinRuleKey]),
+                                         fromJson<QList<EventContent::AllowCondition>>(
+                                             jo[AllowKey])};
 }
 
 template<>
 inline auto toJson(const EventContent::JoinRuleContent& c)
 {
     QJsonObject jo;
-    addParam<IfNotEmpty>(jo, "join_rule"_L1, enumToJsonString<JoinRule>(c.joinRule, EventContent::JoinRuleStrings));
-    addParam<IfNotEmpty>(jo, "allow"_L1, c.allow);
+    addParam<IfNotEmpty>(jo, JoinRuleKey, c.joinRule);
+    addParam<IfNotEmpty>(jo, AllowKey, c.allow);
     return jo;
 }
 

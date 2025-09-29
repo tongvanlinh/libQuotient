@@ -4,27 +4,9 @@
 
 #include "encryptionevent.h"
 
-#include "../logging_categories_p.h"
-
 #include "../e2ee/e2ee_common.h"
 
 using namespace Quotient;
-
-static constexpr std::array encryptionStrings { MegolmV1AesSha2AlgoKey };
-
-template <>
-EncryptionType Quotient::fromJson(const QJsonValue& jv)
-{
-    const auto& encryptionString = jv.toString();
-    for (auto it = encryptionStrings.begin(); it != encryptionStrings.end();
-         ++it)
-        if (encryptionString == *it)
-            return EncryptionType(it - encryptionStrings.begin());
-
-    if (!encryptionString.isEmpty())
-        qCWarning(EVENTS) << "Unknown EncryptionType: " << encryptionString;
-    return EncryptionType::Undefined;
-}
 
 EncryptionEventContent::EncryptionEventContent(const QJsonObject& json)
     : encryption(fromJson<Quotient::EncryptionType>(json[AlgorithmKeyL]))
@@ -39,7 +21,7 @@ EncryptionEventContent::EncryptionEventContent(Quotient::EncryptionType et)
     : encryption(et)
 {
     if(encryption != Quotient::EncryptionType::Undefined) {
-        algorithm = encryptionStrings[static_cast<size_t>(encryption)];
+        algorithm = Quotient::toJson(encryption);
     }
 }
 

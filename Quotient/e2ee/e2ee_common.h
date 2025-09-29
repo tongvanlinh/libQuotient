@@ -32,7 +32,6 @@ constexpr inline auto Curve25519Key = "curve25519"_L1;
 constexpr inline auto SignedCurve25519Key = "signed_curve25519"_L1;
 
 constexpr inline auto OlmV1Curve25519AesSha2AlgoKey = "m.olm.v1.curve25519-aes-sha2"_L1;
-constexpr inline auto MegolmV1AesSha2AlgoKey = "m.megolm.v1.aes-sha2"_L1;
 
 constexpr std::array SupportedAlgorithms { OlmV1Curve25519AesSha2AlgoKey,
                                            MegolmV1AesSha2AlgoKey };

@@ -6,20 +6,6 @@
 
 #include "../logging_categories_p.h"
 
-namespace Quotient {
-template <>
-struct JsonConverter<Membership> {
-    static Membership load(const QJsonValue& jv)
-    {
-        if (const auto& ms = jv.toString(); !ms.isEmpty())
-            return flagFromJsonString<Membership>(ms, MembershipStrings).value_or(Membership::Invalid);
-
-        qCWarning(EVENTS) << "Empty membership state";
-        return Membership::Invalid;
-    }
-};
-} // namespace Quotient
-
 using namespace Quotient;
 
 MemberEventContent::MemberEventContent(const QJsonObject& json)
@@ -37,7 +23,7 @@ QJsonObject MemberEventContent::toJson() const
 {
     QJsonObject o;
     if (membership != Membership::Invalid)
-        o.insert("membership"_L1, flagToJsonString(membership, MembershipStrings));
+        o.insert("membership"_L1, Quotient::toJson(membership));
     if (displayName)
         o.insert("displayname"_L1, *displayName);
     if (avatarUrl && avatarUrl->isValid())

@@ -4,12 +4,12 @@
 #pragma once
 
 #include "quotient_export.h"
+#include "util.h" // IWYU pragma: keep - for Quotient::Literals::operator""_L1
 
 #include <qobjectdefs.h>
-#include "util.h" // For Quotient::Literals::operator""_L1
 
 #include <array>
-
+#include <span>
 
 //! \brief Quotient replacement for the Q_FLAG/Q_DECLARE_FLAGS combination
 //!
@@ -45,7 +45,77 @@
 namespace Quotient {
 Q_NAMESPACE_EXPORT(QUOTIENT_API)
 
-// TODO: code like this should be generated from the CS API definition
+//! \brief Enabling structure for conversion between a given enum and JSON
+//!
+//! Providing this structure in a way that satisfies either Serializable_Enum or Serializable_Flag
+//! enables de/serialisation using fromJson() and toJson() for the respective enum. See commented
+//! out code in the definition for an idea what should be there to satisfy either concept. `strings`
+//! has the list of JSON representations for respective enumerators. `defaultValue` should have
+//! the enumerator used when the string coming from JSON cannot be found in `strings`, or when
+//! the JSON value is not even a string. `isFlag` defines whether the enumeration should be treated
+//! as a collection of flag values (usually, such enum also has a QFlags counterpart type defined
+//! with Q_FLAG, Q_FLAG_NS, QUO_DECLARE_FLAGS or QUO_DECLARE_FLAGS_NS). `isFlag` can either be
+//! `false` or completely omitted from the definition for non-flag enumerations.
+//!
+//! \note This mechanism doesn't support using numeric values of enumerators in JSON; if you need
+//!       to store and load the numeric value, use fromJson() and toJson() with the underlying
+//!       integral type instead of the enumeration type.
+//!
+//! The rules to define enumerations and their string representations are different for non-flag and
+//! flag enumerations - see the respective note blocks below. These cannot be checked at
+//! compile-time, breaking them will lead to either assertion failures or incorrect conversion.
+//!
+//! \note For non-flag enumerations, \p EnumT must not have gaps in enumerators, or \p strings has
+//!       to match those gaps (i.e., if \p EnumT is defined as
+//!       <tt>{ Value1 = 1, Value2 = 3, Value3 = 5 }</tt> then \p strings should be defined as
+//!       <tt>{ "", "Value1", "", "Value2", "", "Value3" }</tt> (mind the gap at value 0,
+//!       in particular). Although it is allowed to have enumerations based
+//! \note For flag enumerations, enumerators of \p EnumT must follow the power-of-two sequence
+//!       starting from 1, so exactly 1,2,4,8,16 and so on. Having gaps is allowed but the same rule
+//!       as for non-flag enumerations applies: \p strings has to reflect this gap, skipping an
+//!       array item. As of now, there's no way to encode and decode the value of zero (no flags
+//!       set) or a combination of flags (i.e. Flag4|Flag16).
+//!
+//! In most cases you can use facility macros, QUO_META_ENUM and QUO_META_FLAG, instead of writing
+//! all the boilerplate yourself. The enumeration can be defined in any namespace but the macros
+//! are only valid when put into `namespace Quotient`. Clients are free to write
+//! `namespace Quotient { QUO_META_ENUM(...) }` for that matter.
+
+template <typename EnumT>
+struct QUOTIENT_API MetaEnum
+{
+    // static constexpr std::array strings{"one"_L1, "two"_L1, "three"_L1};
+    // static constexpr auto defaultValue = EnumT::Undefined;
+    // static constexpr bool isFlag = true; // If the enum should be treated as a flags group
+};
+
+template <typename EnumT>
+concept Serializable_Enum = requires {
+    typename MetaEnum<EnumT>;
+    { MetaEnum<EnumT>::strings } -> std::ranges::range;
+    { MetaEnum<EnumT>::defaultValue } -> std::convertible_to<EnumT>;
+};
+
+template <typename FlagT>
+concept Serializable_Flag = std::is_unsigned_v<std::underlying_type_t<FlagT>>
+                            && Serializable_Enum<FlagT> && MetaEnum<FlagT>::isFlag == true;
+
+#define QUO_META_ENUM_IMPL(EnumType_, IsFlag_, DefaultValue_, ...) \
+    template <>                                                    \
+    struct QUOTIENT_API MetaEnum<EnumType_>                        \
+    {                                                              \
+        static constexpr std::array strings{__VA_ARGS__};          \
+        static constexpr auto defaultValue = DefaultValue_;        \
+        static constexpr bool isFlag = IsFlag_;                    \
+    }; // End of macro
+
+#define QUO_META_ENUM(EnumType_, DefaultValue_, ...) \
+    QUO_META_ENUM_IMPL(EnumType_, false, DefaultValue_, __VA_ARGS__)
+
+#define QUO_META_FLAG(EnumType_, DefaultValue_, ...) \
+    QUO_META_ENUM_IMPL(EnumType_, true, DefaultValue_, __VA_ARGS__)
+
+// TODO: code like below should be generated from the CS API definition
 
 //! \brief Membership states
 //!
@@ -64,11 +134,8 @@ enum class Membership : uint16_t {
     Undefined = Invalid
 };
 QUO_DECLARE_FLAGS_NS(MembershipMask, Membership)
-
-constexpr std::array MembershipStrings {
-    // The order MUST be the same as the order in the Membership enum
-    "join"_L1, "leave"_L1, "invite"_L1, "knock"_L1, "ban"_L1
-};
+QUO_META_FLAG(Membership, Membership::Invalid, "join"_L1, "leave"_L1, "invite"_L1, "knock"_L1,
+              "ban"_L1)
 
 //! \brief Local user join-state names
 //!
@@ -84,10 +151,16 @@ enum class JoinState : std::underlying_type_t<Membership> {
 };
 QUO_DECLARE_FLAGS_NS(JoinStates, JoinState)
 
-[[maybe_unused]] constexpr std::array JoinStateStrings {
-    MembershipStrings[0], MembershipStrings[1], MembershipStrings[2],
-    MembershipStrings[3] /* same as MembershipStrings, sans "ban" */
+template <>
+struct QUOTIENT_API MetaEnum<JoinState> : MetaEnum<Membership>
+{
+    // Same as Membership, except "ban"
+    static constexpr auto strings = std::span(MetaEnum<Membership>::strings).subspan<0, 4>();
+    // Protect against Membership gaining new values without JoinState being revisited
+    static_assert(std::size(strings) + 1 == std::size(MetaEnum<Membership>::strings));
 };
+
+constexpr inline const auto &JoinStateStrings = MetaEnum<JoinState>::strings;
 
 //! \brief Network job running policy flags
 //!
@@ -113,14 +186,17 @@ enum class RoomType : uint8_t {
     Undefined = 0xFF,
 };
 Q_ENUM_NS(RoomType)
-
-[[maybe_unused]] constexpr std::array RoomTypeStrings { "m.space"_L1 };
+QUO_META_ENUM(RoomType, RoomType::Undefined, "m.space"_L1)
 
 enum class EncryptionType : uint8_t {
     MegolmV1AesSha2 = 0,
     Undefined = 0xFF,
 };
 Q_ENUM_NS(EncryptionType)
+
+constexpr inline auto MegolmV1AesSha2AlgoKey = "m.megolm.v1.aes-sha2"_L1;
+
+QUO_META_ENUM(EncryptionType, EncryptionType::Undefined, MegolmV1AesSha2AlgoKey)
 
 //! Enum representing the available room join rules
 enum JoinRule : uint16_t {
@@ -132,6 +208,8 @@ enum JoinRule : uint16_t {
     KnockRestricted,
 };
 Q_ENUM_NS(JoinRule)
+QUO_META_ENUM(JoinRule, JoinRule::Public, "public"_L1, "knock"_L1, "invite"_L1, "private"_L1,
+              "restricted"_L1, "knock_restricted"_L1)
 
 } // namespace Quotient
 Q_DECLARE_OPERATORS_FOR_FLAGS(Quotient::MembershipMask)

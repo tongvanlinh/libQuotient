@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "util.h"
+#include "quotient_common.h"
 
 #include <QtCore/QDate>
 #include <QtCore/QJsonArray> // Includes <QtCore/QJsonValue>
@@ -74,6 +74,10 @@ struct JsonObjectUnpacker {
 //! of overloading toJson() and specialising fromJson().
 template <typename T>
 struct JsonConverter : JsonObjectUnpacker<T> {
+    static_assert(std::is_class_v<T> || std::is_union_v<T>,
+                  "The default JsonConverter definition only supports class types; "
+                  "check the constraints on the specialisation you intended to invoke");
+
     static auto dump(const T& data)
     {
         if constexpr (requires() { data.toJson(); })
@@ -151,14 +155,6 @@ namespace _impl {
     QUOTIENT_API void reportEnumOutOfBounds(uint32_t v, const char* enumTypeName);
 }
 
-//! \brief Facility string-to-enum converter
-//!
-//! This is to simplify enum loading from JSON - just specialise
-//! Quotient::fromJson() and call this function from it, passing (aside from
-//! the JSON value for the enum - that must be a string, not an int) any
-//! iterable container of string'y values (const char*, QLatin1String, etc.)
-//! matching respective enum values, 0-based.
-//! \sa enumToJsonString
 template <typename EnumT>
 inline std::optional<EnumT> enumFromJsonString(const QString& s, const auto& enumValues)
 {
@@ -169,37 +165,18 @@ inline std::optional<EnumT> enumFromJsonString(const QString& s, const auto& enu
     return std::nullopt;
 }
 
-//! \brief Facility enum-to-string converter
-//!
-//! This does the same as enumFromJsonString, the other way around.
-//! \note The source enumeration must not have gaps in values, or \p enumValues
-//!       has to match those gaps (i.e., if the source enumeration is defined
-//!       as <tt>{ Value1 = 1, Value2 = 3, Value3 = 5 }</tt> then \p enumValues
-//!       should be defined as <tt>{ "", "Value1", "", "Value2", "", "Value3"
-//!       }</tt> (mind the gap at value 0, in particular).
-//! \sa enumFromJsonString
 template <typename EnumT>
 inline QString enumToJsonString(EnumT v, const auto& enumValues)
 {
     static_assert(std::is_unsigned_v<std::underlying_type_t<EnumT>>);
-    if (v < size(enumValues))
-        return enumValues[v];
+    const auto intV = std::to_underlying(v);
+    if (QUO_CHECK(intV < size(enumValues)))
+        return enumValues[intV];
 
-    _impl::reportEnumOutOfBounds(static_cast<uint32_t>(v),
-                                 qt_getEnumName(EnumT()));
-    Q_ASSERT(false);
+    _impl::reportEnumOutOfBounds(intV, qt_getEnumName(EnumT()));
     return {};
 }
 
-//! \brief Facility converter for flags
-//!
-//! This is very similar to enumFromJsonString, except that the target
-//! enumeration is assumed to be of a 'flag' kind - i.e. its values must be
-//! a power-of-two sequence starting from 1, without gaps, so exactly 1,2,4,8,16
-//! and so on.
-//! \note Unlike enumFromJsonString, the values start from 1 and not from 0.
-//! \note This function does not support flag combinations.
-//! \sa QUO_DECLARE_FLAGS, QUO_DECLARE_FLAGS_NS
 template <typename FlagT>
 inline std::optional<FlagT> flagFromJsonString(const QString& s, const auto& flagValues)
 {
@@ -215,11 +192,11 @@ template <typename FlagT>
 inline QString flagToJsonString(FlagT v, const auto& flagValues)
 {
     static_assert(std::is_unsigned_v<std::underlying_type_t<FlagT>>);
-    if (const auto offset = std::countr_zero(std::to_underlying(v)); offset < ssize(flagValues))
+    const auto intV = std::to_underlying(v);
+    if (const auto offset = std::countr_zero(intV); QUO_CHECK(offset < ssize(flagValues)))
         return flagValues[offset];
 
-    _impl::reportEnumOutOfBounds(static_cast<uint32_t>(v), qt_getEnumName(FlagT()));
-    Q_ASSERT(false);
+    _impl::reportEnumOutOfBounds(intV, qt_getEnumName(FlagT()));
     return {};
 }
 
@@ -242,6 +219,49 @@ inline qint64 fromJson(const QJsonValue& jv) { return qint64(jv.toDouble()); }
 
 template <>
 inline QString fromJson(const QJsonValue& jv) { return jv.toString(); }
+
+//! \brief JSON conversions for (non-flag) enums
+//!
+//! This specialisation gets applied to any enumeration (in fact - any type at all) for which
+//! there is a specialisation of MetaEnum template such that Serializable_Enum is satisfied. See
+//! the documentation for MetaEnum for the
+template <Serializable_Enum EnumT>
+struct JsonConverter<EnumT>
+{
+    //! \return if \p jv has a string, the ordinal (0-based) index of it in
+    //!         `MetaEnum<EnumT>::strings`; or `MetaEnum<EnumT>::defaultValue` if the string is
+    //!         not found in `MetaEnum<EnumT>::strings`, or \p jv doesn't hold a string
+    static auto load(const QJsonValue &jv)
+    {
+        return enumFromJsonString<EnumT>(jv.toString(), MetaEnum<EnumT>::strings)
+            .value_or(MetaEnum<EnumT>::defaultValue);
+    }
+
+    //! \return the string found at \p val in `MetaEnum<EnumT>::strings`; \p val must correspond to
+    //!         a valid 0-based index into `MetaEnum<EnumT>::strings` (i.e. it's between 0 and
+    //!         `std::size(MetaEnum<EnumT>::strings) - 1`, inclusive).
+    static auto dump(EnumT val) { return enumToJsonString(val, MetaEnum<EnumT>::strings); }
+};
+
+template <Serializable_Flag FlagT>
+struct JsonConverter<FlagT>
+{
+    //! \return if \p jv has a string, the index of it in `MetaEnum<FlagT>::strings`, power of 2
+    //!         (i.e. 1 for 0-th entry, 2 for the first entry, 4 for the second one and so on);
+    //!         or `MetaEnum<FlagT>::defaultValue` if the string is not found in
+    //!         `MetaEnum<FlagT>::strings`, or \p jv doesn't hold a string
+    static auto load(const QJsonValue &jv)
+    {
+        return flagFromJsonString<FlagT>(jv.toString(), MetaEnum<FlagT>::strings)
+            .value_or(MetaEnum<FlagT>::defaultValue);
+    }
+
+    //! \return the string found at `\p val log 2 in` `MetaEnum<FlagT>::strings` (i.e. 0-th string
+    //!         for 1, first one for 2, second for 4 and so on); \p val must be a power of 2 for
+    //!         a valid index into `MetaEnum<FlagT>::strings` - i.e. \p val must one of
+    //!         1, 2, 4,..., `2 ^ (std::size(MetaEnum<FlagT>::strings) - 1)`, inclusive
+    static auto dump(FlagT val) { return flagToJsonString(val, MetaEnum<FlagT>::strings); }
+};
 
 //! Use fromJson<QString> and then toLatin1()/toUtf8()/... to make QByteArray
 //!
