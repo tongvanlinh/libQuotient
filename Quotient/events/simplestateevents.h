@@ -9,16 +9,17 @@
 
 namespace Quotient {
 
-#define DEFINE_SIMPLE_STATE_EVENT(Name_, TypeId_, ValueType_, GetterName_, JsonKey_)              \
-    constexpr inline auto Name_##Key = JsonKey_##_L1;                                             \
-    class QUOTIENT_API Name_ : public ::Quotient::KeylessStateEventBase<                          \
-                                   Name_, EventContent::SingleKeyValue<ValueType_, Name_##Key>> { \
-    public:                                                                                       \
-        using value_type = ValueType_;                                                            \
-        QUO_EVENT(Name_, TypeId_)                                                                 \
-        using KeylessStateEventBase::KeylessStateEventBase;                                       \
-        auto GetterName_() const { return content().value; }                                      \
-    };                                                                                            \
+#define DEFINE_SIMPLE_STATE_EVENT(Name_, TypeId_, ValueType_, GetterName_, JsonKey_)            \
+    constexpr inline auto Name_##Key = JsonKey_##_L1;                                           \
+    class QUOTIENT_API Name_ : public ::Quotient::KeylessStateEventBase<                        \
+                                   Name_, EventContent::SingleKeyValue<ValueType_, Name_##Key>> \
+    {                                                                                           \
+    public:                                                                                     \
+        using value_type = ValueType_;                                                          \
+        QUO_EVENT(Name_, TypeId_)                                                               \
+        using KeylessStateEventBase::KeylessStateEventBase;                                     \
+        QUO_CONTENT_GETTER_X(ValueType_, GetterName_, Name_##Key)                               \
+    };                                                                                          \
     // End of macro
 
 DEFINE_SIMPLE_STATE_EVENT(RoomNameEvent, "m.room.name", QString, name, "name")

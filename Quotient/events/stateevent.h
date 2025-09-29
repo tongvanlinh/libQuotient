@@ -63,46 +63,30 @@ class EventTemplate<EventT, StateEvent, ContentT>
 public:
     using content_type = ContentT;
 
-    struct Prev {
-        explicit Prev() = default;
-        explicit Prev(const QJsonObject& unsignedJson)
-            : senderId(fromJson<QString>(unsignedJson["prev_sender"_L1]))
-            , content(fromJson<std::optional<ContentT>>(unsignedJson[PrevContentKey]))
-        {}
+    explicit EventTemplate(const QJsonObject &fullJson) : StateEvent(fullJson) {}
 
-        QString senderId;
-        std::optional<ContentT> content;
-    };
-
-    explicit EventTemplate(const QJsonObject& fullJson)
-        : StateEvent(fullJson)
-        , _content(fromJson<ContentT>(Event::contentJson()))
-        , _prev(unsignedJson())
-    {}
     template <typename... ContentParamTs>
-    explicit EventTemplate(const QString& stateKey,
-                           ContentParamTs&&... contentParams)
-        : StateEvent(EventT::TypeId, stateKey)
-        , _content { std::forward<ContentParamTs>(contentParams)... }
+    explicit EventTemplate(const QString &stateKey, ContentParamTs &&...contentParams)
+        : StateEvent(EventT::TypeId, stateKey,
+                     toJson(ContentT{std::forward<ContentParamTs>(contentParams)...}))
+    {}
+
+    ContentT content() const { return fromJson<ContentT>(Event::contentJson()); }
+
+    template <std::invocable<ContentT &> VisitorT>
+    void editContent(VisitorT &&visitor)
     {
-        editJson().insert(ContentKey, toJson(_content));
+        editContentJson([&visitor](QJsonObject &contentJson) mutable {
+            auto content = fromJson<ContentT>(contentJson);
+            std::invoke(std::forward<VisitorT>(visitor), content);
+            contentJson = toJson(content);
+        });
     }
-
-    const ContentT& content() const { return _content; }
-
-    void editContent(auto&& visitor)
+    std::optional<ContentT> prevContent() const
     {
-        visitor(_content);
-        editJson()[ContentKey] = toJson(_content);
+        return unsignedPart<std::optional<ContentT>>(PrevContentKey);
     }
-    const std::optional<ContentT>& prevContent() const { return _prev.content; }
-    QString prevSenderId() const { return _prev.senderId; }
-
-private:
-    void onContentChanged() override { _content = fromJson<ContentT>(Event::contentJson()); }
-
-    ContentT _content;
-    Prev _prev;
+    QString prevSenderId() const { return unsignedPart<QString>("prev_sender"_L1); }
 };
 
 template <typename EventT, typename ContentT>
