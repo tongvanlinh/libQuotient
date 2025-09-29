@@ -11,7 +11,7 @@
 
 using namespace Quotient;
 
-RoomEvent::RoomEvent(const QJsonObject& json) : Event(json)
+RoomEvent::RoomEvent(const QJsonObject &json) : Event(json), _id(fullJson()[EventIdKey].toString())
 {
     if (const auto redaction = unsignedPart<QJsonObject>(RedactedCauseKey);
         !redaction.isEmpty())
@@ -22,7 +22,7 @@ RoomEvent::~RoomEvent() = default; // Let the smart pointer do its job
 
 QString RoomEvent::displayId() const { return id().isEmpty() ? transactionId() : id(); }
 
-QString RoomEvent::id() const { return fullJson()[EventIdKey].toString(); }
+QString RoomEvent::id() const { return _id; }
 
 QDateTime RoomEvent::originTimestamp() const
 {
@@ -79,6 +79,7 @@ void RoomEvent::addId(const QString& newId)
     Q_ASSERT(id().isEmpty());
     Q_ASSERT(!newId.isEmpty());
     editJson().insert(EventIdKey, newId);
+    _id = newId;
     qCDebug(EVENTS) << "Event txnId -> id:" << transactionId() << "->" << id();
     Q_ASSERT(id() == newId);
 }
