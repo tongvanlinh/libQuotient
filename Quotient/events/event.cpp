@@ -60,22 +60,22 @@ AbstractEventMetaType::AbstractEventMetaType(const std::type_info &typeInfo, con
 {
     QUO_CHECK(!matrixIds.front().isEmpty());
     if (nearestBase) {
-        if (const auto overlap =
+        if (const auto [priorMetaType, overlappingId] =
                 findFirstOverlap(nearestBase->derivedTypes(),
                                  filter_view(matrixIds, std::not_fn(&QLatin1String::isEmpty)));
-            overlap.first) {
-            if (QUO_ALARM_X(overlap.first == this, "Attempt to re-register the same event class"))
+            priorMetaType) {
+            if (QUO_ALARM_X(priorMetaType == this, "Attempt to re-register the same event class"))
                 return; // This is kinda fine but extremely fishy
 
             // Two different metatype objects claim the same Matrix type id; this
             // is not normal, so give as much information as possible to diagnose
-            if (QUO_ALARM_X(overlap.first->typeInfo == typeInfo,
-                            QLatin1StringView(className) % " claims '"_L1 % overlap.second
+            if (QUO_ALARM_X(priorMetaType->typeInfo == typeInfo,
+                            QLatin1StringView(className) % " claims '"_L1 % overlappingId
                                 % "' repeatedly; check that the C++ symbol is properly exported"_L1))
                 return; // That situation is very wrong (see #413) so maybe std::terminate() even?
 
-            qWarning(EVENTS).nospace() << overlap.second << " is already mapped to "
-                                       << overlap.first->className << " before " << className
+            qWarning(EVENTS).nospace() << overlappingId << " is already mapped to "
+                                       << priorMetaType->className << " before " << className
                                        << "; unless the two have different isValid() conditions, "
                                           "the latter class will never be used";
         }
