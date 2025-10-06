@@ -298,8 +298,12 @@ private:
             else if constexpr (std::is_same_v<FailureFnT, Skip>) {
                 // Still call fFn to suppress unused lambda warning
                 return job->status().good() ? sFn(job) : (fFn(job), sType{});
-            } else
+            } else if constexpr (std::is_same_v<sType, fType>)
                 return job->status().good() ? sFn(job) : fFn(job);
+            else {
+                using result_t = std::expected<sType, fType>;
+                return job->status().good() ? result_t(sFn(job)) : std::unexpected(fFn(job));
+            }
         };
     }
 
