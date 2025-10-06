@@ -704,7 +704,7 @@ QFuture<BaseJob::Status> Connection::leaveRoom(Room* room)
 
     // If the room is already in Leave state, don't even bother calling the homeserver
     if (room->joinState() == JoinState::Leave)
-        return makeReadyValueFuture(BaseJob::Status{ BaseJob::Success });
+        return QtFuture::makeReadyValueFuture(BaseJob::Status{ BaseJob::Success });
 
     const auto& roomId = room->id();
     auto jh = callApi<LeaveRoomJob>(roomId);
