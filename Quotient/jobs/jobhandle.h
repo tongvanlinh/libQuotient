@@ -222,17 +222,17 @@ private:
         auto callFn(future_value_type job)
         {
             if constexpr (std::invocable<FnT>) {
-                return std::forward<FnT>(fn)();
+                return std::invoke(std::forward<FnT>(fn));
             } else {
                 static_assert(AllowJobArg, "onCanceled continuations should not accept arguments");
-                if constexpr (requires { fn(job); })
-                    return fn(job);
+                if constexpr (std::invocable<FnT, future_value_type>)
+                    return std::invoke(std::forward<FnT>(fn), job);
                 else if constexpr (requires { collectResponse(job); }) {
                     static_assert(
-                        requires { fn(collectResponse(job)); },
+                        std::invocable<FnT, decltype(collectResponse(job))>,
                         "The continuation function must accept either of: 1) no arguments; "
                         "2) the job pointer itself; 3) the value returned by collectResponse(job)");
-                    return fn(collectResponse(job));
+                    return std::invoke(std::forward<FnT>(fn), collectResponse(job));
                 }
             }
         }
