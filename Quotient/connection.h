@@ -747,7 +747,8 @@ public Q_SLOTS:
     //!         success() signal of this request is connected to deleteLater()
     //!         of a respective room so by the moment this finishes, there
     //!         might be no Room object anymore.
-    ForgetRoomJob* forgetRoom(const QString& id);
+    QFuture<BaseJob::Status> forgetRoom(const QString& id);
+    QFuture<BaseJob::Status> forgetRoom(Room* room);
 
     SendToDeviceJob* sendToDevices(const QString& eventType,
                                    const UsersToDevicesToContent& contents);
@@ -756,7 +757,7 @@ public Q_SLOTS:
     SendMessageJob* sendMessage(const QString& roomId, const RoomEvent& event);
 
     //! \deprecated Do not use this directly, use Room::leaveRoom() instead
-    virtual JobHandle<LeaveRoomJob> leaveRoom(Room* room);
+    virtual QFuture<BaseJob::Status> leaveRoom(Room* room);
 
     Quotient::KeyVerificationSession* startKeyVerificationSession(const QString& userId,
                                                                   const QString& deviceId);

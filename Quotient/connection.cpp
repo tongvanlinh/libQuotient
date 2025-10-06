@@ -697,23 +697,30 @@ QFuture<Room *> Connection::waitForNewRoom(const QString &roomId)
     return ft;
 }
 
-JobHandle<LeaveRoomJob> Connection::leaveRoom(Room* room)
+QFuture<BaseJob::Status> Connection::leaveRoom(Room* room)
 {
+    if (QUO_ALARM(!room))
+        return {};
+
+    // If the room is already in Leave state, don't even bother calling the homeserver
+    if (room->joinState() == JoinState::Leave)
+        return makeReadyValueFuture(BaseJob::Status{ BaseJob::Success });
+
     const auto& roomId = room->id();
-    const auto job = callApi<LeaveRoomJob>(roomId);
+    auto jh = callApi<LeaveRoomJob>(roomId);
     if (room->joinState() == JoinState::Invite) {
         // Workaround matrix-org/synapse#2181 - if the room is in invite state
         // the invite may have been cancelled but Synapse didn't send it in
         // `/sync`. See also #273 for the discussion in the library context.
         d->pendingStateRoomIds.push_back(roomId);
-        connect(job, &LeaveRoomJob::success, this, [this, roomId] {
+        jh = jh.then([this, roomId] {
             if (d->pendingStateRoomIds.removeOne(roomId)) {
                 qCDebug(MAIN) << "Forcing the room to Leave status";
                 provideRoom(roomId, JoinState::Leave);
             }
         });
     }
-    return job;
+    return jh.onResult([](LeaveRoomJob* job) { return job->status(); });
 }
 
 inline auto splitMediaId(const QString& mediaId)
@@ -911,8 +918,21 @@ JobHandle<CreateRoomJob> Connection::createDirectChat(const QString& userId, con
         });
 }
 
-ForgetRoomJob* Connection::forgetRoom(const QString& id)
+QFuture<BaseJob::Status> Connection::forgetRoom(const QString& id)
 {
+    auto room = d->roomMap.value({ id, false });
+    if (!room)
+        room = d->roomMap.value({ id, true });
+    if (QUO_ALARM_X(!room, "No room object found with id "_L1 % id % "; nothing to forget"_L1))
+        return {};
+
+    return forgetRoom(room);
+}
+
+QFuture<BaseJob::Status> Connection::forgetRoom(Room* room)
+{
+    QUO_CHECK(room);
+
     // To forget is hard :) First we should ensure the local user is not
     // in the room (by leaving it, if necessary); once it's done, the /forget
     // endpoint can be called; and once this is through, the local Room object
@@ -920,40 +940,30 @@ ForgetRoomJob* Connection::forgetRoom(const QString& id)
     // (basically immediately) return a pointer to ForgetRoomJob. Therefore
     // a ForgetRoomJob is created in advance and can be returned in a probably
     // not-yet-started state (it will start once /leave completes).
-    auto forgetJob = new ForgetRoomJob(id);
-    auto room = d->roomMap.value({ id, false });
-    if (!room)
-        room = d->roomMap.value({ id, true });
-    if (room && room->joinState() != JoinState::Leave) {
-        auto leaveJob = leaveRoom(room);
-        connect(leaveJob, &BaseJob::result, this,
-                [this, leaveJob, forgetJob, room] {
-                    if (leaveJob->error() == BaseJob::Success
-                        || leaveJob->error() == BaseJob::NotFound) {
-                        run(forgetJob);
-                        // If the matching /sync response hasn't arrived yet,
-                        // mark the room for explicit deletion
-                        if (room->joinState() != JoinState::Leave)
-                            d->roomIdsToForget.push_back(room->id());
-                    } else {
-                        qCWarning(MAIN).nospace()
-                            << "Error leaving room " << room->objectName()
-                            << ": " << leaveJob->errorString();
-                        forgetJob->abandon();
-                    }
-                });
-    } else
-        run(forgetJob);
-    connect(forgetJob, &BaseJob::result, this, [this, id, forgetJob] {
-        // Leave room in case of success, or room not known by server
-        if (forgetJob->error() == BaseJob::Success
-            || forgetJob->error() == BaseJob::NotFound)
-            d->removeRoom(id); // Delete the room from roomMap
-        else
-            qCWarning(MAIN).nospace() << "Error forgetting room " << id << ": "
-                                      << forgetJob->errorString();
-    });
-    return forgetJob;
+    return leaveRoom(room)
+        .then([this, room](BaseJob::Status leaveResult) -> QFuture<ForgetRoomJob*> {
+            if (leaveResult.code == BaseJob::Success || leaveResult.code == BaseJob::NotFound) {
+                // If the matching /sync response hasn't arrived yet,
+                // mark the room for explicit deletion
+                if (room->joinState() != JoinState::Leave)
+                    d->roomIdsToForget.push_back(room->id());
+                return callApi<ForgetRoomJob>(room->id());
+            }
+            qCWarning(MAIN).nospace()
+                << "Error leaving room " << room->objectName() << ": " << leaveResult.message;
+            return {};
+        })
+        .unwrap()
+        .then([this, room](ForgetRoomJob* forgetJob) {
+            const auto forgetResult = forgetJob->status();
+            if (forgetResult.code == BaseJob::Success || forgetResult.code == BaseJob::NotFound)
+                d->removeRoom(room->id()); // Delete the room from roomMap
+            else
+                qCWarning(MAIN).nospace()
+                    << "Error forgetting room " << room->id() << ": " << forgetJob->errorString();
+
+            return forgetResult;
+        });
 }
 
 SendToDeviceJob* Connection::sendToDevices(

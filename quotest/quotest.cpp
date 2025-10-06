@@ -950,7 +950,7 @@ void TestManager::conclude()
         }
 
         qInfo("Leaving the room");
-        room->leaveRoom().then(this, std::bind_front(&TestManager::finalize, this, plainReport));
+        room->leaveRoom().then(this, [this, plainReport](auto) { finalize(plainReport); });
         return true;
     });
 }

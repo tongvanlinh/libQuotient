@@ -2497,7 +2497,7 @@ void Room::inviteToRoom(const QString& memberId)
     connection()->callApi<InviteUserJob>(id(), memberId);
 }
 
-JobHandle<LeaveRoomJob> Room::leaveRoom()
+QFuture<BaseJob::Status> Room::leaveRoom()
 {
     // FIXME, #63: It should be RoomManager, not Connection
     return connection()->leaveRoom(this);
