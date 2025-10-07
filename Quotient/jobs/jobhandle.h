@@ -355,6 +355,9 @@ private:
 template <std::derived_from<BaseJob> JobT>
 JobHandle(JobT*) -> JobHandle<JobT>;
 
+template <typename ResultT>
+using JobResult = std::expected<ResultT, BaseJob::Status>;
+
 } // namespace Quotient
 
 Q_DECLARE_SMART_POINTER_METATYPE(Quotient::JobHandle)
