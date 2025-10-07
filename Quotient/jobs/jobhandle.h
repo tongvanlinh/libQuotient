@@ -203,6 +203,11 @@ public:
         });
     }
 
+    auto toFutureExpected()
+    {
+        return then([] (JobT* j) { return collectResponse(j); }, &BaseJob::status);
+    }
+
     //! \brief Abandon the underlying job, if there's one pending
     //!
     //! Unlike cancel() that only applies to the current future object but not the upstream chain,
