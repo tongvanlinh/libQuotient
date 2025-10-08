@@ -40,10 +40,8 @@ QOlmExpected<QOlmSession> QOlmAccount::createInbound(
 
     // std::span has size_type that fits standard library and Olm, avoiding
     // the warning noise about integer signedness/precision
-    const std::span oneTimeKeyMessageBuf{ preKeyMessage.begin(),
-                                          preKeyMessage.end() };
-    const std::span theirIdentityKeyBuf{ theirIdentityKey.cbegin(),
-                                         theirIdentityKey.cend() };
+    const auto oneTimeKeyMessageBuf = std::span(preKeyMessage);
+    const auto theirIdentityKeyBuf = std::span(theirIdentityKey);
     const auto error =
         theirIdentityKey.isEmpty()
             ? olm_create_inbound_session(session.olmData, olmData,

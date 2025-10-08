@@ -325,21 +325,21 @@ void TestManager::setupAndRun(const QString& targetRoomAlias)
         // Only start the sync after joining, to make sure the room just
         // joined is in it
         c->syncLoop();
+        connect(room, &Room::baseStateLoaded, this, [this, room] {
+            room->getPreviousContent().then(this, &TestManager::doTests);
+        }, Qt::SingleShotConnection);
+
+        connect(room, &Room::changed, this, [room] {
+            auto dbg = qInfo();
+            dbg << "Test room timeline size =" << room->timelineSize();
+            if (!room->pendingEvents().empty())
+                dbg << ", pending size =" << room->pendingEvents().size();
+        });
         connect(c, &Connection::syncDone, this, [this] {
             static int i = 0;
             qInfo() << "Sync" << ++i << "complete";
-            if (auto* r = testSuite->room()) {
-                auto dbg = qInfo();
-                dbg << "Test room timeline size =" << r->timelineSize();
-                if (!r->pendingEvents().empty())
-                    dbg << ", pending size =" << r->pendingEvents().size();
-            }
             if (!running.empty())
                 listTests("test(s) in the air", running);
-
-            if (i == 1) {
-                testSuite->room()->getPreviousContent().then(this, &TestManager::doTests);
-            }
         });
     });
 }
@@ -430,9 +430,10 @@ TEST_IMPL(sendReaction)
             qInfo() << "Reacting to the message just sent to the room" << targetEvtId;
 
             // TODO: a separate test unit for reactionevent.h
-            FAIL_TEST_IF((loadEvent<ReactionEvent>(RoomEvent::basicJson(
+            FAIL_TEST_IF(loadEvent<ReactionEvent>(
                              ReactionEvent::TypeId,
-                             {{RelatesToKey, toJson(EventRelation::replace(targetEvtId))}}))),
+                             QJsonObject{
+                                 {RelatesToKey, toJson(EventRelation::replace(targetEvtId))}}),
                          "ReactionEvent can be created with an invalid relation type");
 
             const auto key = u"+"_s;

@@ -17,14 +17,16 @@
 using namespace Quotient;
 using namespace Qt::Literals::StringLiterals;
 
-const auto VersionLength = 1;
-const auto SaltOffset = VersionLength;
-const auto IvOffset = SaltOffset + AesBlockSize;
-const auto RoundsOffset = IvOffset + AesBlockSize;
-const auto RoundsLength = 4;
-const auto PayloadOffset = RoundsOffset + RoundsLength;
-const auto MacLength = 32;
-const auto HeaderLength = VersionLength + AesBlockSize + AesBlockSize + RoundsLength + MacLength;
+namespace {
+constexpr auto VersionLength = 1;
+constexpr auto SaltOffset = VersionLength;
+constexpr auto IvOffset = SaltOffset + AesBlockSize;
+constexpr auto RoundsOffset = IvOffset + AesBlockSize;
+constexpr auto RoundsLength = 4;
+constexpr auto PayloadOffset = RoundsOffset + RoundsLength;
+constexpr auto MacLength = 32;
+constexpr auto HeaderLength = VersionLength + AesBlockSize + AesBlockSize + RoundsLength + MacLength;
+}
 
 std::expected<QJsonArray, KeyImport::Error> KeyImport::decrypt(QString data,
                                                                const QString& passphrase)
@@ -66,7 +68,7 @@ std::expected<QJsonArray, KeyImport::Error> KeyImport::decrypt(QString data,
         return std::unexpected(InvalidPassphrase);
     }
 
-    auto plain = aesCtr256Decrypt(payload, byte_view_t<Aes256KeySize>(keys.value().begin(), Aes256KeySize), asCBytes<AesBlockSize>(iv));
+    auto plain = aesCtr256Decrypt(payload, byte_view_t<Aes256KeySize>(keys->begin(), Aes256KeySize), asCBytes<AesBlockSize>(iv));
     if (!plain.has_value()) {
         qCWarning(E2EE) << "Failed to decrypt data";
         return std::unexpected(OtherError);

@@ -107,7 +107,7 @@ IncludeCategories:
     Priority: 8
   - Regex:    'moc_.+\.cpp'
     Priority: 12
-  - Regex:    '<Qt.+(/.+)?'
+  - Regex:    '<(Qt.+(/.+)?|q[a-z_]+\.h)'
     Priority: 16
   - Regex:    '<(openssl|olm)/.+'
     Priority: 24

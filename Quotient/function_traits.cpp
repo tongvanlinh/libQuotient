@@ -3,6 +3,8 @@
 
 #include "function_traits.h"
 
+#include <vector>
+
 // Tests for function_traits<>
 
 using namespace Quotient;
