@@ -5,12 +5,6 @@
 
 using namespace Quotient;
 
-template <>
-RoomType Quotient::fromJson(const QJsonValue& jv)
-{
-    return enumFromJsonString<RoomType>(jv.toString(), RoomTypeStrings).value_or(RoomType::Undefined);
-}
-
 bool RoomCreateEvent::isFederated() const
 {
     return contentPart<bool>("m.federate"_L1);
