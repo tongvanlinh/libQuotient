@@ -157,6 +157,7 @@ void Connection::loginWithPassword(const QString& userId,
                                    const QString& deviceId)
 {
     d->ensureHomeserver(userId, LoginFlowTypes::Password).then([=, this] {
+        setObjectName(userId % u"(?)");
         d->loginToServer(LoginFlowTypes::Password, makeUserIdentifier(userId),
                          password, /*token*/ QString(), deviceId, initialDeviceName);
     });
@@ -173,6 +174,7 @@ void Connection::loginWithToken(const QString& loginToken,
                                 const QString& deviceId)
 {
     Q_ASSERT(d->data->baseUrl().isValid() && d->supportsLoginFlow(LoginFlowTypes::Token));
+    setObjectName(loginToken % u"(?)");
     d->loginToServer(LoginFlowTypes::Token, std::nullopt /*user is encoded in loginToken*/,
                      QString() /*password*/, loginToken, deviceId, initialDeviceName);
 }
@@ -359,11 +361,9 @@ QFuture<void> Connection::Private::ensureHomeserver(const QString& userId,
     auto result = promise.future();
     promise.start();
     if (data->baseUrl().isValid() && (flowType.isEmpty() || supportsLoginFlow(flowType))) {
-        q->setObjectName(userId % u"(?)");
         promise.finish(); // Perfect, we're already good to go
     } else if (userId.startsWith(u'@') && userId.indexOf(u':') != -1) {
         // Try to ascertain the homeserver URL and flows
-        q->setObjectName(userId % u"(?)");
         q->resolveServer(userId);
         if (!flowType.isEmpty())
             QtFuture::connect(q, &Connection::loginFlowsChanged)
@@ -1543,7 +1543,7 @@ void Connection::saveState() const
     const auto data =
         d->cacheToBinary ? QCborValue::fromJsonValue(rootObj).toCbor()
                          : QJsonDocument(rootObj).toJson(QJsonDocument::Compact);
-    qCDebug(PROFILER) << "Cache for" << userId() << "generated in" << et;
+    qCDebug(PROFILER).noquote() << "Cache for" << objectName() << "generated in" << et;
 
     outFile.write(data.data(), data.size());
     qCDebug(MAIN) << "State cache saved to" << outFile.fileName();
