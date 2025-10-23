@@ -1,5 +1,9 @@
 include(CMakeFindDependencyMacro)
 
+find_dependency(@Qt@Core)
+if (@Qt@Core_VERSION VERSION_GREATER_EQUAL 6.10)
+    find_dependency(@Qt@CorePrivate)
+endif()
 find_dependency(@Qt@Gui)
 find_dependency(@Qt@Network)
 find_dependency(@Qt@Keychain)
