@@ -148,6 +148,7 @@ void SSSSHandler::unlockSSSSFromCrossSigning()
     Q_ASSERT(m_connection);
     m_connection->requestKeyFromDevices(MegolmBackupKey).then([this](const QByteArray& key) {
         loadMegolmBackup(key);
+        emit keyBackupUnlocked();
     });
     for (auto k : {CrossSigningUserSigningKey, CrossSigningSelfSigningKey, CrossSigningMasterKey})
         m_connection->requestKeyFromDevices(k);
