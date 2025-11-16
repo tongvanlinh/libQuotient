@@ -154,7 +154,9 @@ public:
     QUrl homeserver() const;
     void setHomeserver(const QUrl& url);
 
+    [[deprecated("Client code shouldn't use the pickle; and the library stores it in a keychain")]]
     QByteArray encryptionAccountPickle();
+    [[deprecated("Client code shouldn't use the pickle; and the library stores it in a keychain")]]
     void setEncryptionAccountPickle(const QByteArray& encryptionAccountPickle);
     Q_INVOKABLE void clearEncryptionAccountPickle();
 };
