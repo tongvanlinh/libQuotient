@@ -37,3 +37,5 @@ quotient_add_test(NAME testcrosssigning)
 quotient_add_test(NAME testkeyimport)
 quotient_add_test(NAME testsettings)
 quotient_add_test(NAME testthread)
+
+add_test(NAME testqmltypes COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/testqmltypes.sh ${KDE_INSTALL_FULL_LIBDIR}/qml/io/github/quotient_im/libquotient)
