@@ -409,9 +409,12 @@ export(EXPORT ${QUOTIENT_LIB_NAME}Targets
 if (NOT DEFINED BUILD_SHARED_LIBS)
     set(BUILD_SHARED_LIBS OFF)
 endif()
-configure_file(cmake/${PROJECT_NAME}Config.cmake.in
+configure_package_config_file(cmake/${PROJECT_NAME}Config.cmake.in
     "${CMAKE_CURRENT_BINARY_DIR}/${QUOTIENT_LIB_NAME}/${QUOTIENT_LIB_NAME}Config.cmake"
-    @ONLY
+    INSTALL_DESTINATION
+    "${CMAKE_INSTALL_PREFIX}/${CMakeFilesLocation}"
+    NO_SET_AND_CHECK_MACRO
+    NO_CHECK_REQUIRED_COMPONENTS_MACRO
 )
 
 install(EXPORT ${QUOTIENT_LIB_NAME}Targets
