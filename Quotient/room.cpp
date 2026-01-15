@@ -1159,13 +1159,13 @@ Room::PendingEvents::const_iterator Room::findPendingEvent(const QString& txnId)
 }
 
 const Room::RelatedEvents Room::relatedEvents(
-    const QString& evtId, EventRelation::reltypeid_t relType) const
+    const QString& evtId, EventRelation::typeid_t relType) const
 {
     return d->relations.value({ evtId, relType });
 }
 
 const Room::RelatedEvents Room::relatedEvents(
-    const RoomEvent& evt, EventRelation::reltypeid_t relType) const
+    const RoomEvent& evt, EventRelation::typeid_t relType) const
 {
     return relatedEvents(evt.id(), relType);
 }
