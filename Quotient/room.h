@@ -389,9 +389,9 @@ public:
     PendingEvents::const_iterator findPendingEvent(const QString& txnId) const;
 
     const RelatedEvents relatedEvents(const QString& evtId,
-                                      EventRelation::reltypeid_t relType) const;
+                                      EventRelation::typeid_t relType) const;
     const RelatedEvents relatedEvents(const RoomEvent& evt,
-                                      EventRelation::reltypeid_t relType) const;
+                                      EventRelation::typeid_t relType) const;
 
     const RoomCreateEvent* creation() const;
     const RoomTombstoneEvent* tombstone() const;

@@ -10,9 +10,16 @@ namespace Quotient {
 constexpr inline auto RelatesToKey = "m.relates_to"_L1;
 constexpr inline auto RelTypeKey = "rel_type"_L1;
 constexpr inline auto IsFallingBackKey = "is_falling_back"_L1;
+constexpr inline auto NewContentKey = "m.new_content"_L1;
+constexpr inline auto RelationsKey = "m.relations"_L1;
 
+//! \brief Data about one relation of an event to an upstream event (e.g. a reply or a reaction)
+//!
+//! This structure contains all information pertaining to a single event relation. In terms of
+//! CS API it corresponds to the contents of `m.relates_to` and `m.in_reply_to` JSON objects.
 struct QUOTIENT_API EventRelation {
-    using reltypeid_t = QLatin1String;
+    using typeid_t = QLatin1String;
+    using reltypeid_t [[deprecated("Use typeid_t")]] = typeid_t;
 
     QString type;
     QString eventId;

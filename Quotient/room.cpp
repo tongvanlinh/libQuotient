@@ -1158,13 +1158,13 @@ Room::PendingEvents::const_iterator Room::findPendingEvent(const QString& txnId)
 }
 
 const Room::RelatedEvents Room::relatedEvents(
-    const QString& evtId, EventRelation::reltypeid_t relType) const
+    const QString& evtId, EventRelation::typeid_t relType) const
 {
     return d->relations.value({ evtId, relType });
 }
 
 const Room::RelatedEvents Room::relatedEvents(
-    const RoomEvent& evt, EventRelation::reltypeid_t relType) const
+    const RoomEvent& evt, EventRelation::typeid_t relType) const
 {
     return relatedEvents(evt.id(), relType);
 }
@@ -2823,12 +2823,12 @@ bool Room::Private::processRedaction(const RedactionEvent& redaction)
 RoomEventPtr makeReplaced(const RoomEvent& target,
                           const RoomMessageEvent& replacement)
 {
-    auto newContent = replacement.contentPart<QJsonObject>("m.new_content"_L1);
+    auto newContent = replacement.contentPart<QJsonObject>(NewContentKey);
     addParam<IfNotEmpty>(newContent, RelatesToKey, target.contentPart<QJsonObject>(RelatesToKey));
     auto originalJson = target.fullJson();
     originalJson[ContentKey] = newContent;
     editSubobject(originalJson, UnsignedKey, [&replacement](QJsonObject& unsignedData) {
-        replaceSubvalue(unsignedData, "m.relations"_L1, "m.replace"_L1, replacement.id());
+        replaceSubvalue(unsignedData, RelationsKey, EventRelation::ReplacementType, replacement.id());
     });
 
     return loadEvent<RoomEvent>(originalJson);
