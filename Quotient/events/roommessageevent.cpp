@@ -80,11 +80,6 @@ MsgTypeDesc jsonToMsgTypeDesc(const QString& matrixType)
     return { {}, MsgType::Unknown, false, nullptr };
 }
 
-inline bool isReplacement(const std::optional<EventRelation>& rel)
-{
-    return rel && rel->type == EventRelation::ReplacementType;
-}
-
 } // anonymous namespace
 
 QJsonObject RoomMessageEvent::assembleContentJson(const QString& plainBody,
@@ -249,31 +244,6 @@ bool RoomMessageEvent::has<LocationContent>() const
     return rawMsgtype() == LocationTypeId;
 }
 
-QString RoomMessageEvent::upstreamEventId() const
-{
-    const auto relation = relatesTo();
-    return relation ? relation.value().eventId : QString();
-}
-
-QString RoomMessageEvent::replacedEvent() const
-{
-    if (!has<TextContent>())
-        return {};
-
-    const auto er = relatesTo();
-    return isReplacement(er) ? er->eventId : QString();
-}
-
-bool RoomMessageEvent::isReplaced() const
-{
-    return unsignedPart<QJsonObject>("m.relations"_L1).contains(EventRelation::ReplacementType);
-}
-
-QString RoomMessageEvent::replacedBy() const
-{
-    return unsignedPart<QJsonObject>("m.relations"_L1)[EventRelation::ReplacementType][EventIdKey]
-        .toString();
-}
 
 namespace {
 QString safeFileName(QString rawName)

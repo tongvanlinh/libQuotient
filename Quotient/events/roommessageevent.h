@@ -93,28 +93,6 @@ public:
     //! Retrieve a thumbnail from the message event
     EventContent::Thumbnail getThumbnail() const;
 
-    //! \brief The upstream event ID for the relation.
-    //!
-    //! \warning If your client is not thread aware use replyEventId() as this will
-    //!          return the fallback reply ID so you can treat a threaded reply like a normal one.
-    //!
-    //! \warning If your client is thread aware use threadRootEventId() to get the
-    //!          thread root ID as this will return an empty string on the root event.
-    //!          threadRootEventId() will return the root messages ID on itself.
-    QString upstreamEventId() const;
-
-    //! \brief Obtain id of an event replaced by the current one
-    //! \sa RoomEvent::isReplaced, RoomEvent::replacedBy
-    QString replacedEvent() const;
-
-    //! \brief Determine whether the event has been replaced
-    //!
-    //! \return true if this event has been overridden by another event
-    //!         with `"rel_type": "m.replace"`; false otherwise
-    bool isReplaced() const;
-
-    QString replacedBy() const;
-
     QString fileNameToDownload() const;
 
     void updateFileSourceInfo(const FileSourceInfo& fsi);

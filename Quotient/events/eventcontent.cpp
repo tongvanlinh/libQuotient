@@ -132,7 +132,7 @@ TextContent::TextContent(const QJsonObject& json)
 
     const auto relatesTo = fromJson<std::optional<EventRelation>>(json[RelatesToKey]);
 
-    const auto actualJson = relatesTo.has_value() && relatesTo->type == EventRelation::ReplacementType
+    const auto actualJson = relatesTo && relatesTo->type == EventRelation::ReplacementType
                                 ? json.value(NewContentKey).toObject()
                                 : json;
     // Special-casing the custom matrix.org's (actually, Element's) way

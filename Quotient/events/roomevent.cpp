@@ -120,20 +120,20 @@ bool Quotient::isStateEvent(const QString& eventTypeId)
 bool RoomEvent::isReply(bool includeFallbacks) const
 {
     const auto relation = relatesTo();
-    return relation.has_value()
-           && (relation.value().type == EventRelation::ReplyType
-               || (relation.value().type == EventRelation::ThreadType
-                   && (relation.value().isFallingBack == false || includeFallbacks)));
+    return relation
+           && (relation->type == EventRelation::ReplyType
+               || (relation->type == EventRelation::ThreadType
+                   && (relation->isFallingBack == false || includeFallbacks)));
 }
 
 QString RoomEvent::replyEventId(bool includeFallbacks) const
 {
     if (const auto relation = relatesTo()) {
-        if (relation.value().type == EventRelation::ReplyType) {
-            return relation.value().eventId;
-        } else if (relation.value().type == EventRelation::ThreadType
-                   && (relation.value().isFallingBack == false || includeFallbacks)) {
-            return relation.value().inThreadReplyEventId;
+        if (relation->type == EventRelation::ReplyType) {
+            return relation->eventId;
+        } else if (relation->type == EventRelation::ThreadType
+                   && (relation->isFallingBack == false || includeFallbacks)) {
+            return relation->inThreadReplyEventId;
         }
     }
     return {};
@@ -144,11 +144,49 @@ std::optional<EventRelation> RoomEvent::relatesTo() const
     return contentPart<std::optional<EventRelation>>(RelatesToKey);
 }
 
+void RoomEvent::setRelation(const EventRelation &er)
+{
+    editJson().insert(RelatesToKey, toJson(er));
+}
+
+void RoomEvent::clearRelation() { editJson().remove(RelatesToKey); }
+
+QJsonObject RoomEvent::relationsToThis() const
+{
+    return unsignedPart<QJsonObject>(RelationsKey);
+}
+
+bool RoomEvent::hasRelationship(EventRelation::typeid_t relationTypeId) const
+{
+    return relationsToThis().contains(relationTypeId);
+}
+
+QString RoomEvent::replacedEvent() const
+{
+    if (is<StateEvent>())
+        return {}; // State events can't be replaced
+
+    const auto er = relatesTo();
+    return er && er->type == EventRelation::ReplacementType && contentJson().contains(NewContentKey)
+               ? er->eventId
+               : QString();
+}
+
+bool RoomEvent::isReplaced() const
+{
+    return hasRelationship(EventRelation::ReplacementType);
+}
+
+QString RoomEvent::replacedBy() const
+{
+    return relationsToThis().value(EventRelation::ReplacementType)[EventIdKey].toString();
+}
+
 bool RoomEvent::isThreaded() const
 {
     const auto relation = relatesTo();
-    return (relation && relation.value().type == EventRelation::ThreadType)
-           || unsignedPart<QJsonObject>("m.relations"_L1).contains(EventRelation::ThreadType);
+    return (relation && relation->type == EventRelation::ThreadType)
+           || unsignedPart<QJsonObject>(RelationsKey).contains(EventRelation::ThreadType);
 }
 
 QString RoomEvent::threadRootEventId() const
@@ -156,7 +194,7 @@ QString RoomEvent::threadRootEventId() const
     if (const auto relation = relatesTo(); relation && relation->type == EventRelation::ThreadType) {
         return relation->eventId;
     }
-    if (unsignedPart<QJsonObject>("m.relations"_L1).contains(EventRelation::ThreadType)) {
+    if (unsignedPart<QJsonObject>(RelationsKey).contains(EventRelation::ThreadType)) {
         return id();
     }
     return {};
