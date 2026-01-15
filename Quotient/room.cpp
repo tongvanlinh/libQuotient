@@ -2817,12 +2817,12 @@ bool Room::Private::processRedaction(const RedactionEvent& redaction)
 RoomEventPtr makeReplaced(const RoomEvent& target,
                           const RoomMessageEvent& replacement)
 {
-    auto newContent = replacement.contentPart<QJsonObject>("m.new_content"_L1);
+    auto newContent = replacement.contentPart<QJsonObject>(NewContentKey);
     addParam<IfNotEmpty>(newContent, RelatesToKey, target.contentPart<QJsonObject>(RelatesToKey));
     auto originalJson = target.fullJson();
     originalJson[ContentKey] = newContent;
     editSubobject(originalJson, UnsignedKey, [&replacement](QJsonObject& unsignedData) {
-        replaceSubvalue(unsignedData, "m.relations"_L1, "m.replace"_L1, replacement.id());
+        replaceSubvalue(unsignedData, RelationsKey, EventRelation::ReplacementType, replacement.id());
     });
 
     return loadEvent<RoomEvent>(originalJson);
