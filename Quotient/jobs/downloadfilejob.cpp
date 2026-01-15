@@ -46,7 +46,7 @@ QUrl DownloadFileJob::makeRequestUrl(const HomeserverData& hsData, const QString
                                      const QString& mediaId)
 {
     QT_IGNORE_DEPRECATIONS( // For GetContentJob
-        return hsData.checkMatrixSpecVersion(u"v1.11")
+        return hsData.checkMatrixSpecVersion(u"v1.11") || hsData.supportedSpecVersions.empty() // Assume that if we're called early, that the server uses auth media
                    ? GetContentAuthedJob::makeRequestUrl(hsData, serverName, mediaId)
                    : GetContentJob::makeRequestUrl(hsData, serverName, mediaId);)
 }
