@@ -146,10 +146,15 @@ std::optional<EventRelation> RoomEvent::relatesTo() const
 
 void RoomEvent::setRelation(const EventRelation &er)
 {
-    editJson().insert(RelatesToKey, toJson(er));
+    replaceSubvalue(editJson(), ContentKey, RelatesToKey, toJson(er));
 }
 
-void RoomEvent::clearRelation() { editJson().remove(RelatesToKey); }
+void RoomEvent::clearRelation()
+{
+    editSubobject(editJson(), ContentKey, [](QJsonObject& content) {
+        content.remove(RelatesToKey);
+    });
+}
 
 QJsonObject RoomEvent::relationsToThis() const
 {
