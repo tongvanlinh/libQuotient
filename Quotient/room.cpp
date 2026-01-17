@@ -1059,7 +1059,9 @@ void Room::markMessagesAsRead(const QString& uptoEventId)
 
 void Room::markAllMessagesAsRead()
 {
-    d->markMessagesAsRead(d->timeline.crbegin());
+    if (!d->timeline.empty()) {
+        d->markMessagesAsRead(d->timeline.crbegin());
+    }
 }
 
 bool Room::canSwitchVersions() const
