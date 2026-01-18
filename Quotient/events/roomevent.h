@@ -108,6 +108,48 @@ public:
     //!         std::nullopt otherwise.
     std::optional<EventRelation> relatesTo() const;
 
+    //! \brief Set the event relation data
+    //!
+    //! Adds the relation to another event with the contents of \p er. If another relation
+    //! exists it is entirely overwritten.
+    void setRelation(const EventRelation &er);
+
+    //! \brief Remove the event relation data
+    //!
+    //! Clears any relation from this event to another event.
+    //! \sa setRelation
+    void clearRelation();
+
+    //! \brief Get relations to this event
+    //!
+    //! This is a counterpart of relatesTo(): it returns the list of (known, see the note) relations
+    //! to the current event.
+    //! \note This method uses `unsigned/m.relations` object that may not have fully accurate data.
+    //!       Use with caution.
+    QJsonObject relationsToThis() const;
+
+    //! \brief Check whether there are other events relating to this
+    //! \note This method uses `unsigned/m.relations` object that may not have fully accurate data.
+    //!       Use with caution.
+    bool hasRelationship(EventRelation::typeid_t relationTypeId) const;
+
+    //! \brief Obtain id of an event replaced by the current one
+    //! \sa RoomEvent::isReplaced, RoomEvent::replacedBy
+    QString replacedEvent() const;
+
+    //! \brief Determine whether the event has been replaced
+    //!
+    //! \return true if this event has been overridden by another event
+    //!         with `"rel_type": "m.replace"`; false otherwise
+    bool isReplaced() const;
+
+    //! \brief Get the id of the event that replaced this one
+    //!
+    //! \return The id of the replacement event if the current event has been replaced
+    //!         by another one; an empty string otherwise.
+    //! \sa isReplaced, replacedEvent
+    QString replacedBy() const;
+
     //! \brief Determine whether the event is part of a thread.
     //!
     //! \return true if this event is part of a thread, i.e. it has
@@ -129,6 +171,8 @@ public:
 protected:
     explicit RoomEvent(const QJsonObject& json);
     void dumpTo(QDebug dbg) const override;
+
+    virtual void afterRelationChange() {}
 
 private:
     QString _id;

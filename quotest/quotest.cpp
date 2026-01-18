@@ -109,6 +109,7 @@ private slots:
     TEST_DECL(markDirectChat)
     TEST_DECL(visitResources)
     TEST_DECL(thread)
+    TEST_DECL(reply)
     // Add more tests above here
 
 public:
@@ -451,8 +452,15 @@ TEST_IMPL(sendReaction)
                              FAIL_TEST_IF(reactions.size() != 1);
 
                              const auto* evt = eventCast<const ReactionEvent>(reactions.back());
-                             FINISH_TEST(is<ReactionEvent>(*evt) && !evt->id().isEmpty()
-                                         && evt->key() == key && evt->transactionId() == txnId);
+                             FAIL_TEST_IF(!is<ReactionEvent>(*evt) || evt->id().isEmpty()
+                                         || evt->key() != key || evt->transactionId() != txnId,
+                                         "Reaction event validation failed");
+
+                             // Test the new RoomEvent relation API
+                             const auto relation = evt->relatesTo();
+                             FINISH_TEST(relation && relation->type == EventRelation::AnnotationType
+                                        && relation->eventId == targetEvtId
+                                        && relation->key == key);
                              // TODO: Test removing the reaction
                          });
             return false;
@@ -882,27 +890,100 @@ TEST_IMPL(visitResources)
 TEST_IMPL(thread)
 {
     auto rootTxnId = targetRoom->postText("Threadroot"_L1);
-    connect(targetRoom, &Room::pendingEventAboutToMerge, this, [this, thisTest, rootTxnId](Quotient::RoomEvent* rootEvt) {
-        if (rootEvt->transactionId() == rootTxnId) {
-            const auto relation = EventRelation::replyInThread(rootEvt->id(), true, rootEvt->id());
-            targetRoom->post<Quotient::RoomMessageEvent>(u"Thread reply 1"_s, Quotient::RoomMessageEvent::MsgType::Text, nullptr, relation)
-                .whenMerged()
-                .then([this, thisTest](const RoomEvent& replyEvt) {
-                    replyEvt.switchOnType(
-                        [&](const RoomMessageEvent& rmReplyEvt) {
-                            const auto thread = targetRoom->threads()[rmReplyEvt.threadRootEventId()];
-                            FINISH_TEST(thread.threadRootId == rmReplyEvt.threadRootEventId() &&
-                                        thread.latestEventId == rmReplyEvt.id() &&
-                                        thread.size == 2
-                            );
-                        },
-                        [this, thisTest](const RoomEvent&) { FAIL_TEST(); }
-                    );
-                });
-        }
-    });
+    connectUntil(targetRoom, &Room::pendingEventAboutToMerge, this,
+                 [this, thisTest, rootTxnId](RoomEvent *rootEvt) {
+        if (rootEvt->transactionId() != rootTxnId)
+            return false;
 
+        const auto rootEvtId = rootEvt->id();
+        // Create a reply event without a relation, to test setRelation()
+        auto replyEvent =
+            makeEvent<RoomMessageEvent>(u"Thread reply 1"_s, RoomMessageEvent::MsgType::Text);
+        replyEvent->setRelation(EventRelation::replyInThread(rootEvtId, true, rootEvtId));
+
+        const auto setRelation = replyEvent->relatesTo();
+        FAIL_TEST_IF(!setRelation || setRelation->type != EventRelation::ThreadType
+                         || setRelation->eventId != rootEvtId,
+                     "Relation not set correctly after setRelation()");
+
+        const auto &pendingItem = targetRoom->post(std::move(replyEvent));
+        const auto replyTxnId = pendingItem->transactionId();
+
+        targetRoom->whenMessageMerged(replyTxnId)
+            .then(this, [this, thisTest, rootEvtId](const RoomEvent &replyEvt) {
+            replyEvt.switchOnType([&](const RoomMessageEvent &mergedReply) {
+                const auto relation = mergedReply.relatesTo();
+                FAIL_TEST_IF(!relation, "No relation on merged event");
+                FAIL_TEST_IF(relation->type != EventRelation::ThreadType,
+                             "Incorrect relation type on merged event");
+                FAIL_TEST_IF(relation->eventId != rootEvtId,
+                             "Thread root eventId doesn't match on merged event");
+
+                FAIL_TEST_IF(!mergedReply.isThreaded(),
+                             "isThreaded() returned false for thread reply");
+                FAIL_TEST_IF(mergedReply.threadRootEventId() != rootEvtId,
+                             "threadRootEventId() doesn't match root");
+
+                // Threaded events are considered replies as a fallback; they are not "normal"
+                // one-off replies
+                FAIL_TEST_IF(!mergedReply.isReply(true),
+                             "isReply() with fallbacks still returned false for thread reply");
+                FAIL_TEST_IF(mergedReply.isReply(false),
+                             "isReply() without fallbacks considered a threaded event as a reply");
+                FAIL_TEST_IF(mergedReply.replyEventId(true) != rootEvtId,
+                             "replyEventId() doesn't match root");
+
+                const auto thread = targetRoom->threads()[mergedReply.threadRootEventId()];
+                FINISH_TEST(thread.threadRootId == mergedReply.threadRootEventId()
+                            && thread.latestEventId == mergedReply.id() && thread.size == 2);
+            }, [this, thisTest](const RoomEvent &) { FAIL_TEST(); });
+        });
+        return true;
+    });
     return false;
+}
+
+TEST_IMPL(reply)
+{
+    return targetRoom->post<RoomMessageEvent>(u"Reply target"_s)
+        .whenMerged()
+        .then([this, thisTest](const RoomEvent &rootEvt) {
+        const auto rootEvtId = rootEvt.id();
+        const auto replyRelation = EventRelation::replyTo(rootEvtId);
+        auto replyEvent = makeEvent<RoomMessageEvent>(u"Reply message"_s,
+                                                      RoomMessageEvent::MsgType::Text, nullptr,
+                                                      replyRelation);
+
+        const auto setRelation = replyEvent->relatesTo();
+        FAIL_TEST_IF(!setRelation || setRelation->type != EventRelation::ReplyType
+                         || setRelation->eventId != rootEvtId,
+                     "Relation not set correctly after setRelation()");
+
+        replyEvent->clearRelation();
+        FAIL_TEST_IF(replyEvent->relatesTo().has_value(),
+                     "Relation still exists after clearRelation()");
+
+        // Restore the reply relation
+        replyEvent->setRelation(replyRelation);
+
+        targetRoom->post(std::move(replyEvent))
+            .whenMerged()
+            .then([this, thisTest, rootEvtId](const RoomEvent &replyEvt) {
+            replyEvt.switchOnType([&](const RoomMessageEvent &mergedReply) {
+                const auto relation = mergedReply.relatesTo();
+                FAIL_TEST_IF(!relation || relation->type != EventRelation::ReplyType,
+                             "None or incorrect relation on merged event");
+                FAIL_TEST_IF(relation->eventId != rootEvtId,
+                             "Replied-to eventId doesn't match on merged event");
+
+                FAIL_TEST_IF(mergedReply.isThreaded(),
+                             "Non-thread replies should not be considered threaded");
+                FAIL_TEST_IF(!mergedReply.isReply(), "isReply() returned false for reply");
+                FINISH_TEST(mergedReply.replyEventId() == rootEvtId);
+            }, [this, thisTest](const RoomEvent &) { FAIL_TEST(); });
+        });
+        return true;
+    }).isRunning();
 }
 
 void TestManager::conclude()
