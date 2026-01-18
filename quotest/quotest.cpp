@@ -109,6 +109,7 @@ private slots:
     TEST_DECL(markDirectChat)
     TEST_DECL(visitResources)
     TEST_DECL(thread)
+    TEST_DECL(reply)
     // Add more tests above here
 
 public:
@@ -940,6 +941,49 @@ TEST_IMPL(thread)
         return true;
     });
     return false;
+}
+
+TEST_IMPL(reply)
+{
+    return targetRoom->post<RoomMessageEvent>(u"Reply target"_s)
+        .whenMerged()
+        .then([this, thisTest](const RoomEvent &rootEvt) {
+        const auto rootEvtId = rootEvt.id();
+        const auto replyRelation = EventRelation::replyTo(rootEvtId);
+        auto replyEvent = makeEvent<RoomMessageEvent>(u"Reply message"_s,
+                                                      RoomMessageEvent::MsgType::Text, nullptr,
+                                                      replyRelation);
+
+        const auto setRelation = replyEvent->relatesTo();
+        FAIL_TEST_IF(!setRelation || setRelation->type != EventRelation::ReplyType
+                         || setRelation->eventId != rootEvtId,
+                     "Relation not set correctly after setRelation()");
+
+        replyEvent->clearRelation();
+        FAIL_TEST_IF(replyEvent->relatesTo().has_value(),
+                     "Relation still exists after clearRelation()");
+
+        // Restore the reply relation
+        replyEvent->setRelation(replyRelation);
+
+        targetRoom->post(std::move(replyEvent))
+            .whenMerged()
+            .then([this, thisTest, rootEvtId](const RoomEvent &replyEvt) {
+            replyEvt.switchOnType([&](const RoomMessageEvent &mergedReply) {
+                const auto relation = mergedReply.relatesTo();
+                FAIL_TEST_IF(!relation || relation->type != EventRelation::ReplyType,
+                             "None or incorrect relation on merged event");
+                FAIL_TEST_IF(relation->eventId != rootEvtId,
+                             "Replied-to eventId doesn't match on merged event");
+
+                FAIL_TEST_IF(mergedReply.isThreaded(),
+                             "Non-thread replies should not be considered threaded");
+                FAIL_TEST_IF(!mergedReply.isReply(), "isReply() returned false for reply");
+                FINISH_TEST(mergedReply.replyEventId() == rootEvtId);
+            }, [this, thisTest](const RoomEvent &) { FAIL_TEST(); });
+        });
+        return true;
+    }).isRunning();
 }
 
 void TestManager::conclude()
