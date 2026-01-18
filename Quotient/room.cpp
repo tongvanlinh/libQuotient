@@ -2138,9 +2138,7 @@ const PendingEventItem& Room::Private::doSendEvent(PendingEvents::iterator event
         encryptedEvent->setTransactionId(connection->generateTxnId());
         encryptedEvent->setRoomId(id);
         encryptedEvent->setSender(connection->userId());
-        if (eventItem->contentJson().contains(RelatesToKey)) {
-            encryptedEvent->setRelation(eventItem->contentJson()[RelatesToKey].toObject());
-        }
+        encryptedEvent->applyRelationFrom(*eventItem);
         // We show the unencrypted event locally while pending. The echo
         // check will throw the encrypted version out
         _event = encryptedEvent.get();
