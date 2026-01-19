@@ -1884,7 +1884,7 @@ void Room::Private::updateThread(const RoomEvent* event)
 
     auto& thread = threads[event->threadRootEventId()];
     const auto isNew = thread.threadRootId.isEmpty();
-    if (thread.threadRootId.isEmpty()) {
+    if (isNew) {
         thread.threadRootId = event->threadRootEventId();
         // If we can't find the root we assume it's a historical event and will be loaded later.
         if (auto rootIt = q->findInTimeline(thread.threadRootId); rootIt != historyEdge()) {
