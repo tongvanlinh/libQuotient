@@ -173,7 +173,7 @@ void TestOlmAccount::encryptedFile()
 
 void TestOlmAccount::uploadIdentityKey()
 {
-    CREATE_CONNECTION(conn, "alice1"_L1, "secret"_L1, "AlicePhone"_L1)
+    CREATE_CONNECTION(conn, "alice1"_L1, "secret"_L1, "AlicePhone"_L1);
 
     auto olmAccount = conn->olmAccount();
     auto idKeys = olmAccount->identityKeys();
@@ -196,7 +196,7 @@ void TestOlmAccount::uploadIdentityKey()
 
 void TestOlmAccount::uploadOneTimeKeys()
 {
-    CREATE_CONNECTION(conn, "alice2"_L1, "secret"_L1, "AlicePhone"_L1)
+    CREATE_CONNECTION(conn, "alice2"_L1, "secret"_L1, "AlicePhone"_L1);
     auto olmAccount = conn->olmAccount();
 
     auto nKeys = olmAccount->generateOneTimeKeys(5);
@@ -219,7 +219,7 @@ void TestOlmAccount::uploadOneTimeKeys()
 
 void TestOlmAccount::uploadSignedOneTimeKeys()
 {
-    CREATE_CONNECTION(conn, "alice3"_L1, "secret"_L1, "AlicePhone"_L1)
+    CREATE_CONNECTION(conn, "alice3"_L1, "secret"_L1, "AlicePhone"_L1);
     auto olmAccount = conn->olmAccount();
     auto nKeys = olmAccount->generateOneTimeKeys(5);
     QCOMPARE(nKeys, 5);
@@ -238,7 +238,7 @@ void TestOlmAccount::uploadSignedOneTimeKeys()
 
 void TestOlmAccount::uploadKeys()
 {
-    CREATE_CONNECTION(conn, "alice4"_L1, "secret"_L1, "AlicePhone"_L1)
+    CREATE_CONNECTION(conn, "alice4"_L1, "secret"_L1, "AlicePhone"_L1);
     auto olmAccount = conn->olmAccount();
     auto idks = olmAccount->identityKeys();
     olmAccount->generateOneTimeKeys(1);
@@ -254,8 +254,8 @@ void TestOlmAccount::uploadKeys()
 
 void TestOlmAccount::queryTest()
 {
-    CREATE_CONNECTION(alice, "alice5"_L1, "secret"_L1, "AlicePhone"_L1)
-    CREATE_CONNECTION(bob, "bob1"_L1, "secret"_L1, "BobPhone"_L1)
+    CREATE_CONNECTION(alice, "alice5"_L1, "secret"_L1, "AlicePhone"_L1);
+    CREATE_CONNECTION(bob, "bob1"_L1, "secret"_L1, "BobPhone"_L1);
 
     // Create and upload keys for both users.
     auto aliceOlm = alice->olmAccount();
@@ -314,8 +314,8 @@ void TestOlmAccount::queryTest()
 
 void TestOlmAccount::claimKeys()
 {
-    CREATE_CONNECTION(alice, "alice6"_L1, "secret"_L1, "AlicePhone"_L1)
-    CREATE_CONNECTION(bob, "bob2"_L1, "secret"_L1, "BobPhone"_L1)
+    CREATE_CONNECTION(alice, "alice6"_L1, "secret"_L1, "AlicePhone"_L1);
+    CREATE_CONNECTION(bob, "bob2"_L1, "secret"_L1, "BobPhone"_L1);
 
     // Bob uploads his keys.
     auto *bobOlm = bob->olmAccount();
@@ -369,9 +369,9 @@ void TestOlmAccount::claimKeys()
 void TestOlmAccount::claimMultipleKeys()
 {
     // Login with alice multiple times
-    CREATE_CONNECTION(alice, "alice7"_L1, "secret"_L1, "AlicePhone"_L1)
-    CREATE_CONNECTION(alice1, "alice7"_L1, "secret"_L1, "AlicePhone"_L1)
-    CREATE_CONNECTION(alice2, "alice7"_L1, "secret"_L1, "AlicePhone"_L1)
+    CREATE_CONNECTION(alice, "alice7"_L1, "secret"_L1, "AlicePhone"_L1);
+    CREATE_CONNECTION(alice1, "alice7"_L1, "secret"_L1, "AlicePhone"_L1);
+    CREATE_CONNECTION(alice2, "alice7"_L1, "secret"_L1, "AlicePhone"_L1);
 
     auto olm = alice->olmAccount();
     olm->generateOneTimeKeys(10);
@@ -401,7 +401,7 @@ void TestOlmAccount::claimMultipleKeys()
     QVERIFY(waitForJob(alice2UploadKeyRequest));
 
     // Bob will claim keys from all Alice's devices
-    CREATE_CONNECTION(bob, "bob3"_L1, "secret"_L1, "BobPhone"_L1)
+    CREATE_CONNECTION(bob, "bob3"_L1, "secret"_L1, "BobPhone"_L1);
 
     QHash<QString, QHash<QString, QString>> oneTimeKeys;
     auto keyRequests = oneTimeKeys.insert(alice->userId(), {});
@@ -417,7 +417,7 @@ void TestOlmAccount::claimMultipleKeys()
 
 void TestOlmAccount::enableEncryption()
 {
-    CREATE_CONNECTION(alice, "alice9"_L1, "secret"_L1, "AlicePhone"_L1)
+    CREATE_CONNECTION(alice, "alice9"_L1, "secret"_L1, "AlicePhone"_L1);
 
     auto createRoomJob = alice->createRoom(Connection::PublishRoom, {}, {}, {}, {});
     auto futureEncryptedRoom = createRoomJob.then([alice](const QString& roomId) {
