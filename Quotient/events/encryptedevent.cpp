@@ -49,7 +49,9 @@ RoomEventPtr EncryptedEvent::createDecrypted(const QString &decrypted) const
     return loadEvent<RoomEvent>(eventObject);
 }
 
-void EncryptedEvent::setRelation(const QJsonObject& relation)
+void EncryptedEvent::applyRelationFrom(const RoomEvent &unencryptedEvent)
 {
-    replaceSubvalue(editJson(), ContentKey, RelatesToKey, relation);
+    if (const auto relation = unencryptedEvent.contentPart<QJsonObject>(RelatesToKey);
+        !relation.isEmpty())
+        replaceSubvalue(editJson(), ContentKey, RelatesToKey, relation);
 }

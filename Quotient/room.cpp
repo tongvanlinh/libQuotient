@@ -1884,7 +1884,7 @@ void Room::Private::updateThread(const RoomEvent* event)
 
     auto& thread = threads[event->threadRootEventId()];
     const auto isNew = thread.threadRootId.isEmpty();
-    if (thread.threadRootId.isEmpty()) {
+    if (isNew) {
         thread.threadRootId = event->threadRootEventId();
         // If we can't find the root we assume it's a historical event and will be loaded later.
         if (auto rootIt = q->findInTimeline(thread.threadRootId); rootIt != historyEdge()) {
@@ -2138,9 +2138,7 @@ const PendingEventItem& Room::Private::doSendEvent(PendingEvents::iterator event
         encryptedEvent->setTransactionId(connection->generateTxnId());
         encryptedEvent->setRoomId(id);
         encryptedEvent->setSender(connection->userId());
-        if (eventItem->contentJson().contains(RelatesToKey)) {
-            encryptedEvent->setRelation(eventItem->contentJson()[RelatesToKey].toObject());
-        }
+        encryptedEvent->applyRelationFrom(*eventItem);
         // We show the unencrypted event locally while pending. The echo
         // check will throw the encrypted version out
         _event = encryptedEvent.get();

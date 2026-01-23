@@ -27,8 +27,9 @@ inline event_ptr_tt<EventT> loadEventFromFile(const QString &eventFileName)
     if (!eventFileName.isEmpty()) {
         QFile testEventFile;
         testEventFile.setFileName(QLatin1StringView(DATA_DIR) + u'/' + eventFileName);
-        testEventFile.open(QIODevice::ReadOnly);
-        return loadEvent<EventT>(QJsonDocument::fromJson(testEventFile.readAll()).object());
+        return testEventFile.open(QIODevice::ReadOnly)
+                   ? loadEvent<EventT>(QJsonDocument::fromJson(testEventFile.readAll()).object())
+                   : nullptr;
     }
     return nullptr;
 }
@@ -36,16 +37,24 @@ inline event_ptr_tt<EventT> loadEventFromFile(const QString &eventFileName)
 
 #define CREATE_CONNECTION(VAR, USERNAME, SECRET, DEVICE_NAME)             \
     const auto VAR = createTestConnection(USERNAME, SECRET, DEVICE_NAME); \
-    if (!VAR)                                                             \
-        QFAIL("Could not set up test connection");
+    do {                                                                  \
+        if (!VAR)                                                         \
+            QFAIL("Could not set up test connection");                    \
+    } while (false)
 
 template <typename JobT>
 inline bool waitForJob(const Quotient::JobHandle<JobT>& job)
 {
+    using namespace std::chrono_literals;
     const auto& [timeouts, retryIntervals, _] = job->currentBackoffStrategy();
     return QTest::qWaitFor([job] { return job.isFinished(); },
+#ifdef __cpp_lib_ranges_fold // libc 20 and Apple Clang 16 still don't have it
+                           (std::ranges::fold_left(timeouts, 0ms, std::plus{})
+                            + std::ranges::fold_left(retryIntervals, 0ms, std::plus{}))
+#else
                            std::chrono::milliseconds(
                                std::reduce(timeouts.cbegin(), timeouts.cend())
                                + std::reduce(retryIntervals.cbegin(), retryIntervals.cend()))
+#endif
                                .count());
 }

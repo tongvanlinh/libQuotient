@@ -64,7 +64,7 @@ public:
     QString sessionId() const { return contentPart<QString>(SessionIdKey); }
     RoomEventPtr createDecrypted(const QString &decrypted) const;
 
-    void setRelation(const QJsonObject& relation);
+    void applyRelationFrom(const RoomEvent& unencryptedEvent);
 };
 
 class QUOTIENT_API DummyEvent : public Event {
