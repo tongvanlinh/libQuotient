@@ -18,6 +18,7 @@
 #include <Quotient/events/redactionevent.h>
 #include <Quotient/events/simplestateevents.h>
 #include <Quotient/events/roommemberevent.h>
+#include <Quotient/events/stickerevent.h>
 
 #include <QtTest/QSignalSpy>
 #include <QtCore/QCoreApplication>
@@ -896,9 +897,11 @@ TEST_IMPL(thread)
             return false;
 
         const auto rootEvtId = rootEvt->id();
-        // Create a reply event without a relation, to test setRelation()
+
+        const auto stickerBody = u"Thread reply sticker"_s;
+        const auto stickerUrl = QUrl(u"mxc://example.com/example"_s);
         auto replyEvent =
-            makeEvent<RoomMessageEvent>(u"Thread reply 1"_s, RoomMessageEvent::MsgType::Text);
+            makeEvent<StickerEvent>(stickerBody, EventContent::ImageContent(stickerUrl));
         replyEvent->setRelation(EventRelation::replyInThread(rootEvtId, true, rootEvtId));
 
         const auto setRelation = replyEvent->relatesTo();
@@ -910,8 +913,12 @@ TEST_IMPL(thread)
         const auto replyTxnId = pendingItem->transactionId();
 
         targetRoom->whenMessageMerged(replyTxnId)
-            .then(this, [this, thisTest, rootEvtId](const RoomEvent &replyEvt) {
-            replyEvt.switchOnType([&](const RoomMessageEvent &mergedReply) {
+            .then(this,
+                  [this, thisTest, rootEvtId, stickerBody, stickerUrl](const RoomEvent &replyEvt) {
+            replyEvt.switchOnType([&](const StickerEvent &mergedReply) {
+                FAIL_TEST_IF(mergedReply.body() != stickerBody);
+                FAIL_TEST_IF(mergedReply.url() != stickerUrl);
+
                 const auto relation = mergedReply.relatesTo();
                 FAIL_TEST_IF(!relation, "No relation on merged event");
                 FAIL_TEST_IF(relation->type != EventRelation::ThreadType,
