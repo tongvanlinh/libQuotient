@@ -34,6 +34,8 @@ jobs:
           qt-version: '6.4'
         - os: windows-latest
           qt-version: '6.4'
+        - os: macos-14
+          qt-version: '6.10'
 
     env:
       GCC_VERSION: -13
