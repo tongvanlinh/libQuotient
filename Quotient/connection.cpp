@@ -1855,24 +1855,25 @@ void Connection::sendToDevice(const QString& targetUserId,
                               const QString& targetDeviceId, const Event& event,
                               bool encrypted)
 {
-    if (encrypted && !d->encryptionData) {
+    if (!encrypted) {
+        sendToDevices(event.matrixType(), {{targetUserId, {{targetDeviceId, event.contentJson()}}}});
+        return;
+    }
+
+    if (!d->encryptionData) {
         qWarning(E2EE) << "E2EE is off for" << objectName()
                        << "- no encrypted to-device message will be sent";
         return;
     }
-
-    if (encrypted && !d->encryptionData->hasOlmSession(targetUserId, targetDeviceId)) {
+    if (!d->encryptionData->hasOlmSession(targetUserId, targetDeviceId)) {
+        qWarning(E2EE) << "Olm session for" << targetUserId << '/' << targetDeviceId
+                       << "is missing, to-device message won't be sent";
         return;
     }
-
-    const auto contentJson =
-        encrypted
-            ? d->encryptionData->assembleEncryptedContent(event.fullJson(),
-                                                          targetUserId,
-                                                          targetDeviceId)
-            : event.contentJson();
-    sendToDevices(encrypted ? EncryptedEvent::TypeId : event.matrixType(),
-                  { { targetUserId, { { targetDeviceId, contentJson } } } });
+    sendToDevices(EncryptedEvent::TypeId,
+                  {{targetUserId,
+                    {{targetDeviceId, d->encryptionData->assembleEncryptedContent(
+                                          event.fullJson(), targetUserId, targetDeviceId)}}}});
 }
 
 bool Connection::isVerifiedSession(const QByteArray& megolmSessionId) const
