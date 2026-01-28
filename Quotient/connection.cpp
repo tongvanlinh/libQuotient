@@ -1838,6 +1838,10 @@ void Connection::sendToDevice(const QString& targetUserId,
         return;
     }
 
+    if (encrypted && !d->encryptionData->hasOlmSession(targetUserId, targetDeviceId)) {
+        return;
+    }
+
     const auto contentJson =
         encrypted
             ? d->encryptionData->assembleEncryptedContent(event.fullJson(),
