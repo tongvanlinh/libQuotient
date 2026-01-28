@@ -382,14 +382,14 @@ public:
         " EventTemplate; just use the base event class directly");
     using content_type = ContentT;
 
-    explicit EventTemplate(const QJsonObject& json)
-        : BaseEventT(json)
-    {}
     explicit EventTemplate(const ContentT& c)
         : BaseEventT(EventT::basicJson(EventT::TypeId, toJson(c)))
     {}
 
     ContentT content() const { return fromJson<ContentT>(this->contentJson()); }
+
+protected:
+    explicit EventTemplate(const QJsonObject &json) : BaseEventT(json) {}
 };
 
 //! \brief Supply event metatype information in base event types

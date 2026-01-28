@@ -11,16 +11,17 @@ namespace Quotient {
 /// Sticker messages are specialised image messages that are displayed without
 /// controls (e.g. no "download" link, or light-box view on click, as would be
 /// displayed for for m.image events).
-class QUOTIENT_API StickerEvent : public RoomEvent
+class QUOTIENT_API StickerEvent
+    : public EventTemplate<StickerEvent, RoomEvent, EventContent::ImageContent>
 {
 public:
     QUO_EVENT(StickerEvent, "m.sticker")
 
-    explicit StickerEvent(const QJsonObject& obj)
-        : RoomEvent(obj)
-        , m_imageContent(
-              EventContent::ImageContent(obj["content"_L1].toObject()))
-    {}
+    StickerEvent(const QString &body, content_type imageContent)
+        : EventTemplate(imageContent), m_imageContent(std::move(imageContent))
+    {
+        replaceSubvalue(editJson(), ContentKey, BodyKey, body);
+    }
 
     /// \brief A textual representation or associated description of the
     /// sticker image.
@@ -33,16 +34,21 @@ public:
     /// thumbnail representation.
     const EventContent::ImageContent& image() const
     {
-        return m_imageContent;
+        if (!m_imageContent)
+            m_imageContent.emplace(content());
+        return *m_imageContent;
     }
 
     /// \brief The URL to the sticker image. This must be a valid mxc:// URI.
     QUrl url() const
     {
-        return m_imageContent.url();
+        return image().url();
     }
 
+protected:
+    explicit StickerEvent(const QJsonObject &json) : EventTemplate(json) {}
+
 private:
-    EventContent::ImageContent m_imageContent;
+    mutable std::optional<EventContent::ImageContent> m_imageContent;
 };
 } // namespace Quotient
