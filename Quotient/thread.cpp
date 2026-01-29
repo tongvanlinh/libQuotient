@@ -32,7 +32,7 @@ ThreadInfos::UpdateResult ThreadInfos::updateFrom(const TimelineItem &eventItem)
     auto threadIt = base_type::find(threadRootId); // base_type:: to use non-const find()
     const auto isNew = threadIt == end();
     if (isNew)
-        threadIt = emplace(threadRootId, event.id());
+        threadIt = insert(threadRootId, {event.id()});
 #endif
 
     const auto updateInfo = [this, threadIt](const RoomEvent &evt) {
