@@ -207,7 +207,7 @@ jobs:
       run: |
         CTEST_ARGS="--test-dir $BUILD_PATH --output-on-failure"
         if [[ '${{ runner.os }}' != 'Linux' ]]; then
-            CTEST_ARGS="$CTEST_ARGS -E testolmaccount"
+            CTEST_ARGS="$CTEST_ARGS -LE needs_mock_server"
         else
             . autotests/setup-tests.sh
         fi
