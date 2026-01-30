@@ -7,6 +7,7 @@
 #include "quotient_export.h"
 
 #include <QtCore/QObject>
+#include <QtQmlIntegration/qqmlintegration.h>
 
 class TestKeyImport;
 
@@ -21,6 +22,8 @@ namespace Quotient
 class QUOTIENT_API KeyImport : public QObject
 {
     Q_OBJECT
+    QML_ELEMENT
+    QML_SINGLETON
 
 public:
     enum Error {

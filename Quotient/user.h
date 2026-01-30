@@ -8,6 +8,7 @@
 #include "util.h"
 
 #include <QtCore/QObject>
+#include <QtQmlIntegration/qqmlintegration.h>
 
 namespace Quotient {
 class Connection;
@@ -24,6 +25,9 @@ class RoomMemberEvent;
 //! \sa Quotient::RoomMember
 class QUOTIENT_API User : public QObject {
     Q_OBJECT
+    QML_ELEMENT
+    QML_UNCREATABLE("")
+
     Q_PROPERTY(QString id READ id CONSTANT)
     Q_PROPERTY(bool isGuest READ isGuest CONSTANT)
     Q_PROPERTY(QString name READ name NOTIFY defaultNameChanged)

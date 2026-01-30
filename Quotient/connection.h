@@ -24,6 +24,7 @@
 #include <QtCore/QObject>
 #include <QtCore/QSize>
 #include <QtCore/QUrl>
+#include <QtQmlIntegration/qqmlintegration.h>
 
 #include <functional>
 
@@ -102,8 +103,10 @@ using IgnoredUsersList = IgnoredUsersEvent::value_type;
 
 class QUOTIENT_API Connection : public QObject {
     Q_OBJECT
+    QML_ELEMENT
+    QML_UNCREATABLE("")
 
-    Q_PROPERTY(User* localUser READ user NOTIFY stateChanged)
+    Q_PROPERTY(Quotient::User* localUser READ user NOTIFY stateChanged)
     Q_PROPERTY(QString localUserId READ userId NOTIFY stateChanged)
     Q_PROPERTY(QString domain READ domain NOTIFY stateChanged STORED false)
     Q_PROPERTY(QString deviceId READ deviceId NOTIFY stateChanged)

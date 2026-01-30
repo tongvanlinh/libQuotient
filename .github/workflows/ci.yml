@@ -173,6 +173,13 @@ jobs:
         # Prefix the list here with "+" to use these queries and those in the config file.
         # queries: ./path/to/local/query, your-org/your-repo/queries@main
 
+    - name: Build and install ECM
+      run: |
+        cd ..
+        git clone https://invent.kde.org/frameworks/extra-cmake-modules.git
+        cmake -S extra-cmake-modules -B extra-cmake-modules/build $CMAKE_ARGS
+        cmake --build extra-cmake-modules/build --target install
+
     - name: Configure libQuotient
       run: |
         cmake -S $GITHUB_WORKSPACE -B $BUILD_PATH $CMAKE_ARGS -DQuotient_INSTALL_TESTS=ON

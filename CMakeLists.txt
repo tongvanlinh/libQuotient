@@ -11,7 +11,7 @@ string(JOIN ~ FULL_VERSION ${PROJECT_VERSION} ${PRE_STAGE})
 message(STATUS)
 message(STATUS "Configuring ${PROJECT_NAME} ${FULL_VERSION} ==>")
 
-find_package(ECM NO_MODULE)
+find_package(ECM REQUIRED NO_MODULE)
 if (ECM_FOUND)
     set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
     include(ECMEnableSanitizers)
@@ -90,7 +90,7 @@ set(${PROJECT_NAME}_INSTALL_INCLUDEDIR
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(${Qt} ${QtMinVersion} REQUIRED Core Network Gui Test Sql)
+find_package(${Qt} ${QtMinVersion} REQUIRED Core Network Gui Test Sql Qml)
 get_filename_component(Qt_Prefix "${${Qt}_DIR}/../../../.." ABSOLUTE)
 
 if(${Qt}Core_VERSION VERSION_GREATER_EQUAL 6.10)
@@ -257,6 +257,16 @@ target_sources(${QUOTIENT_LIB_NAME} PUBLIC FILE_SET HEADERS BASE_DIRS .
         libquotientemojis.qrc
 )
 
+include(ECMQmlModule)
+include(KDEInstallDirs)
+
+qt_extract_metatypes(${QUOTIENT_LIB_NAME})
+ecm_add_qml_module(${QUOTIENT_LIB_NAME}plugin URI io.github.quotient_im.libquotient GENERATE_PLUGIN_SOURCE DEPENDENCIES QtCore)
+target_include_directories(${QUOTIENT_LIB_NAME}plugin PRIVATE ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/Quotient/e2ee)
+qt_generate_foreign_qml_types(${QUOTIENT_LIB_NAME} ${QUOTIENT_LIB_NAME}plugin)
+target_link_libraries(${QUOTIENT_LIB_NAME}plugin PRIVATE ${Qt}::Core ${Qt}::Qml ${QUOTIENT_LIB_NAME})
+ecm_finalize_qml_module(${QUOTIENT_LIB_NAME}plugin DESTINATION ${KDE_INSTALL_QMLDIR} EXPORT ${QUOTIENT_LIB_NAME}Targets)
+
 # Configure API files generation
 
 set(CSAPI_DIR csapi)
@@ -376,7 +386,7 @@ target_include_directories(${QUOTIENT_LIB_NAME} PUBLIC
 
 target_link_libraries(${QUOTIENT_LIB_NAME}
     PUBLIC ${Qt}::Core ${Qt}::Network ${Qt}::Gui qt${${Qt}Core_VERSION_MAJOR}keychain Olm::Olm ${Qt}::Sql
-    PRIVATE OpenSSL::Crypto ${Qt}::CorePrivate)
+    PRIVATE OpenSSL::Crypto ${Qt}::CorePrivate ${Qt}::QmlIntegration)
 
 configure_file(${PROJECT_NAME}.pc.in ${CMAKE_CURRENT_BINARY_DIR}/${QUOTIENT_LIB_NAME}.pc @ONLY NEWLINE_STYLE UNIX)
 

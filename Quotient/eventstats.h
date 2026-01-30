@@ -18,6 +18,9 @@ namespace Quotient {
 //! \sa Room::unreadStats, Room::partiallyReadStats, Room::isEventNotable
 struct QUOTIENT_API EventStats {
     Q_GADGET
+    QML_NAMED_ELEMENT(eventStats)
+    QML_UNCREATABLE("")
+
     Q_PROPERTY(qsizetype notableCount MEMBER notableCount CONSTANT)
     Q_PROPERTY(qsizetype highlightCount MEMBER highlightCount CONSTANT)
     Q_PROPERTY(bool isEstimate MEMBER isEstimate CONSTANT)

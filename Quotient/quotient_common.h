@@ -10,6 +10,7 @@
 
 #include <array>
 #include <span>
+#include <QtQmlIntegration/qqmlintegration.h>
 
 //! \brief Quotient replacement for the Q_FLAG/Q_DECLARE_FLAGS combination
 //!
@@ -44,6 +45,7 @@
 
 namespace Quotient {
 Q_NAMESPACE_EXPORT(QUOTIENT_API)
+QML_ELEMENT
 
 //! \brief Enabling structure for conversion between a given enum and JSON
 //!
@@ -199,7 +201,7 @@ constexpr inline auto MegolmV1AesSha2AlgoKey = "m.megolm.v1.aes-sha2"_L1;
 QUO_META_ENUM(EncryptionType, EncryptionType::Undefined, MegolmV1AesSha2AlgoKey)
 
 //! Enum representing the available room join rules
-enum JoinRule : uint16_t {
+enum JoinRule : uint32_t {
     Public,
     Knock,
     Invite,

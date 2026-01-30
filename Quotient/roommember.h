@@ -8,6 +8,7 @@
 #include "avatar.h"
 
 #include <QtCore/QObject>
+#include <QtQmlIntegration/qqmlintegration.h>
 
 namespace Quotient {
 class Room;
@@ -31,6 +32,9 @@ class RoomMemberEvent;
 //! \sa User
 class QUOTIENT_API RoomMember {
     Q_GADGET
+    QML_NAMED_ELEMENT(roomMember)
+    QML_UNCREATABLE("")
+
     Q_PROPERTY(bool isEmpty READ isEmpty CONSTANT)
     Q_PROPERTY(QString id READ id CONSTANT)
     Q_PROPERTY(Uri uri READ uri CONSTANT)

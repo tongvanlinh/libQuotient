@@ -14,6 +14,7 @@ namespace Quotient {
 class QUOTIENT_API SSSSHandler : public QObject
 {
     Q_OBJECT
+    QML_ELEMENT
     Q_PROPERTY(Quotient::Connection* connection READ connection WRITE setConnection NOTIFY connectionChanged)
 
 public:

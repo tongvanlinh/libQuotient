@@ -8,6 +8,7 @@
 
 #include <QtCore/QObject>
 #include <QtCore/QPointer>
+#include <QtQmlIntegration/qqmlintegration.h>
 
 struct OlmSAS;
 
@@ -34,6 +35,8 @@ public:
 class QUOTIENT_API KeyVerificationSession : public QObject
 {
     Q_OBJECT
+    QML_ELEMENT
+    QML_UNCREATABLE("")
 
 public:
     enum State {
