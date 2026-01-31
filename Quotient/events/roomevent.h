@@ -46,6 +46,13 @@ public:
     }
     QString redactionReason() const;
 
+    //! \brief Make a redacted event
+    //!
+    //! This applies the redaction procedure as defined by the CS API specification to the event's
+    //! JSON and returns the resulting new event.
+    //! \note It is the responsibility of the caller to dispose of the original event after that.
+    event_ptr_tt<RoomEvent> makeRedacted(const RedactionEvent &redaction) const;
+
     //! The transaction_id JSON value for the event.
     QString transactionId() const;
 
@@ -149,6 +156,13 @@ public:
     //!         by another one; an empty string otherwise.
     //! \sa isReplaced, replacedEvent
     QString replacedBy() const;
+
+    //! \brief Make a replaced event
+    //!
+    //! \returns a clone of `*this` with content taken from \p replacement as described in
+    //!          https://spec.matrix.org/latest/client-server-api/#applying-mnew_content
+    //! \note Disposal of the original event after that is on the caller.
+    event_ptr_tt<RoomEvent> makeReplaced(const RoomEvent &replacementEvent) const;
 
     //! \brief Determine whether the event is part of a thread.
     //!
