@@ -5,6 +5,8 @@
 
 #include "event.h"
 
+#include "eventrelation.h"
+
 #include <QtCore/QDateTime>
 
 namespace Quotient {
@@ -44,6 +46,13 @@ public:
     }
     QString redactionReason() const;
 
+    //! \brief Make a redacted event
+    //!
+    //! This applies the redaction procedure as defined by the CS API specification to the event's
+    //! JSON and returns the resulting new event.
+    //! \note It is the responsibility of the caller to dispose of the original event after that.
+    event_ptr_tt<RoomEvent> makeRedacted(const RedactionEvent &redaction) const;
+
     //! The transaction_id JSON value for the event.
     QString transactionId() const;
 
@@ -78,11 +87,22 @@ public:
     const EncryptedEvent* originalEvent() const { return _originalEvent.get(); }
     const QJsonObject encryptedJson() const;
 
+    //! \brief Make a replaced event
+    //!
+    //! \returns a clone of `*this` with content taken from \p replacement as described in
+    //!          https://spec.matrix.org/latest/client-server-api/#applying-mnew_content
+    //! \note Disposal of the original event after that is on the caller.
+    event_ptr_tt<RoomEvent> makeReplaced(const RoomEvent &replacementEvent) const;
+
 protected:
     explicit RoomEvent(const QJsonObject& json);
     void dumpTo(QDebug dbg) const override;
 
+    virtual void afterRelationChange() {}
+
 private:
+    QString _id;
+
     // RedactionEvent is an incomplete type here so we cannot inline
     // constructors using it and also destructors (with 'using', in particular).
     event_ptr_tt<RedactionEvent> _redactedBecause;
