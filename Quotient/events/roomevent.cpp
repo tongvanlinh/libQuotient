@@ -5,8 +5,9 @@
 
 #include "encryptedevent.h"
 #include "redactionevent.h"
-#include "stateevent.h"
-
+#include "roomcreateevent.h"
+#include "roommemberevent.h"
+#include "roompowerlevelsevent.h"
 #include "../logging_categories_p.h"
 
 using namespace Quotient;
@@ -42,6 +43,57 @@ QString RoomEvent::senderId() const
 QString RoomEvent::redactionReason() const
 {
     return isRedacted() ? _redactedBecause->reason() : QString {};
+}
+
+event_ptr_tt<RoomEvent> RoomEvent::makeRedacted(const RedactionEvent &redaction) const
+{
+    // The logic below faithfully follows the spec despite quite a few of
+    // the preserved keys being only relevant for homeservers. Just in case.
+    static const QStringList TopLevelKeysToKeep{
+        EventIdKey,  TypeKey,          RoomIdKey,        SenderKey,
+        StateKeyKey, ContentKey,       "hashes"_L1,      "signatures"_L1,
+        "depth"_L1,  "prev_events"_L1, "auth_events"_L1, "origin_server_ts"_L1
+    };
+
+    auto originalJson = this->fullJson();
+    for (auto it = originalJson.begin(); it != originalJson.end();) {
+        if (!TopLevelKeysToKeep.contains(it.key()))
+            it = originalJson.erase(it);
+        else
+            ++it;
+    }
+    if (!this->is<RoomCreateEvent>()) { // See MSC2176 on create events
+        static const QHash<QString, QStringList> ContentKeysToKeepPerType{
+            { RedactionEvent::TypeId, { "redacts"_L1 } },
+            { RoomMemberEvent::TypeId,
+              { "membership"_L1, "join_authorised_via_users_server"_L1 } },
+            { RoomPowerLevelsEvent::TypeId,
+              { "ban"_L1, "events"_L1, "events_default"_L1, "invite"_L1,
+                "kick"_L1, "redact"_L1, "state_default"_L1, "users"_L1,
+                "users_default"_L1 } },
+            // TODO: Replace with RoomJoinRules::TypeId etc. once available
+            { "m.room.join_rules"_L1, { "join_rule"_L1, "allow"_L1 } },
+            { "m.room.history_visibility"_L1, { "history_visibility"_L1 } }
+        };
+
+        if (const auto contentKeysToKeep = ContentKeysToKeepPerType.value(this->matrixType());
+            !contentKeysToKeep.isEmpty()) {
+            editSubobject(originalJson, ContentKey, [&contentKeysToKeep](QJsonObject& content) {
+                for (auto it = content.begin(); it != content.end();) {
+                    if (!contentKeysToKeep.contains(it.key()))
+                        it = content.erase(it);
+                    else
+                        ++it;
+                }
+            });
+        } else {
+            originalJson.remove(ContentKey);
+            originalJson.remove(PrevContentKey);
+        }
+    }
+    replaceSubvalue(originalJson, UnsignedKey, RedactedCauseKey, redaction.fullJson());
+
+    return loadEvent<RoomEvent>(originalJson);
 }
 
 QString RoomEvent::transactionId() const
@@ -185,6 +237,21 @@ bool RoomEvent::isReplaced() const
 QString RoomEvent::replacedBy() const
 {
     return relationsToThis().value(EventRelation::ReplacementType)[EventIdKey].toString();
+}
+
+event_ptr_tt<RoomEvent> RoomEvent::makeReplaced(const RoomEvent &replacement) const
+{
+    // See https://spec.matrix.org/latest/client-server-api/#applying-mnew_content
+    auto newContent = replacement.contentPart<QJsonObject>(NewContentKey);
+    addParam<IfNotEmpty>(newContent, RelatesToKey, this->contentPart<QJsonObject>(RelatesToKey));
+    auto originalJson = this->fullJson();
+    originalJson.insert(ContentKey, newContent);
+    editSubobject(originalJson, UnsignedKey, [&replacement](QJsonObject &unsignedData) {
+        replaceSubvalue(unsignedData, RelationsKey, EventRelation::ReplacementType,
+                        replacement.id());
+    });
+
+    return loadEvent<RoomEvent>(originalJson);
 }
 
 bool RoomEvent::isThreaded() const
