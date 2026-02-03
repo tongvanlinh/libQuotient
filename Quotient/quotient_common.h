@@ -46,6 +46,7 @@
 namespace Quotient {
 Q_NAMESPACE_EXPORT(QUOTIENT_API)
 QML_ELEMENT
+Q_CLASSINFO("RegisterEnumClassesUnscoped", "false") // Prevent unscoped enums from overwriting each other
 
 //! \brief Enabling structure for conversion between a given enum and JSON
 //!
@@ -201,7 +202,7 @@ constexpr inline auto MegolmV1AesSha2AlgoKey = "m.megolm.v1.aes-sha2"_L1;
 QUO_META_ENUM(EncryptionType, EncryptionType::Undefined, MegolmV1AesSha2AlgoKey)
 
 //! Enum representing the available room join rules
-enum JoinRule : uint32_t {
+enum class JoinRule : uint32_t {
     Public,
     Knock,
     Invite,

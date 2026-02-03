@@ -1616,7 +1616,7 @@ RoomStateView Room::currentState() const
 
 JoinRule Room::joinRule() const
 {
-    return currentState().queryOr(&JoinRulesEvent::joinRule, Public);
+    return currentState().queryOr(&JoinRulesEvent::joinRule, JoinRule::Public);
 }
 
 QList<QString> Room::allowIds() const
@@ -1634,12 +1634,13 @@ void Room::setJoinRule(JoinRule newRule, const QList<QString>& allowedRooms)
         return;
     }
 
-    JoinRule actualRule = (newRule == Restricted || newRule == KnockRestricted) && allowedRooms.isEmpty() ? Invite : newRule;
+    using enum JoinRule;
+    if ((newRule == Restricted || newRule == KnockRestricted) && allowedRooms.isEmpty())
+        newRule = Invite;
     QList<EventContent::AllowCondition> newAllow;
-    for (const auto& room :allowedRooms) {
+    for (const auto& room :allowedRooms)
         newAllow.append({room, "m.room_membership"_L1});
-    }
-    setState<JoinRulesEvent>(actualRule, newAllow);
+    setState<JoinRulesEvent>(newRule, newAllow);
     // Not emitting joinRuleChanged() here, since that would override the change
     // in the UI with the *current* value, which is not the *new* value.
 }
