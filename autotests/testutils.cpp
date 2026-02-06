@@ -5,21 +5,16 @@
 
 #include "testutils.h"
 
-#include <Quotient/connection.h>
+#include <Quotient/room.h>
 #include <Quotient/networkaccessmanager.h>
 
 #include <QtTest/QSignalSpy>
 
-using Quotient::Connection;
+using Quotient::Connection, Quotient::Room;
 
-bool waitForSignal(auto objPtr, auto signal)
-{
-    return QSignalSpy(std::to_address(objPtr), signal).wait(60000);
-}
-
-std::shared_ptr<Quotient::Connection> Quotient::createTestConnection(QLatin1StringView localUserName,
-                                                                     QLatin1StringView secret,
-                                                                     QLatin1StringView deviceName)
+std::shared_ptr<Connection> Quotient::createTestConnection(QLatin1StringView localUserName,
+                                                           QLatin1StringView secret,
+                                                           QLatin1StringView deviceName)
 {
     static constexpr auto homeserverAddr = "localhost:1234"_L1;
     auto* const nam = NetworkAccessManager::instance();
@@ -44,4 +39,25 @@ std::shared_ptr<Quotient::Connection> Quotient::createTestConnection(QLatin1Stri
         return nullptr;
     }
     return c;
+}
+
+std::pair<Room *, Room *> Quotient::createTestChat(Connection *c1, Connection *c2)
+{
+    auto c2RoomFuture = c1->createDirectChat(c2->userId())
+                            .then([c2](const QString &roomId) {
+        return c2->joinAndGetRoom(roomId);
+    }).unwrap();
+    if (!waitForFuture(c2RoomFuture)) {
+        qCritical("Couldn't set up a test direct chat - check the logs above");
+        return {nullptr, nullptr};
+    }
+    auto c2Room = c2RoomFuture.result();
+    if (!c2Room || !c2Room->id().startsWith(u'!') || c2Room->joinState() != JoinState::Join) {
+        qCritical("Invalid room returned for the joined user");
+        return {nullptr, nullptr};
+    }
+    auto c1Room = c1->room(c2Room->id());
+    if (!c1Room || c1Room->id() != c2Room->id())
+        qFatal("Room views of the two members don't match");
+    return {c1Room, c2Room};
 }

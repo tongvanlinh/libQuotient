@@ -124,7 +124,7 @@ public:
     // about the timeline.
     EventStats partiallyReadStats {}, unreadStats {};
 
-    ThreadView threads;
+    ThreadInfos threads;
 
     // For storing a list of current member names for the purpose of disambiguation.
     QMultiHash<QString, QString> memberNameMap;
@@ -276,8 +276,6 @@ public:
      */
     Timeline::size_type moveEventsToTimeline(RoomEventsRange events,
                                              EventsPlacement placement);
-
-    void updateThread(const RoomEvent* event);
 
     /**
      * Remove events from the passed container that are already in the timeline
@@ -498,6 +496,7 @@ Room::Room(Connection* connection, QString id, JoinState initialJoinState)
     // See "Accessing the Public Class" section in
     // https://marcmutz.wordpress.com/translated-articles/pimp-my-pimpl-%E2%80%94-reloaded/
     d->q = this;
+    d->threads.setRoom(this);
     d->displayname = d->calculateDisplayname(); // Set initial "Empty room" name
     if (connection->encryptionEnabled()) {
         connect(this, &Room::encryption, this,
@@ -586,7 +585,7 @@ const Room::PendingEvents& Room::pendingEvents() const
     return d->unsyncedEvents;
 }
 
-const Room::ThreadView& Room::threads() const { return d->threads; }
+const ThreadInfos& Room::threads() const { return d->threads; }
 
 int Room::requestedHistorySize() const
 {
@@ -1873,46 +1872,16 @@ Room::Private::moveEventsToTimeline(RoomEventsRange events,
 
         if (auto n = q->checkForNotifications(ti); n.type != Notification::None)
             notifications.insert(eId, n);
-        Q_ASSERT(q->findInTimeline(eId)->event()->id() == eId);
-        updateThread(ti.event());
+        const auto eventIt = q->findInTimeline(eId);
+        if (QUO_CHECK(eventIt != q->historyEdge() && eventIt->event()->id() == eId))
+            if (auto [newThread, isNew] = threads.updateFrom(*eventIt); isNew)
+                emit q->newThread(eventIt->event()->threadRootEventId(), std::move(newThread));
     }
     const auto insertedSize = (index - baseIndex) * placement;
     QUO_CHECK(insertedSize == int(events.size()));
     return Timeline::size_type(insertedSize);
 }
 
-void Room::Private::updateThread(const RoomEvent* event)
-{
-    if (!event || !event->isThreaded()) {
-        return;
-    }
-
-    auto& thread = threads[event->threadRootEventId()];
-    const auto isNew = thread.threadRootId.isEmpty();
-    if (isNew) {
-        thread.threadRootId = event->threadRootEventId();
-        // If we can't find the root we assume it's a historical event and will be loaded later.
-        if (auto rootIt = q->findInTimeline(thread.threadRootId); rootIt != historyEdge()) {
-            thread.addEvent(rootIt->event(), true,
-                            (*rootIt)->senderId() == connection->userId());
-        }
-    }
-
-    const auto threadLatestIndex = eventsIndex.constFind(thread.latestEventId);
-    const auto eventIndexIt = eventsIndex.constFind(event->id());
-    if (QUO_ALARM_X(
-            eventIndexIt == eventsIndex.cend(),
-            event->id()
-                + u"not in the timeline. Update a thread after moving the event to timeline."_s)) {
-        return;
-    }
-
-    thread.addEvent(event,
-                    (threadLatestIndex == eventsIndex.cend() || *eventIndexIt > *threadLatestIndex),
-                    event->senderId() == connection->userId());
-
-    if (isNew) { emit q->newThread(thread); }
-}
 
 const Avatar& Room::memberAvatarObject(const QString& memberId) const
 {

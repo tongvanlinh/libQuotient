@@ -941,8 +941,7 @@ TEST_IMPL(thread)
                              "replyEventId() doesn't match root");
 
                 const auto thread = targetRoom->threads()[mergedReply.threadRootEventId()];
-                FINISH_TEST(thread.threadRootId == mergedReply.threadRootEventId()
-                            && thread.latestEventId == mergedReply.id() && thread.size == 2);
+                FINISH_TEST(thread.latestEventId == mergedReply.id() && thread.size == 2);
             }, [this, thisTest](const RoomEvent &) { FAIL_TEST(); });
         });
         return true;
