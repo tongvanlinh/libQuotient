@@ -38,7 +38,6 @@ namespace Quotient {
 class Event;
 class Avatar;
 class SyncRoomData;
-class RoomMemberEvent;
 class User;
 class RoomMember;
 struct MemberSorter;
