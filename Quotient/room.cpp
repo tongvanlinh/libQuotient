@@ -316,7 +316,7 @@ public:
         //            if (event.roomId().isEmpty())
         //                event.setRoomId(id);
         //            if (event.senderId().isEmpty())
-        //                event.setSender(connection->userId());
+        //                event.setSender(q->localUserId());
         // TODO: Queue up state events sending (see #133).
         return connection->callApi<SetRoomStateWithKeyJob>(id, evtType, stateKey,
                                                            contentJson);
@@ -342,7 +342,7 @@ public:
 
     QJsonObject toJson() const;
 
-    bool isLocalMember(const QString& memberId) const { return memberId == connection->userId(); }
+    bool isLocalMember(const QString& memberId) const { return memberId == q->localUserId(); }
 
     //! \brief Check whether room (co-)creators have infinite power
     //!
@@ -463,11 +463,12 @@ public:
         connection->database()->saveCurrentOutboundMegolmSession(
             id, *currentOutboundMegolmSession);
 
-        addInboundGroupSession(currentOutboundMegolmSession->sessionId(),
-                               currentOutboundMegolmSession->sessionKey(),
-                               q->localMember().id(), QByteArrayLiteral("SELF"),
-                               connection->curveKeyForUserDevice(connection->userId(), connection->deviceId()).toLatin1(),
-                               connection->edKeyForUserDevice(connection->userId(), connection->deviceId()).toLatin1());
+        addInboundGroupSession(
+            currentOutboundMegolmSession->sessionId(), currentOutboundMegolmSession->sessionKey(),
+            connection->userId(), QByteArrayLiteral("SELF"),
+            connection->curveKeyForUserDevice(connection->userId(), connection->deviceId())
+                .toLatin1(),
+            connection->edKeyForUserDevice(connection->userId(), connection->deviceId()).toLatin1());
     }
 
     QMultiHash<QString, QString> getDevicesWithoutKey() const
@@ -531,6 +532,8 @@ Room::Room(Connection* connection, QString id, JoinState initialJoinState)
 Room::~Room() { delete d; }
 
 const QString& Room::id() const { return d->id; }
+
+QString Room::localUserId() const { return connection()->userId(); }
 
 QString Room::version() const
 {
@@ -675,7 +678,7 @@ QImage Room::avatar(int width, int height)
                                : d->avatar.get(width, height, [this] { emit avatarChanged(); });
 }
 
-RoomMember Room::localMember() const { return member(connection()->userId()); }
+RoomMember Room::localMember() const { return member(localUserId()); }
 
 RoomMember Room::member(const QString& userId) const
 {
@@ -871,8 +874,7 @@ Room::Changes Room::Private::setLocalLastReadReceipt(const rev_iter_t& newMarker
                                                      ReadReceipt newReceipt,
                                                      bool deferStatsUpdate)
 {
-    auto prevEventId = setLastReadReceipt(connection->userId(), newMarker,
-                                          std::move(newReceipt));
+    auto prevEventId = setLastReadReceipt(q->localUserId(), newMarker, std::move(newReceipt));
     if (!prevEventId)
         return Change::None;
     Changes changes = Change::Other;
@@ -890,7 +892,7 @@ Room::Changes Room::Private::setLocalLastReadReceipt(const rev_iter_t& newMarker
         }
         Q_ASSERT(unreadStats.isValidFor(q, newMarker)); // post-check
     }
-    emit q->lastReadEventChanged({ connection->userId() });
+    emit q->lastReadEventChanged({q->localUserId()});
     return changes;
 }
 
@@ -1029,8 +1031,7 @@ void Room::setReadReceipt(const QString& atEventId)
                                               QString::fromUtf8(QUrl::toPercentEncoding(atEventId)));
         d->postprocessChanges(changes);
     } else
-        qCDebug(EPHEMERAL) << "The new read receipt for" << localMember().id()
-                           << "in" << objectName()
+        qCDebug(EPHEMERAL) << "The new read receipt for" << localUserId() << "in" << objectName()
                            << "is at or behind the old one, skipping";
 }
 
@@ -1074,12 +1075,11 @@ bool Room::canSwitchVersions() const
     if (!successorId().isEmpty())
         return false; // No one can upgrade a room that's already upgraded
 
-    if (d->isAlmightyCreator(connection()->userId()))
+    if (d->isAlmightyCreator(localUserId()))
         return true;
 
     if (const auto* plEvt = currentState().get<RoomPowerLevelsEvent>()) {
-        const auto currentUserLevel =
-            plEvt->powerLevelForUser(localMember().id());
+        const auto currentUserLevel = plEvt->powerLevelForUser(localUserId());
         const auto tombstonePowerLevel =
             plEvt->powerLevelForState("m.room.tombstone"_L1);
         return currentUserLevel >= tombstonePowerLevel;
@@ -1092,11 +1092,11 @@ bool Room::isEventNotable(const TimelineItem &ti) const
     const auto& evt = *ti;
     const auto* rme = ti.viewAs<RoomMessageEvent>();
     return !evt.isRedacted()
-           && (is<RoomTopicEvent>(evt) || is<RoomNameEvent>(evt)
-               || is<RoomAvatarEvent>(evt) || is<RoomTombstoneEvent>(evt)
+           && (is<RoomTopicEvent>(evt) || is<RoomNameEvent>(evt) || is<RoomAvatarEvent>(evt)
+               || is<RoomTombstoneEvent>(evt)
                || (rme && rme->msgtype() != MessageEventType::Notice
                    && rme->replacedEvent().isEmpty()))
-           && evt.senderId() != localMember().id();
+           && evt.senderId() != localUserId();
 }
 
 Notification Room::notificationFor(const TimelineItem &ti) const
@@ -1285,7 +1285,7 @@ ReadReceipt Room::lastReadReceipt(const QString& userId) const
 
 ReadReceipt Room::lastLocalReadReceipt() const
 {
-    return d->lastReadReceipts.value(localMember().id());
+    return d->lastReadReceipts.value(localUserId());
 }
 
 Room::rev_iter_t Room::localReadReceiptMarker() const
@@ -1406,7 +1406,7 @@ void Room::addTag(const QString& name, const Tag& tagData)
     emit tagsAboutToChange();
     d->tags.insert(checkRes.second, tagData);
     emit tagsChanged();
-    connection()->callApi<SetRoomTagJob>(localMember().id(), id(), checkRes.second, tagData);
+    connection()->callApi<SetRoomTagJob>(localUserId(), id(), checkRes.second, tagData);
 }
 
 void Room::addTag(const QString& name, float order)
@@ -1420,7 +1420,7 @@ void Room::removeTag(const QString& name)
         emit tagsAboutToChange();
         d->tags.remove(name);
         emit tagsChanged();
-        connection()->callApi<DeleteRoomTagJob>(localMember().id(), id(), name);
+        connection()->callApi<DeleteRoomTagJob>(localUserId(), id(), name);
     } else if (!name.startsWith("u."_L1))
         removeTag("u."_L1 + name);
     else
@@ -1442,8 +1442,7 @@ void Room::setTags(TagsMap newTags, ActionScope applyOn)
 
     d->setTags(std::move(newTags));
     connection()->callApi<SetAccountDataPerRoomJob>(
-        localMember().id(), id(), TagEvent::TypeId,
-        Quotient::toJson(TagEvent::content_type { d->tags }));
+        localUserId(), id(), TagEvent::TypeId, Quotient::toJson(TagEvent::content_type{d->tags}));
 
     if (propagate) {
         for (auto* r = this; (r = r->successor(joinStates));)
@@ -1647,7 +1646,7 @@ void Room::setJoinRule(JoinRule newRule, const QList<QString>& allowedRooms)
 
 int Room::memberEffectivePowerLevel(const UserId& memberId) const
 {
-    auto actualMemberId = memberId.isEmpty() ? connection()->userId() : memberId;
+    auto actualMemberId = memberId.isEmpty() ? localUserId() : memberId;
     return d->isAlmightyCreator(actualMemberId)
                ? std::numeric_limits<int>::max()
                : currentState().get<RoomPowerLevelsEvent>()->powerLevelForUser(actualMemberId);
@@ -2057,7 +2056,7 @@ Room::PendingEvents::iterator Room::Private::addAsPending(RoomEventPtr&& event)
     if (event->roomId().isEmpty())
         event->setRoomId(id);
     if (event->senderId().isEmpty())
-        event->setSender(connection->userId());
+        event->setSender(q->localUserId());
     emit q->pendingEventAboutToAdd(std::to_address(event));
     auto it = unsyncedEvents.emplace(unsyncedEvents.end(), std::move(event));
     emit q->pendingEventAdded(it->event());
@@ -2112,7 +2111,7 @@ const PendingEventItem& Room::Private::doSendEvent(PendingEvents::iterator event
             connection->deviceId(), QString::fromLatin1(currentOutboundMegolmSession->sessionId()));
         encryptedEvent->setTransactionId(connection->generateTxnId());
         encryptedEvent->setRoomId(id);
-        encryptedEvent->setSender(connection->userId());
+        encryptedEvent->setSender(q->localUserId());
         encryptedEvent->applyRelationFrom(*eventItem);
         // We show the unencrypted event locally while pending. The echo
         // check will throw the encrypted version out
@@ -2871,9 +2870,9 @@ Room::Changes Room::Private::addNewMessageEvents(RoomEvents&& events)
                 emit q->callEvent(q, evt);
 
     for (auto it = from; it != syncEdge(); ++it) {
-        if (it->event()->senderId() == connection->userId()) {
+        if (it->event()->senderId() == q->localUserId()) {
             if (const auto* evt = it->viewAs<RoomMessageEvent>()) {
-                if (evt->rawMsgtype() == "m.key.verification.request"_L1 && pendingKeyVerificationSession && evt->senderId() == q->localMember().id()) {
+                if (evt->rawMsgtype() == "m.key.verification.request"_L1 && pendingKeyVerificationSession && evt->senderId() == q->localUserId()) {
                     keyVerificationSessions[evt->id()] = pendingKeyVerificationSession;
                     connect(pendingKeyVerificationSession.get(), &QObject::destroyed, q, [this, evt] {
                         keyVerificationSessions.remove(evt->id());
@@ -2921,8 +2920,7 @@ Room::Changes Room::Private::addNewMessageEvents(RoomEvents&& events)
         // and the fully read marker was right before it, promote
         // the fully read marker to the same event as the read receipt.
         const auto& firstWriterId = (*from)->senderId();
-        if (firstWriterId == connection->userId()
-            && q->fullyReadMarker().base() == from)
+        if (firstWriterId == q->localUserId() && q->fullyReadMarker().base() == from)
             roomChanges |=
                 setFullyReadMarker(q->lastReadReceipt(firstWriterId).eventId);
     }
@@ -3128,7 +3126,7 @@ Room::Change Room::Private::processStateEvent(const RoomEvent& curEvent,
             case Membership::Invite:
                 if (!membersInvited.contains(evt.userId()))
                         membersInvited.push_back(evt.userId());
-                if (evt.userId() == connection->userId() && evt.isDirect())
+                if (evt.userId() == q->localUserId() && evt.isDirect())
                     connection->addToDirectChats(q, evt.userId());
                 break;
             case Membership::Knock:
@@ -3289,7 +3287,7 @@ Room::Changes Room::processEphemeralEvent(EventPtr&& event)
                                     fromJson<QDateTime>(
                                         userIt->toObject().value("ts"_L1)) };
                     const auto userId = userIt.key();
-                    if (userId == connection()->userId()) {
+                    if (userId == localUserId()) {
                         // Local user is special, and will get a signal about
                         // its read receipt separately from (and before) a
                         // signal on everybody else. No particular reason, just
@@ -3485,15 +3483,15 @@ QJsonObject Room::Private::toJson() const
         result.insert("account_data"_L1, QJsonObject{ { u"events"_s, accountDataEvents } });
     }
 
-    if (const auto& readReceipt = q->lastReadReceipt(connection->userId());
+    if (const auto& readReceipt = q->lastReadReceipt(q->localUserId());
         !readReceipt.eventId.isEmpty()) //
     {
         result.insert("ephemeral"_L1,
-                      QJsonObject{ { u"events"_s,
-                                     QJsonArray{ ReceiptEvent({ { readReceipt.eventId,
-                                                                  { { connection->userId(),
-                                                                      readReceipt.timestamp } } } })
-                                                     .fullJson() } } });
+                      QJsonObject{
+                          {u"events"_s,
+                           QJsonArray{ReceiptEvent({{readReceipt.eventId,
+                                                     {{q->localUserId(), readReceipt.timestamp}}}})
+                                          .fullJson()}}});
     }
 
     result.insert(UnreadNotificationsKey,
