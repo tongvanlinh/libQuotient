@@ -1401,10 +1401,9 @@ Room* Connection::provideRoom(const QString& id, std::optional<JoinState> joinSt
         else if (*joinState == JoinState::Leave)
             emit leftRoom(room, prevInvite);
         if (prevInvite) {
-            for (const auto dcMembers = prevInvite->directChatMembers(); const auto& m : dcMembers)
-                addToDirectChats(room, m.id());
-            qCDebug(MAIN) << "Deleting Invite state for room"
-                          << prevInvite->id();
+            for (const auto &memberId : directChatMemberIds(prevInvite))
+                addToDirectChats(room, memberId);
+            qCDebug(MAIN) << "Deleting Invite state for room" << prevInvite->id();
             emit prevInvite->beforeDestruction(prevInvite);
             prevInvite->deleteLater();
         }

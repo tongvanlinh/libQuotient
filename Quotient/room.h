@@ -125,6 +125,7 @@ class QUOTIENT_API Room : public QObject {
     Q_PROPERTY(Quotient::Connection* connection READ connection CONSTANT)
     Q_PROPERTY(Quotient::RoomMember localMember READ localMember CONSTANT)
     Q_PROPERTY(QString id READ id CONSTANT)
+    Q_PROPERTY(QString localUserId READ localUserId CONSTANT)
     Q_PROPERTY(QString version READ version NOTIFY baseStateLoaded)
     Q_PROPERTY(bool isUnstable READ isUnstable NOTIFY stabilityUpdated)
     Q_PROPERTY(QString predecessorId READ predecessorId NOTIFY baseStateLoaded)
@@ -234,6 +235,14 @@ public:
     //! Get a RoomMember object for the local user.
     RoomMember localMember() const;
     const QString& id() const;
+
+    //! \brief Get the local user's MXID
+    //!
+    //! The same as `connection()->userId()`; also similar to `localMember().id()` but doesn't
+    //! create a temporary RoomMember object and also doesn't check whether the local user actually
+    //! is a member of this room - which is why it's not called `localMemberId()`.
+    QString localUserId() const;
+
     QString version() const;
     bool isUnstable() const;
     QString predecessorId() const;
