@@ -51,5 +51,10 @@ public:
     bool isLeave() const;
     bool isRename() const;
     bool isAvatarUpdate() const;
+
+    //! `newDisplayName()`, if not empty; otherwise, `prevContent()->displayName`
+    QString bestEffortDisplayName(bool fallbackToMxid = false) const;
+    QString fullName() const;
+    bool fullNameMatches(QStringView substr, Qt::CaseSensitivity cs) const;
 };
 } // namespace Quotient

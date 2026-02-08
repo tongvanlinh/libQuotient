@@ -4,7 +4,7 @@
 
 #include "roommemberevent.h"
 
-#include "../logging_categories_p.h"
+#include <QtCore/QStringBuilder>
 
 using namespace Quotient;
 
@@ -85,4 +85,24 @@ bool RoomMemberEvent::isAvatarUpdate() const
     return prevContent() && prevContent()->avatarUrl
                ? newAvatarUrl() != *prevContent()->avatarUrl
                : newAvatarUrl().has_value();
+}
+
+QString RoomMemberEvent::bestEffortDisplayName(bool fallbackToMxid) const
+{
+    // See https://github.com/matrix-org/matrix-doc/issues/1375
+    auto displayName = newDisplayName();
+    if (!displayName)
+        displayName = lift(&MemberEventContent::displayName, prevContent());
+    return lift(&sanitized, displayName).value_or(fallbackToMxid ? userId() : QString());
+}
+
+QString RoomMemberEvent::fullName() const
+{
+    const auto displayName = bestEffortDisplayName();
+    return displayName.isEmpty() ? id() : displayName % u" (" % id() % u')';
+}
+
+bool RoomMemberEvent::fullNameMatches(QStringView substr, Qt::CaseSensitivity cs) const
+{
+    return fullName().contains(substr, cs);
 }

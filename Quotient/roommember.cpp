@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2023 James Graham <james.h.graham@protonmail.com>
+// SPDX-FileCopyrightText: 2026 Alexey Rusakov <kitsune@users.sf.net>
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
 #include "roommember.h"
@@ -49,27 +50,19 @@ Membership RoomMember::membershipState() const
 
 QString RoomMember::name() const
 {
-    if (_member == nullptr) {
-        return {};
-    }
-    // See https://github.com/matrix-org/matrix-doc/issues/1375
-    if (_member->newDisplayName())
-        return sanitized(*_member->newDisplayName());
-    if (_member->prevContent() && _member->prevContent()->displayName)
-        return sanitized(*_member->prevContent()->displayName);
-    return {};
+    return _member ? _member->bestEffortDisplayName() : QString();
 }
 
-QString RoomMember::displayName() const { return name().isEmpty() ? id() : name(); }
+QString RoomMember::displayName() const
+{
+    if (auto dispName = name(); !dispName.isEmpty())
+        return name();
+    return id();
+}
 
 QString RoomMember::htmlSafeDisplayName() const { return displayName().toHtmlEscaped(); }
 
-QString RoomMember::fullName() const {
-    if (name().isEmpty()) {
-        return id();
-    }
-    return name() % u" (" % id() % u')';
-}
+QString RoomMember::fullName() const { return _member ? _member->fullName() : QString(); }
 
 QString RoomMember::htmlSafeFullName() const { return fullName().toHtmlEscaped(); }
 
@@ -79,7 +72,7 @@ QString RoomMember::htmlSafeDisambiguatedName() const { return disambiguatedName
 
 bool RoomMember::matches(QStringView substr, Qt::CaseSensitivity cs) const
 {
-    return name().contains(substr, cs) || id().contains(substr, cs);
+    return _member && _member->fullNameMatches(substr, cs);
 }
 
 int RoomMember::hue() const { return static_cast<int>(hueF() * 359); }
