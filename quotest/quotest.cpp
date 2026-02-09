@@ -730,7 +730,7 @@ TEST_IMPL(addAndRemoveTag)
 
 bool TestSuite::checkDirectChat() const
 {
-    return targetRoom->directChatMembers().contains(targetRoom->member(connection()->user()->id()));
+    return targetRoom->directChatMembers().ids().contains(connection()->user()->id());
 }
 
 TEST_IMPL(markDirectChat)

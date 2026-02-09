@@ -18,8 +18,6 @@
 #include "logging_categories_p.h"
 #include "qt_connection_util.h"
 #include "quotient_common.h"
-#include "ranges_extras.h"
-#include "roommember.h"
 #include "roomstateview.h"
 #include "syncdata.h"
 #include "thread.h"
@@ -663,9 +661,8 @@ const Avatar& Room::avatarObject() const
     // If the avatar is not empty use it; otherwise, try to use the first (excluding self) user's
     // avatar for direct chats, or just return the empty room avatar if that doesn't work out
     if (d->avatar.isEmpty())
-        for (const auto dcMembers = directChatMembers(); const auto& m : dcMembers)
-            if (m != localMember())
-                return m.avatarObject();
+        if (auto m = directChatMembers().firstNonLocal(); !m.isEmpty())
+            return m.avatarObject();
 
     return d->avatar;
 }
@@ -678,14 +675,14 @@ QImage Room::avatar(int width, int height)
                                : d->avatar.get(width, height, [this] { emit avatarChanged(); });
 }
 
-RoomMember Room::localMember() const { return member(localUserId()); }
+MemberProxy Room::localMember() const { return member(localUserId()); }
 
-RoomMember Room::member(const QString& userId) const
+MemberProxy Room::member(const QString& userId) const
 {
     if (userId.isEmpty()) {
         return {};
     }
-    return RoomMember(this, currentState().get<RoomMemberEvent>(userId));
+    return MemberProxy(this, currentState().get<RoomMemberEvent>(userId));
 }
 
 QStringList Room::creatorIds() const
@@ -700,78 +697,44 @@ QStringList Room::creatorIds() const
     return {};
 }
 
-QList<RoomMember> Room::joinedMembers() const
+MemberListProxy Room::joinedMembers() const
 {
-    QList<RoomMember> joinedMembers;
-    joinedMembers.reserve(joinedCount());
-
-    const auto memberEvents = currentState().eventsOfType(RoomMemberEvent::TypeId);
-    for (const auto event : memberEvents) {
-        if (const auto memberEvent = eventCast<const RoomMemberEvent>(event);
-            memberEvent->membership() == Membership::Join) {
-            joinedMembers.append(RoomMember(this, memberEvent));
-        }
-    }
-    return joinedMembers;
+    return {std::from_range, currentState().joinedMembers(), this};
 }
 
-QList<RoomMember> Room::members() const {
-    QList<RoomMember> members;
-    members.reserve(totalMemberCount());
-
-    const auto memberEvents = currentState().eventsOfType(RoomMemberEvent::TypeId);
-    for (const auto event : memberEvents) {
-        if (const auto memberEvent = eventCast<const RoomMemberEvent>(event)) {
-            members.append(RoomMember(this, memberEvent));
-        }
-    }
-    return members;
+MemberListProxy Room::members() const
+{
+    return filteredMembers([](const RoomMemberEvent &) { return true; });
 }
 
-QList<RoomMember> Room::membersTyping() const
+MemberListProxy Room::membersTyping() const
 {
-    QList<RoomMember> members;
-    members.reserve(d->membersTyping.count());
-    for (const auto &memberId : d->membersTyping) {
-        members.append(member(memberId));
-    }
-    return members;
+    return {std::from_range, currentState().someEventsOfType<RoomMemberEvent>(d->membersTyping),
+            this};
 }
 
-QList<RoomMember> Room::otherMembersTyping() const
+MemberListProxy Room::otherMembersTyping() const
 {
-    auto memberTyping = membersTyping();
-    memberTyping.removeAll(localMember());
-    return memberTyping;
+    return {std::from_range,
+            currentState().someEventsOfType<RoomMemberEvent>(std::views::filter(
+                d->membersTyping,
+                [this](const QString &id) { return id != localUserId(); })),
+            this};
 }
 
 QStringList Room::joinedMemberIds() const
 {
-    QStringList ids;
-    ids.reserve(joinedCount());
-
-    const auto memberEvents = currentState().eventsOfType(RoomMemberEvent::TypeId);
-    for (const auto event : memberEvents) {
-        if (const auto memberEvent = eventCast<const RoomMemberEvent>(event);
-            memberEvent->membership() == Membership::Join) {
-            ids.append(memberEvent->userId());
-        }
-    }
-    return ids;
+    // The same as joinedMembers().ids() but more efficient
+    return rangeTo<QStringList>(currentState().joinedMembers()
+                                | std::views::transform(&StateEvent::stateKey));
 }
 
 QStringList Room::memberIds() const
 {
-    QStringList ids;
-    ids.reserve(totalMemberCount());
-
-    const auto memberEvents = currentState().eventsOfType(RoomMemberEvent::TypeId);
-    for (const auto event : memberEvents) {
-        if (const auto memberEvent = eventCast<const RoomMemberEvent>(event)) {
-            ids.append(memberEvent->userId());
-        }
-    }
-    return ids;
+    // The same as members().ids() but more efficient
+    return rangeTo<QStringList>(currentState().events()
+                                | std::views::filter(std::mem_fn(&Event::is<RoomMemberEvent>))
+                                | std::views::transform(&StateEvent::stateKey));
 }
 
 bool Room::needsDisambiguation(const QString& userId) const
@@ -1478,16 +1441,12 @@ bool Room::isServerNoticeRoom() const
 
 bool Room::isDirectChat() const { return connection()->isDirectChat(id()); }
 
-QList<RoomMember> Room::directChatMembers() const
+MemberListProxy Room::directChatMembers() const
 {
-    auto memberIds = connection()->directChatMemberIds(this);
-    QList<RoomMember> members;
-    for (const auto& memberId : memberIds) {
-        if (currentState().contains<RoomMemberEvent>(memberId)) {
-            members.append(RoomMember(this, currentState().get<RoomMemberEvent>(memberId)));
-        }
-    }
-    return members;
+    return {std::from_range,
+            currentState().someEventsOfType<RoomMemberEvent>(
+                connection()->directChatMemberIds(this)),
+            this};
 }
 
 QUrl Room::makeMediaUrl(const QString& eventId, const QUrl& mxcUrl) const
@@ -1590,13 +1549,9 @@ QString Room::prettyPrint(const QString& plainText) const
     return Quotient::prettyPrint(plainText);
 }
 
-QList<RoomMember> Room::membersLeft() const {
-    QList<RoomMember> members;
-    members.reserve(d->membersLeft.count());
-    for (const auto &memberId : d->membersLeft) {
-        members.append(member(memberId));
-    }
-    return members;
+MemberListProxy Room::membersLeft() const
+{
+    return {std::from_range, currentState().someEventsOfType<RoomMemberEvent>(d->membersLeft), this};
 }
 
 int Room::timelineSize() const { return int(d->timeline.size()); }
@@ -1620,11 +1575,10 @@ JoinRule Room::joinRule() const
 
 QList<QString> Room::allowIds() const
 {
-    QList<QString> allowIds;
-    for (const auto& allowCondition : currentState().queryOr(&JoinRulesEvent::allow, QList<EventContent::AllowCondition>())) {
-        allowIds.append(allowCondition.roomId);
-    }
-    return allowIds;
+    if (auto *jre = currentState().get<JoinRulesEvent>())
+        return rangeTo<QList>(
+            std::ranges::transform_view(jre->allow(), &EventContent::AllowCondition::roomId));
+    return {};
 }
 
 void Room::setJoinRule(JoinRule newRule, const QList<QString>& allowedRooms)

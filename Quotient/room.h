@@ -10,22 +10,21 @@
 #pragma once
 
 #include "connection.h"
-#include "roommember.h"
-#include "roomstateview.h"
 #include "eventitem.h"
+#include "memberlistproxy.h"
 #include "quotient_common.h"
-
+#include "roomstateview.h"
 #include "csapi/message_pagination.h"
-
 #include "events/accountdataevents.h"
 #include "events/encryptedevent.h"
 #include "events/eventrelation.h"
 #include "events/roomcreateevent.h"
+#include "events/roomjoinrulesevent.h"
 #include "events/roomkeyevent.h"
+#include "events/roommemberevent.h"
 #include "events/roommessageevent.h"
 #include "events/roompowerlevelsevent.h"
 #include "events/roomtombstoneevent.h"
-#include "events/roomjoinrulesevent.h"
 
 #include <QtCore/QJsonObject>
 #include <QtGui/QImage>
@@ -39,7 +38,6 @@ class Event;
 class Avatar;
 class SyncRoomData;
 class User;
-class RoomMember;
 struct MemberSorter;
 class LeaveRoomJob;
 class SetRoomStateWithKeyJob;
@@ -123,7 +121,7 @@ class QUOTIENT_API Room : public QObject {
     QML_UNCREATABLE("")
 
     Q_PROPERTY(Quotient::Connection* connection READ connection CONSTANT)
-    Q_PROPERTY(Quotient::RoomMember localMember READ localMember CONSTANT)
+    Q_PROPERTY(Quotient::MemberProxy localMember READ localMember CONSTANT)
     Q_PROPERTY(QString id READ id CONSTANT)
     Q_PROPERTY(QString localUserId READ localUserId CONSTANT)
     Q_PROPERTY(QString version READ version NOTIFY baseStateLoaded)
@@ -148,8 +146,8 @@ class QUOTIENT_API Room : public QObject {
     Q_PROPERTY(int joinedCount READ joinedCount NOTIFY memberListChanged)
     Q_PROPERTY(int invitedCount READ invitedCount NOTIFY memberListChanged)
     Q_PROPERTY(int totalMemberCount READ totalMemberCount NOTIFY memberListChanged)
-    Q_PROPERTY(QList<Quotient::RoomMember> membersTyping READ membersTyping NOTIFY typingChanged)
-    Q_PROPERTY(QList<Quotient::RoomMember> otherMembersTyping READ otherMembersTyping NOTIFY typingChanged)
+    Q_PROPERTY(MemberListProxy membersTyping READ membersTyping NOTIFY typingChanged)
+    Q_PROPERTY(MemberListProxy otherMembersTyping READ otherMembersTyping NOTIFY typingChanged)
     Q_PROPERTY(int localMemberEffectivePowerLevel READ memberEffectivePowerLevel NOTIFY changed)
 
     Q_PROPERTY(bool displayed READ displayed WRITE setDisplayed NOTIFY
@@ -232,14 +230,14 @@ public:
 
     Connection* connection() const;
 
-    //! Get a RoomMember object for the local user.
-    RoomMember localMember() const;
+    //! Get a MemberProxy object for the local user.
+    MemberProxy localMember() const;
     const QString& id() const;
 
     //! \brief Get the local user's MXID
     //!
     //! The same as `connection()->userId()`; also similar to `localMember().id()` but doesn't
-    //! create a temporary RoomMember object and also doesn't check whether the local user actually
+    //! create a temporary MemberProxy object and also doesn't check whether the local user actually
     //! is a member of this room - which is why it's not called `localMemberId()`.
     QString localUserId() const;
 
@@ -307,31 +305,39 @@ public:
      */
     Q_INVOKABLE QImage avatar(int width, int height);
 
-    //! \brief Get a RoomMember object for the given user Matrix ID
+    //! \brief Get a MemberProxy object for the given user Matrix ID
     //!
     //! Will return a nullptr if there is no m.room.member event for the user in
     //! the room so needs to be null checked.
     //!
     //! \note This can return a member in any state that is known to the room so
-    //!       check the state (using RoomMember::membershipState()) before use.
-    Q_INVOKABLE RoomMember member(const QString& userId) const;
+    //!       check the state (using MemberProxy::membershipState()) before use.
+    Q_INVOKABLE MemberProxy member(const QString& userId) const;
 
     //! Get a list of room members who have joined the room.
-    QList<RoomMember> joinedMembers() const;
+    MemberListProxy joinedMembers() const;
 
     //! Get a list of all members known to the room.
-    QList<RoomMember> members() const;
+    MemberListProxy members() const;
 
     //! Get a list of all members known to have left the room.
-    QList<RoomMember> membersLeft() const;
+    MemberListProxy membersLeft() const;
 
     //! Get a list of room members who are currently sending a typing indicator.
-    QList<RoomMember> membersTyping() const;
+    MemberListProxy membersTyping() const;
 
     //! \brief Get a list of room members who are currently sending a typing indicator.
     //!
     //! The local member is excluded from this list.
-    QList<RoomMember> otherMembersTyping() const;
+    MemberListProxy otherMembersTyping() const;
+
+    //! Get a list of members satisfying a predicate applied to their current member events
+    template <typename PredT>
+        requires std::is_invocable_r_v<bool, PredT, const RoomMemberEvent &>
+    MemberListProxy filteredMembers(PredT &&pred) const
+    {
+        return {std::from_range, currentState().filteredEvents(std::forward<PredT>(pred)), this};
+    }
 
     //! Get a list of room member Matrix IDs who have joined the room.
     QStringList joinedMemberIds() const;
@@ -648,7 +654,7 @@ public:
     Q_INVOKABLE bool isDirectChat() const;
 
     /// Get the list of members this room is a direct chat with
-    QList<RoomMember> directChatMembers() const;
+    MemberListProxy directChatMembers() const;
 
     Q_INVOKABLE QUrl makeMediaUrl(const QString& eventId,
                                   const QUrl &mxcUrl) const;
@@ -971,22 +977,22 @@ Q_SIGNALS:
     //!
     //! This can be from any previous state or a member previously unknown to
     //! the room.
-    void memberJoined(RoomMember member);
+    void memberJoined(MemberProxy member);
 
     //! \brief A member who previously joined has left
     //!
     //! The member will still be known to the room their membership state has changed
     //! from Membership::Join to anything else.
-    void memberLeft(RoomMember member);
+    void memberLeft(MemberProxy member);
 
     //! A known joined member is about to update their display name
-    void memberNameAboutToUpdate(RoomMember member, QString newName);
+    void memberNameAboutToUpdate(MemberProxy member, QString newName);
 
     //! A known joined member has updated their display name
-    void memberNameUpdated(RoomMember member);
+    void memberNameUpdated(MemberProxy member);
 
     //! A known joined member has updated their avatar
-    void memberAvatarUpdated(RoomMember member);
+    void memberAvatarUpdated(MemberProxy member);
 
     /// The list of members has changed
     /** Emitted no more than once per sync, this is a good signal to

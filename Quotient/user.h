@@ -18,11 +18,11 @@ class RoomMemberEvent;
 //! This class provides an interface to a given user's profile.
 //!
 //! \note The User class is not intended for getting the data to visualise a user
-//!       in the context of a particular room. For that a Quotient::RoomMember object
+//!       in the context of a particular room. For that a Quotient::MemberProxy object
 //!       should be obtained from a Quotient::Room as this will account for the
 //!       user setting an avatar or name that applies to that room only.
 //!
-//! \sa Quotient::RoomMember
+//! \sa Quotient::MemberProxy
 class QUOTIENT_API User : public QObject {
     Q_OBJECT
     QML_ELEMENT
@@ -50,10 +50,10 @@ public:
     //! This may be empty if the user has not set one.
     //!
     //! \note If you are visualizing a user in a room context you should be using
-    //!       Quotient::RoomMember->name() as that will account for the user
+    //!       Quotient::MemberProxy->name() as that will account for the user
     //!       having a unique name in that room.
     //!
-    //! \sa Quotient::RoomMember::name()
+    //! \sa Quotient::MemberProxy::name()
     QString name() const;
 
     //! \brief Get the name to show on the user's profile
@@ -63,10 +63,10 @@ public:
     //! user's matrix ID will be used.
     //!
     //! \note If you are visualizing a user in a room context you should be using
-    //!       Quotient::RoomMember->displayName() as that will account for the user
+    //!       Quotient::MemberProxy->displayName() as that will account for the user
     //!       having a unique name in that room.
     //!
-    //! \sa Quotient::RoomMember::displayname()
+    //! \sa Quotient::MemberProxy::displayname()
     QString displayname() const;
 
     //! \brief Get user's profilename and id in one string
@@ -76,10 +76,10 @@ public:
     //! fucntion will return the user's matrix ID only.
     //!
     //! \note If you are visualizing a user in a room context you should be using
-    //!       Quotient::RoomMember->fullName() as that will account for the user
+    //!       Quotient::MemberProxy->fullName() as that will account for the user
     //!       having a unique name in that room.
     //!
-    //! \sa Quotient::RoomMember::fullName()
+    //! \sa Quotient::MemberProxy::fullName()
     QString fullName() const;
 
     //! \brief Whether the user is a guest
@@ -96,9 +96,9 @@ public:
     //! This can be empty if none set.
     //!
     //! \note When visualising a user in the room context use
-    //!       Quotient::RoomMember::avatarMediaId() instead.
+    //!       Quotient::MemberProxy::avatarMediaId() instead.
     //!
-    //! \sa RoomMember
+    //! \sa MemberProxy
     QString avatarMediaId() const;
 
     //! \brief The default mxc URL for the user avatar
@@ -106,9 +106,9 @@ public:
     //! This can be empty if none set.
     //!
     //! \note When visualising a user in the room context use
-    //!       Quotient::RoomMember::avatarUrl() instead.
+    //!       Quotient::MemberProxy::avatarUrl() instead.
     //!
-    //! \sa RoomMember
+    //! \sa MemberProxy
     QUrl avatarUrl() const;
 
     QImage avatar(int width, int height, Avatar::get_callback_t callback);

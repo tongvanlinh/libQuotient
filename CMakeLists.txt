@@ -130,6 +130,8 @@ target_sources(${QUOTIENT_LIB_NAME} PUBLIC FILE_SET HEADERS BASE_DIRS .
         Quotient/roomstateview.h
         Quotient/user.h
         Quotient/roommember.h
+        Quotient/memberproxy.h
+        Quotient/memberlistproxy.h
         Quotient/avatar.h
         Quotient/uri.h
         Quotient/uriresolver.h
@@ -205,7 +207,8 @@ target_sources(${QUOTIENT_LIB_NAME} PUBLIC FILE_SET HEADERS BASE_DIRS .
         Quotient/room.cpp
         Quotient/roomstateview.cpp
         Quotient/user.cpp
-        Quotient/roommember.cpp
+        Quotient/memberproxy.cpp
+        Quotient/memberlistproxy.cpp
         Quotient/avatar.cpp
         Quotient/uri.cpp
         Quotient/uriresolver.cpp

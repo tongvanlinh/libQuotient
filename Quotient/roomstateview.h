@@ -3,9 +3,11 @@
 
 #pragma once
 
-#include "events/stateevent.h"
+#include "events/roommemberevent.h"
 
 #include <QtCore/QHash>
+
+#include <ranges>
 
 namespace Quotient {
 
@@ -123,6 +125,31 @@ public:
     //! the room of the given type.
     const QVector<const StateEvent*> eventsOfType(const QString& evtType) const;
 
+    //! \brief Get state events of a certain type with certain state keys
+    //! \return a range of pointers to all events that have type \p EventT, and the state key taken
+    //!         from \p stateKeys (in order)
+    //! \note If an event is not found the state key is skipped; the size of the returned range is
+    //!       not necessarily the same as the size of \p stateKeys.
+    template <Keyed_State_Event EventT, typename StateKeysRangeT>
+    auto someEventsOfType(StateKeysRangeT &&stateKeys) const
+    {
+        return std::views::transform(std::forward<StateKeysRangeT>(stateKeys),
+                                     std::bind_front(&RoomStateView::get<EventT>, this))
+               | std::views::filter([](const EventT *e) { return e != nullptr; });
+    }
+
+    template <typename PredT>
+    auto filteredEvents(PredT &&pred) const
+    {
+        using EventT = std::remove_cvref_t<fn_arg_t<PredT>>;
+        static_assert(std::is_invocable_r_v<bool, PredT, const EventT&>);
+        return events()
+               | std::views::transform([](const Event *e) { return eventCast<const EventT>(e); })
+               | std::views::filter([&pred](const EventT *e) {
+            return e != nullptr && std::invoke(std::forward<PredT>(pred), *e);
+        });
+    }
+
     //! \brief Run a function on a state event with the given type and key
     //!
     //! Use this overload when there's no predefined event type or the event
@@ -202,6 +229,12 @@ public:
     {
         return query(std::forward<FnT>(fn))
             .value_or(std::forward<FallbackT>(fallback));
+    }
+
+    auto joinedMembers() const
+    {
+        return filteredEvents(
+            [](const RoomMemberEvent &rme) { return rme.membership() == Membership::Join; });
     }
 
 private:
