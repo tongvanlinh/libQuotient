@@ -238,7 +238,7 @@ public:
     //! immediately, without waiting to complete synchronisation with
     //! the server.
     //! \sa directChatsListChanged
-    void removeFromDirectChats(const QString& roomId, const QString& userId = {});
+    Q_INVOKABLE void removeFromDirectChats(const QString& roomId, const QString& userId = {});
 
     //! Check whether the room id corresponds to a direct chat
     bool isDirectChat(const QString& roomId) const;
