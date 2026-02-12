@@ -338,6 +338,14 @@ protected:
     explicit Event(const QJsonObject& json);
 
     QJsonObject& editJson() { return _json; }
+
+    virtual void onContentChanged() {}
+    void editContentJson(auto visitor)
+    {
+        editSubobject(_json, ContentKey, visitor);
+        onContentChanged();
+    }
+
     virtual void dumpTo(QDebug dbg) const;
 
 private:
