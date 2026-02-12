@@ -128,7 +128,7 @@ public:
     // For storing a list of current member names for the purpose of disambiguation.
     QMultiHash<QString, QString> memberNameMap;
     QStringList membersInvited;
-    QStringList membersLeft;
+    QSet<QString> membersLeft;
     QStringList membersTyping;
 
     QHash<QString, QSet<QString>> eventIdReadUsers;
@@ -3068,7 +3068,7 @@ void Room::Private::preprocessStateEvent(const RoomEvent& newEvent,
             case Membership::Leave:
                 if (rme.membership() == Membership::Invite
                     || rme.membership() == Membership::Join) {
-                    membersLeft.removeOne(rme.userId());
+                    membersLeft.remove(rme.userId());
                     Q_ASSERT(!membersLeft.contains(rme.userId()));
                 }
                 break;
@@ -3184,8 +3184,7 @@ Room::Change Room::Private::processStateEvent(const RoomEvent& curEvent,
             case Membership::Knock:
             case Membership::Ban:
             case Membership::Leave:
-                if (!membersLeft.contains(evt.userId()))
-                    membersLeft.append(evt.userId());
+                membersLeft.insert(evt.userId());
                 break;
             case Membership::Undefined:
                 qCWarning(MEMBERS) << "Ignored undefined membership type";
@@ -3445,7 +3444,7 @@ QString Room::Private::calculateDisplayname() const
         shortlist = buildShortlist(membersInvited);
 
     if (shortlist.front().isEmpty())
-        shortlist = buildShortlist(membersLeft);
+        shortlist = buildShortlist(membersLeft.values());
 
     QStringList names;
     for (const auto& u : shortlist) {
