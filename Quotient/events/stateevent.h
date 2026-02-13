@@ -99,8 +99,6 @@ public:
     QString prevSenderId() const { return _prev.senderId; }
 
 private:
-    void onContentChanged() override { _content = fromJson<ContentT>(Event::contentJson()); }
-
     ContentT _content;
     Prev _prev;
 };

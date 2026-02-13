@@ -286,8 +286,9 @@ QString RoomMessageEvent::fileNameToDownload() const
 
 void RoomMessageEvent::updateFileSourceInfo(const FileSourceInfo& fsi)
 {
-    editContentJson(
-        [&fsi](QJsonObject &contentJson) { fillJson(contentJson, {"url"_L1, "file"_L1}, fsi); });
+    editSubobject(editJson(), ContentKey, [&fsi](QJsonObject& contentJson) {
+        Quotient::fillJson(contentJson, { "url"_L1, "file"_L1 }, fsi);
+    });
 }
 
 QString rawMsgTypeForMimeType(const QMimeType& mimeType)
