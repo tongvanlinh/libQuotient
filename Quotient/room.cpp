@@ -3163,7 +3163,8 @@ Room::Change Room::Private::processStateEvent(const RoomEvent& curEvent,
         },
         [this, oldEvent](const JoinRulesEvent& evt) {
             if (const auto* oldJRE = static_cast<const JoinRulesEvent*>(oldEvent);
-                oldJRE && oldJRE->joinRule() != evt.joinRule()) {
+                oldJRE && oldJRE->content().joinRule != evt.content().joinRule
+            ) {
                 emit q->joinRuleChanged();
             }
             return Change::Other;
