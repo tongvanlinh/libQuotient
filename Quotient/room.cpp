@@ -2255,7 +2255,7 @@ QString Room::postMessage(const QString& plainText, MessageEventType type)
 
 QString Room::postPlainText(const QString& plainText)
 {
-    return postMessage(plainText, MessageEventType::Text);
+    return postText<MessageEventType::Text>(plainText);
 }
 
 QString Room::postHtmlMessage(const QString& plainText, const QString& html,
@@ -2268,7 +2268,7 @@ QString Room::postHtmlMessage(const QString& plainText, const QString& html,
 
 QString Room::postHtmlText(const QString& plainText, const QString& html)
 {
-    return postHtmlMessage(plainText, html);
+    return postText<MessageEventType::Text>(plainText, html);
 }
 
 QString Room::postReaction(const QString& eventId, const QString& key)
