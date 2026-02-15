@@ -17,11 +17,10 @@ template<EventClass EventT>
 inline event_ptr_tt<EventT> loadEventFromFile(const QString &eventFileName)
 {
     if (!eventFileName.isEmpty()) {
-        QFile testEventFile;
-        testEventFile.setFileName(QLatin1StringView(DATA_DIR) + u'/' + eventFileName);
-        return testEventFile.open(QIODevice::ReadOnly)
-                   ? loadEvent<EventT>(QJsonDocument::fromJson(testEventFile.readAll()).object())
-                   : nullptr;
+        if (QFile testEventFile(QStringLiteral(DATA_DIR "/") + eventFileName);
+            testEventFile.open(QIODevice::ReadOnly)) {
+            return loadEvent<EventT>(QJsonDocument::fromJson(testEventFile.readAll()).object());
+        }
     }
     return nullptr;
 }
