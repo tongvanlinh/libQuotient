@@ -159,7 +159,7 @@ public:
 
     //! \brief Make a replaced event
     //!
-    //! \returns a clone of `*this` with content taken from \p replacement as described in
+    //! \returns a clone of `*this` with content taken from \p replacementEvent as described in
     //!          https://spec.matrix.org/latest/client-server-api/#applying-mnew_content
     //! \note Disposal of the original event after that is on the caller.
     event_ptr_tt<RoomEvent> makeReplaced(const RoomEvent &replacementEvent) const;
