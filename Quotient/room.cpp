@@ -2784,19 +2784,6 @@ void Room::Private::addRelation(const ReactionEvent& reactionEvt)
         emit q->updatedEvent(content.eventId);
 }
 
-namespace {
-/// Whether the event is a redaction or a replacement
-inline bool isEditing(const RoomEventPtr& ep)
-{
-    return QUO_CHECK(ep != nullptr)
-           && ep->switchOnType([](const RedactionEvent&) { return true; },
-                               [](const RoomMessageEvent& rme) {
-                                   return !rme.replacedEvent().isEmpty();
-                               },
-                               false);
-}
-}
-
 Room::Timeline::size_type Room::Private::mergePendingEvent(PendingEvents::iterator localEchoIt,
                                                            RoomEvents::iterator remoteEchoIt)
 {
