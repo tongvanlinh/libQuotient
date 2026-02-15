@@ -89,7 +89,7 @@ inline bool operator==(const LoginFlow& lhs, const LoginFlow& rhs)
 [[deprecated("Compare login flow types instead")]]
 inline bool operator!=(const LoginFlow& lhs, const LoginFlow& rhs)
 {
-    return !(lhs == rhs);
+    QT_IGNORE_DEPRECATIONS (return !(lhs == rhs);)
 }
 
 class Connection;

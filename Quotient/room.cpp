@@ -128,7 +128,7 @@ public:
     // For storing a list of current member names for the purpose of disambiguation.
     QMultiHash<QString, QString> memberNameMap;
     QStringList membersInvited;
-    QStringList membersLeft;
+    QSet<QString> membersLeft;
     QStringList membersTyping;
 
     QHash<QString, QSet<QString>> eventIdReadUsers;
@@ -198,6 +198,9 @@ public:
     /// A map from event/txn ids to information about the long operation;
     /// used for both download and upload operations
     QHash<QString, FileTransferPrivateInfo> fileTransfers;
+    //! A map of orphans of replacement events that are still looking for their related event in the
+    //! past. The key is the target event ID, and the value is the replacement event ID.
+    QHash<QString, QString> orphanedReplacementEvents;
 
     const RoomMessageEvent* getEventWithFile(const QString& eventId) const;
 
@@ -207,6 +210,7 @@ public:
                               const RoomEvent* curEvent);
     Change processStateEvent(const RoomEvent& curEvent,
                              const RoomEvent* oldEvent);
+    void processRedactionsAndEdits(RoomEvents &events);
 
     void insertMemberIntoMap(const QString& memberId);
     void removeMemberFromMap(const QString& memberId);
@@ -330,7 +334,7 @@ public:
     /*! Apply a new revision of the event to the timeline
      *
      * Tries to find an event in the timeline and replace it with the new
-     * content passed in \p newMessage.
+     * content passed in \p newEvent.
      * \return true if the event has been found and replaced; false otherwise
      */
     bool processReplacement(const RoomMessageEvent& newEvent);
@@ -1059,7 +1063,9 @@ void Room::markMessagesAsRead(const QString& uptoEventId)
 
 void Room::markAllMessagesAsRead()
 {
-    d->markMessagesAsRead(d->timeline.crbegin());
+    if (!d->timeline.empty()) {
+        d->markMessagesAsRead(d->timeline.crbegin());
+    }
 }
 
 bool Room::canSwitchVersions() const
@@ -1158,13 +1164,13 @@ Room::PendingEvents::const_iterator Room::findPendingEvent(const QString& txnId)
 }
 
 const Room::RelatedEvents Room::relatedEvents(
-    const QString& evtId, EventRelation::reltypeid_t relType) const
+    const QString& evtId, EventRelation::typeid_t relType) const
 {
     return d->relations.value({ evtId, relType });
 }
 
 const Room::RelatedEvents Room::relatedEvents(
-    const RoomEvent& evt, EventRelation::reltypeid_t relType) const
+    const RoomEvent& evt, EventRelation::typeid_t relType) const
 {
     return relatedEvents(evt.id(), relType);
 }
@@ -2249,7 +2255,7 @@ QString Room::postMessage(const QString& plainText, MessageEventType type)
 
 QString Room::postPlainText(const QString& plainText)
 {
-    return postMessage(plainText, MessageEventType::Text);
+    return postText<MessageEventType::Text>(plainText);
 }
 
 QString Room::postHtmlMessage(const QString& plainText, const QString& html,
@@ -2262,7 +2268,7 @@ QString Room::postHtmlMessage(const QString& plainText, const QString& html,
 
 QString Room::postHtmlText(const QString& plainText, const QString& html)
 {
-    return postHtmlMessage(plainText, html);
+    return postText<MessageEventType::Text>(plainText, html);
 }
 
 QString Room::postReaction(const QString& eventId, const QString& key)
@@ -2276,44 +2282,42 @@ QString Room::Private::doPostFile(event_ptr_tt<RoomMessageEvent> fileEvent, cons
     // Remote URL will only be known after upload; fill in the local path
     // to enable the preview while the event is pending.
     q->uploadFile(txnId, localUrl);
-    // Below, the upload job is used as a context object to clean up connections
-    const auto& transferJob = fileTransfers.value(txnId).job;
-    connect(q, &Room::fileTransferCompleted, transferJob,
-        [this, txnId](const QString& tId, const QUrl&,
-                      const FileSourceInfo& fileMetadata) {
+    if (const auto& transferJob = fileTransfers.value(txnId).job) {
+        // Below, the upload job is used as a context object to clean up connections
+        connect(q, &Room::fileTransferCompleted, transferJob,
+                [this, txnId](const QString& tId, const QUrl&, const FileSourceInfo& fileMetadata) {
+                    if (tId != txnId)
+                        return;
+
+                    const auto it = q->findPendingEvent(txnId);
+                    if (it != unsyncedEvents.end()) {
+                        it->setFileUploaded(fileMetadata);
+                        emit q->pendingEventChanged(int(it - unsyncedEvents.begin()));
+                        doSendEvent(it);
+                    } else {
+                        // Normally in this situation we should instruct
+                        // the media server to delete the file; alas, there's no
+                        // API specced for that.
+                        qCWarning(MAIN) << "File uploaded to" << getUrlFromSourceInfo(fileMetadata)
+                                        << "but the event referring to it was "
+                                           "cancelled";
+                    }
+                });
+        connect(q, &Room::fileTransferFailed, transferJob, [this, txnId](const QString& tId) {
             if (tId != txnId)
                 return;
 
             const auto it = q->findPendingEvent(txnId);
-            if (it != unsyncedEvents.end()) {
-                it->setFileUploaded(fileMetadata);
-                emit q->pendingEventChanged(int(it - unsyncedEvents.begin()));
-                doSendEvent(it);
-            } else {
-                // Normally in this situation we should instruct
-                // the media server to delete the file; alas, there's no
-                // API specced for that.
-                qCWarning(MAIN)
-                    << "File uploaded to" << getUrlFromSourceInfo(fileMetadata)
-                    << "but the event referring to it was "
-                       "cancelled";
-            }
+            if (it == unsyncedEvents.end())
+                return;
+
+            const auto idx = int(it - unsyncedEvents.begin());
+            emit q->pendingEventAboutToDiscard(idx);
+            // See #286 on why `it` may not be valid here.
+            unsyncedEvents.erase(unsyncedEvents.begin() + idx);
+            emit q->pendingEventDiscarded();
         });
-    connect(q, &Room::fileTransferFailed, transferJob,
-            [this, txnId](const QString& tId) {
-                if (tId != txnId)
-                    return;
-
-                const auto it = q->findPendingEvent(txnId);
-                if (it == unsyncedEvents.end())
-                    return;
-
-                const auto idx = int(it - unsyncedEvents.begin());
-                emit q->pendingEventAboutToDiscard(idx);
-                // See #286 on why `it` may not be valid here.
-                unsyncedEvents.erase(unsyncedEvents.begin() + idx);
-                emit q->pendingEventDiscarded();
-            });
+    }
 
     return txnId;
 }
@@ -2536,16 +2540,24 @@ void Room::uploadFile(const QString& id, const QUrl& localFilename,
     // This is required because toLocalFile doesn't work on android and toString doesn't work on the desktop
     auto fileName = localFilename.isLocalFile() ? localFilename.toLocalFile() : localFilename.toString();
     FileSourceInfo fileMetadata;
+    // NB: tempFile needs to live at least until Connection::uploadFile() opens it
     QTemporaryFile tempFile;
     if (usesEncryption()) {
-        tempFile.open();
-        QFile file(fileName);
-        file.open(QFile::ReadOnly);
-        QByteArray data;
-        std::tie(fileMetadata, data) = encryptFile(file.readAll());
-        tempFile.write(data);
-        tempFile.close();
-        fileName = QFileInfo(tempFile).absoluteFilePath();
+        if (tempFile.open()) {
+            if (QFile file(fileName); file.open(QFile::ReadOnly)) {
+                QByteArray data;
+                std::tie(fileMetadata, data) = encryptFile(file.readAll());
+                tempFile.write(data);
+                fileName = QFileInfo(tempFile).absoluteFilePath();
+            } else
+                d->failedTransfer(id, u"Could not open a temporary file for encryption"_s);
+
+            tempFile.close();
+        } else
+            d->failedTransfer(id, u"Could not open the file for uploading"_s);
+
+        if (d->fileTransfers.value(id).status == FileTransferInfo::Failed)
+            return;
     }
     auto job = connection()->uploadFile(fileName, overrideContentType);
     if (isJobPending(job)) {
@@ -2702,64 +2714,6 @@ void Room::Private::decryptIncomingEvents(RoomEvents& events)
             << "Decrypted" << totalDecrypted << "events in" << et;
 }
 
-//! \brief Make a redacted event
-//!
-//! This applies the redaction procedure as defined by the CS API specification
-//! to the event's JSON and returns the resulting new event. It is
-//! the responsibility of the caller to dispose of the original event after that.
-RoomEventPtr makeRedacted(const RoomEvent& target,
-                          const RedactionEvent& redaction)
-{
-    // The logic below faithfully follows the spec despite quite a few of
-    // the preserved keys being only relevant for homeservers. Just in case.
-    static const QStringList TopLevelKeysToKeep{
-        EventIdKey,  TypeKey,          RoomIdKey,        SenderKey,
-        StateKeyKey, ContentKey,       "hashes"_L1,      "signatures"_L1,
-        "depth"_L1,  "prev_events"_L1, "auth_events"_L1, "origin_server_ts"_L1
-    };
-
-    auto originalJson = target.fullJson();
-    for (auto it = originalJson.begin(); it != originalJson.end();) {
-        if (!TopLevelKeysToKeep.contains(it.key()))
-            it = originalJson.erase(it);
-        else
-            ++it;
-    }
-    if (!target.is<RoomCreateEvent>()) { // See MSC2176 on create events
-        static const QHash<QString, QStringList> ContentKeysToKeepPerType{
-            { RedactionEvent::TypeId, { "redacts"_L1 } },
-            { RoomMemberEvent::TypeId,
-              { "membership"_L1, "join_authorised_via_users_server"_L1 } },
-            { RoomPowerLevelsEvent::TypeId,
-              { "ban"_L1, "events"_L1, "events_default"_L1, "invite"_L1,
-                "kick"_L1, "redact"_L1, "state_default"_L1, "users"_L1,
-                "users_default"_L1 } },
-            // TODO: Replace with RoomJoinRules::TypeId etc. once available
-            { "m.room.join_rules"_L1, { "join_rule"_L1, "allow"_L1 } },
-            { "m.room.history_visibility"_L1, { "history_visibility"_L1 } }
-        };
-
-        if (const auto contentKeysToKeep = ContentKeysToKeepPerType.value(target.matrixType());
-            !contentKeysToKeep.isEmpty()) //
-        {
-            editSubobject(originalJson, ContentKey, [&contentKeysToKeep](QJsonObject& content) {
-                for (auto it = content.begin(); it != content.end();) {
-                    if (!contentKeysToKeep.contains(it.key()))
-                        it = content.erase(it);
-                    else
-                        ++it;
-                }
-            });
-        } else {
-            originalJson.remove(ContentKey);
-            originalJson.remove(PrevContentKey);
-        }
-    }
-    replaceSubvalue(originalJson, UnsignedKey, RedactedCauseKey, redaction.fullJson());
-
-    return loadEvent<RoomEvent>(originalJson);
-}
-
 bool Room::Private::processRedaction(const RedactionEvent& redaction)
 {
     // Can't use findInTimeline because it returns a const iterator, and
@@ -2781,7 +2735,7 @@ bool Room::Private::processRedaction(const RedactionEvent& redaction)
 
     // Make a new event from the redacted JSON and put it in the timeline
     // instead of the redacted one. oldEvent will be deleted on return.
-    auto oldEvent = ti.replaceEvent(makeRedacted(*ti, redaction));
+    auto oldEvent = ti.replaceEvent(ti->makeRedacted(redaction));
     qCDebug(EVENTS) << "Redacted" << oldEvent->id() << "with" << redaction.id();
     if (oldEvent->isStateEvent()) {
         // Check whether the old event was a part of current state; if it was,
@@ -2815,27 +2769,11 @@ bool Room::Private::processRedaction(const RedactionEvent& redaction)
     return true;
 }
 
-/** Make a replaced event
- *
- * Takes \p target and returns a copy of it with content taken from
- * \p replacement. Disposal of the original event after that is on the caller.
- */
-RoomEventPtr makeReplaced(const RoomEvent& target,
-                          const RoomMessageEvent& replacement)
+bool Room::Private::processReplacement(const RoomMessageEvent &newEvent)
 {
-    auto newContent = replacement.contentPart<QJsonObject>("m.new_content"_L1);
-    addParam<IfNotEmpty>(newContent, RelatesToKey, target.contentPart<QJsonObject>(RelatesToKey));
-    auto originalJson = target.fullJson();
-    originalJson[ContentKey] = newContent;
-    editSubobject(originalJson, UnsignedKey, [&replacement](QJsonObject& unsignedData) {
-        replaceSubvalue(unsignedData, "m.relations"_L1, "m.replace"_L1, replacement.id());
-    });
+    if (QUO_ALARM_X(newEvent.isStateEvent(), "Replacing state events is not allowed"))
+        return false;
 
-    return loadEvent<RoomEvent>(originalJson);
-}
-
-bool Room::Private::processReplacement(const RoomMessageEvent& newEvent)
-{
     // Can't use findInTimeline because it returns a const iterator, and
     // we need to change the underlying TimelineItem.
     const auto pIdx = eventsIndex.constFind(newEvent.replacedEvent());
@@ -2847,7 +2785,7 @@ bool Room::Private::processReplacement(const RoomMessageEvent& newEvent)
     auto& ti = timeline[Timeline::size_type(*pIdx - q->minTimelineIndex())];
     const auto* const rme = ti.viewAs<RoomMessageEvent>();
     if (!rme) {
-        qCWarning(STATE) << "Ignoring attempt to replace a non-message event"
+        qCWarning(STATE) << "Replacing a non-message event is implemented in libQuotient 0.10"
                          << ti->id();
         return false;
     }
@@ -2859,7 +2797,7 @@ bool Room::Private::processReplacement(const RoomMessageEvent& newEvent)
 
     // Make a new event from the redacted JSON and put it in the timeline
     // instead of the redacted one. oldEvent will be deleted on return.
-    auto oldEvent = ti.replaceEvent(makeReplaced(*ti, newEvent));
+    auto oldEvent = ti.replaceEvent(ti->makeReplaced(newEvent));
     qCDebug(STATE) << "Replaced" << oldEvent->id() << "with" << newEvent.id();
     emit q->replacedEvent(ti.event(), std::to_address(oldEvent));
     return true;
@@ -2894,19 +2832,6 @@ void Room::Private::addRelation(const ReactionEvent& reactionEvt)
     thisEventReactions << &reactionEvt;
     if (q->findInTimeline(content.eventId) != historyEdge())
         emit q->updatedEvent(content.eventId);
-}
-
-namespace {
-/// Whether the event is a redaction or a replacement
-inline bool isEditing(const RoomEventPtr& ep)
-{
-    return QUO_CHECK(ep != nullptr)
-           && ep->switchOnType([](const RedactionEvent&) { return true; },
-                               [](const RoomMessageEvent& rme) {
-                                   return !rme.replacedEvent().isEmpty();
-                               },
-                               false);
-}
 }
 
 Room::Timeline::size_type Room::Private::mergePendingEvent(PendingEvents::iterator localEchoIt,
@@ -2944,49 +2869,10 @@ Room::Changes Room::Private::addNewMessageEvents(RoomEvents&& events)
         return Change::None;
 
     decryptIncomingEvents(events);
+    processRedactionsAndEdits(events);
 
     QElapsedTimer et;
     et.start();
-
-    {
-        using namespace std::ranges;
-        // Pre-process redactions and edits so that events that get
-        // redacted/replaced in the same batch landed in the timeline already
-        // treated.
-        // NB: We have to store redacting/replacing events to the timeline too -
-        // see #220.
-        auto it = find_if(events, isEditing);
-        for (const auto& eptr : subrange(it, events.end())) {
-            if (auto* r = eventCast<RedactionEvent>(eptr)) {
-                // Try to find the target in the timeline, then in the batch.
-                if (processRedaction(*r))
-                    continue;
-                if (auto targetIt = find(events, r->redactedEvent(), &RoomEvent::id);
-                    targetIt != events.end())
-                    *targetIt = makeRedacted(**targetIt, *r);
-                else
-                    qCDebug(STATE)
-                        << "Redaction" << r->id() << "ignored: target event"
-                        << r->redactedEvent() << "is not found";
-                // If the target event comes later, it comes already redacted.
-            }
-            if (auto* msg = eventCast<RoomMessageEvent>(eptr);
-                    msg && !msg->replacedEvent().isEmpty()) {
-                if (processReplacement(*msg))
-                    continue;
-                if (auto targetIt = find(events.begin(), it, msg->replacedEvent(), &RoomEvent::id);
-                    targetIt != it)
-                    *targetIt = makeReplaced(**targetIt, *msg);
-                else // FIXME: hide the replacing event when target arrives later
-                    qCDebug(EVENTS)
-                        << "Replacing event" << msg->id()
-                        << "ignored: target event" << msg->replacedEvent()
-                        << "is not found";
-                // Same as with redactions above, the replaced event coming
-                // later will come already with the new content.
-            }
-        }
-    }
 
     // State changes arrive as a part of timeline; the current room state gets
     // updated before merging events to the timeline because that's what
@@ -3100,6 +2986,7 @@ std::pair<Room::Changes, Room::rev_iter_t> Room::Private::addHistoricalMessageEv
 
     const auto timelineSize = timeline.size();
     decryptIncomingEvents(events);
+    processRedactionsAndEdits(events);
 
     QElapsedTimer et;
     et.start();
@@ -3174,7 +3061,7 @@ void Room::Private::preprocessStateEvent(const RoomEvent& newEvent,
             case Membership::Leave:
                 if (rme.membership() == Membership::Invite
                     || rme.membership() == Membership::Join) {
-                    membersLeft.removeOne(rme.userId());
+                    membersLeft.remove(rme.userId());
                     Q_ASSERT(!membersLeft.contains(rme.userId()));
                 }
                 break;
@@ -3290,8 +3177,7 @@ Room::Change Room::Private::processStateEvent(const RoomEvent& curEvent,
             case Membership::Knock:
             case Membership::Ban:
             case Membership::Leave:
-                if (!membersLeft.contains(evt.userId()))
-                    membersLeft.append(evt.userId());
+                membersLeft.insert(evt.userId());
                 break;
             case Membership::Undefined:
                 qCWarning(MEMBERS) << "Ignored undefined membership type";
@@ -3312,6 +3198,89 @@ Room::Change Room::Private::processStateEvent(const RoomEvent& curEvent,
             return Change::Other;
         },
         Change::Other);
+}
+
+void Room::Private::processRedactionsAndEdits(RoomEvents &events)
+{
+    using namespace std::ranges;
+    // Pre-process redactions and edits so that events that get redacted/replaced in the same batch
+    // landed in the timeline already treated.
+    // NB: We have to store redacting/replacing events to the timeline too - see #220.
+    for (auto &evt : events) {
+        if (const auto *r = eventCast<RedactionEvent>(evt)) {
+            // Try to find the target in the timeline
+            if (processRedaction(*r))
+                continue;
+            // Otherwise, check this batch for the event
+            if (auto targetIt = find(events, r->redactedEvent(), &RoomEvent::id);
+                targetIt != events.end())
+                *targetIt = (*targetIt)->makeRedacted(*r);
+            else
+                qCDebug(STATE) << "Redaction" << r->id() << "ignored: target event"
+                               << r->redactedEvent() << "is not found";
+            // If the target event comes later, we expected it to come already redacted
+            continue;
+            // We don't expect redaction events to participate in edits, although The Spec doesn't
+            // say anything about it
+        }
+
+        const auto* const rme = eventCast<const RoomMessageEvent>(evt);
+        // Check if we have orphaned replacements for the event just received; if yes, edit it
+        if (const auto replacementEventId = orphanedReplacementEvents.take(evt->id());
+            !replacementEventId.isEmpty()) {
+            // Check the replacement validity (see
+            // https://spec.matrix.org/v1.17/client-server-api/#validity-of-replacement-events),
+            // with a caveat that 0.9 can only deal with message event replacements because of
+            // back-comp; if the replacement is invalid, the old event will remain intact and the
+            // replacement we now know is invalid will be hidden anyway
+            if (!rme) [[unlikely]]
+                qDebug(EVENTS).noquote() << "This version of libQuotient doesn't support "
+                                            "replacement of non-message events, skipping"
+                                         << evt->id();
+            else if (rme->relatesTo()) [[unlikely]]
+                qDebug(EVENTS).noquote() << "Attempt to replace event" << rme->id()
+                                         << "that is itself a replacement - skipping";
+            else if (const auto replacementIt = q->findInTimeline(replacementEventId);
+                     replacementIt != historyEdge()) {
+                if (evt->metaType() != (*replacementIt)->metaType()) [[unlikely]]
+                    qCDebug(EVENTS).noquote()
+                        << "Attempt to replace" << evt->matrixType() << "with"
+                        << (*replacementIt)->matrixType() << "- skipping";
+                else if (evt->senderId() != (*replacementIt)->senderId()) [[unlikely]]
+                    qCDebug(EVENTS).noquote()
+                        << "Attempt to replace an event from" << evt->senderId()
+                        << "with one from" << (*replacementIt)->senderId() << "- skipping";
+                else {
+                    qCDebug(EVENTS) << "Found parent" << evt->id() << "for replacement event"
+                                    << (*replacementIt)->id();
+                    evt = evt->makeReplaced(**replacementIt);
+                }
+            }
+            continue;
+        }
+
+        if (rme) {
+            // Check if the event is a replacement, which we hopefully have the target for; if we
+            // don't then we store it in orphaned replacements and postpone any action until
+            // the original event becomes known
+            if (const auto replacedEventId = rme->replacedEvent(); !replacedEventId.isEmpty()) {
+                // Try to find the target in the timeline
+                if (processReplacement(*rme))
+                    continue;
+                // Otherwise, check the current batch for the event
+                if (auto targetIt = find(events, replacedEventId, &RoomEvent::id);
+                    targetIt != events.end())
+                    *targetIt = (*targetIt)->makeReplaced(*evt);
+                else if (evt->isStateEvent()){
+                    qCDebug(EVENTS)
+                        << "Processing of replacement event" << evt->id()
+                        << "postponed: target event" << rme->replacedEvent()
+                        << "is not found, will check for it in older batches when they come";
+                    orphanedReplacementEvents[rme->replacedEvent()] = evt->id();
+                }
+            }
+        }
+    }
 }
 
 Room::Changes Room::processEphemeralEvent(EventPtr&& event)
@@ -3468,7 +3437,7 @@ QString Room::Private::calculateDisplayname() const
         shortlist = buildShortlist(membersInvited);
 
     if (shortlist.front().isEmpty())
-        shortlist = buildShortlist(membersLeft);
+        shortlist = buildShortlist(membersLeft.values());
 
     QStringList names;
     for (const auto& u : shortlist) {
