@@ -204,12 +204,15 @@ using EmojiStore = QVector<EmojiStoreEntry>;
 EmojiStore loadEmojiStore()
 {
     Q_INIT_RESOURCE(libquotientemojis);
-    QFile dataFile(":/sas-emoji.json"_L1);
-    dataFile.open(QFile::ReadOnly);
-    auto data = dataFile.readAll();
-    Q_CLEANUP_RESOURCE(libquotientemojis);
-    return fromJson<EmojiStore>(
-        QJsonDocument::fromJson(data).array());
+    if (QFile dataFile(":/sas-emoji.json"_L1); dataFile.open(QFile::ReadOnly)) {
+        auto data = dataFile.readAll();
+        Q_CLEANUP_RESOURCE(libquotientemojis);
+        return fromJson<EmojiStore>(QJsonDocument::fromJson(data).array());
+    } else {
+        qCritical(MAIN)
+            << "Could not open the file with SAS emoji definitions; key verification will not work";
+        return {};
+    }
 }
 
 EmojiEntry emojiForCode(int code, const QString& language)

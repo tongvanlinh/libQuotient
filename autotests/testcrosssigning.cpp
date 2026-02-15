@@ -20,7 +20,7 @@ private Q_SLOTS:
         path = path.left(path.lastIndexOf(QDir::separator()));
         path += "/cross_signing_data.json"_L1;
         QFile file(path);
-        file.open(QIODevice::ReadOnly);
+        QVERIFY(file.open(QIODevice::ReadOnly));
         auto data = file.readAll();
         QVERIFY(!data.isEmpty());
         auto jobMock = Mocked<QueryKeysJob>(QHash<QString, QStringList>{});
