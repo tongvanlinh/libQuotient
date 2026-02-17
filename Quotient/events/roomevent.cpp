@@ -133,7 +133,6 @@ void RoomEvent::addId(const QString& newId)
     Q_ASSERT(id().isEmpty());
     Q_ASSERT(!newId.isEmpty());
     editJson().insert(EventIdKey, newId);
-    _id = newId;
     qCDebug(EVENTS) << "Event txnId -> id:" << transactionId() << "->" << id();
     Q_ASSERT(id() == newId);
 }

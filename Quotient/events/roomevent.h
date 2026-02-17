@@ -98,11 +98,7 @@ protected:
     explicit RoomEvent(const QJsonObject& json);
     void dumpTo(QDebug dbg) const override;
 
-    virtual void afterRelationChange() {}
-
 private:
-    QString _id;
-
     // RedactionEvent is an incomplete type here so we cannot inline
     // constructors using it and also destructors (with 'using', in particular).
     event_ptr_tt<RedactionEvent> _redactedBecause;

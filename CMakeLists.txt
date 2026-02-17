@@ -4,8 +4,8 @@ cmake_policy(SET CMP0092 NEW)
 endif()
 
 set(API_VERSION "0.9")
-project(Quotient VERSION "${API_VERSION}.6" LANGUAGES CXX)
-set(PRE_STAGE "")
+project(Quotient VERSION "${API_VERSION}.6.1" LANGUAGES CXX)
+set(PRE_STAGE "beta")
 string(JOIN ~ FULL_VERSION ${PROJECT_VERSION} ${PRE_STAGE})
 
 message(STATUS)
