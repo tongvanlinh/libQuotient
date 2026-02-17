@@ -29,7 +29,6 @@ jobs:
         - os: ubuntu-22.04
           qt-version: '6.4'
           override-compiler: ''
-          static-analysis: codeql
         - os: macos-14
           qt-version: '6.4'
         - os: windows-latest
@@ -168,16 +167,6 @@ jobs:
              >>$GITHUB_ENV
         echo "QUOTEST_ORIGIN=$QUOTEST_ORIGIN with regenerated API files" >>$GITHUB_ENV
 
-    - name: Initialize CodeQL tools
-      if: matrix.static-analysis == 'codeql'
-      uses: github/codeql-action/init@v3
-      with:
-        languages: cpp
-        # If you wish to specify custom queries, you can do so here or in a config file.
-        # By default, queries listed here will override any specified in a config file.
-        # Prefix the list here with "+" to use these queries and those in the config file.
-        # queries: ./path/to/local/query, your-org/your-repo/queries@main
-
     - name: Configure libQuotient
       run: |
         cmake -S $GITHUB_WORKSPACE -B $BUILD_PATH $CMAKE_ARGS -DQuotient_INSTALL_TESTS=ON
@@ -214,10 +203,6 @@ jobs:
             LD_LIBRARY_PATH=$LIB_PATH \
             quotest "$TEST_USER" "$TEST_PWD" quotest-gha '#quotest:matrix.org' "$QUOTEST_ORIGIN"
       timeout-minutes: 4 # quotest is supposed to finish within 3 minutes, actually
-
-    - name: Perform CodeQL analysis
-      if: matrix.static-analysis == 'codeql'
-      uses: github/codeql-action/analyze@v3
 
     - name: Prepare coverage files for Sonar analysis
       if: matrix.static-analysis == 'sonar'
