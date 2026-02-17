@@ -18,23 +18,17 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        os: [ ubuntu-24.04 ]
+        os: [ ubuntu-24.04, macos-14, windows-latest ]
         qt-version: [ '6.8' ]
-        override-compiler: [ '', GCC ] # Defaults: MSVC on Windows, Clang elsewhere
+        override-compiler: [ '' ] # Defaults: MSVC on Windows, Clang elsewhere
         include: # Attach API updating and static analysis to specific jobs
         - os: ubuntu-24.04
           qt-version: '6.8'
           override-compiler: GCC
           update-api: update-api
           static-analysis: sonar # NB: to use sonar with Clang, replace gcov usage with lcov
-        - os: ubuntu-24.04
-          qt-version: '6.8'
-          override-compiler: ''
-          static-analysis: codeql
         - os: macos-14
-          qt-version: '6.8'
-        - os: windows-latest
-          qt-version: '6.8'
+          qt-version: '6.10'
 
     env:
       GCC_VERSION: -14
@@ -163,16 +157,6 @@ jobs:
              >>$GITHUB_ENV
         echo "QUOTEST_ORIGIN=$QUOTEST_ORIGIN with regenerated API files" >>$GITHUB_ENV
 
-    - name: Initialize CodeQL tools
-      if: matrix.static-analysis == 'codeql'
-      uses: github/codeql-action/init@v3
-      with:
-        languages: cpp
-        # If you wish to specify custom queries, you can do so here or in a config file.
-        # By default, queries listed here will override any specified in a config file.
-        # Prefix the list here with "+" to use these queries and those in the config file.
-        # queries: ./path/to/local/query, your-org/your-repo/queries@main
-
     - name: Build and install ECM
       run: |
         cd ..
@@ -216,10 +200,6 @@ jobs:
             LD_LIBRARY_PATH=$LIB_PATH \
             quotest "$TEST_USER" "$TEST_PWD" quotest-gha '#quotest:matrix.org' "$QUOTEST_ORIGIN"
       timeout-minutes: 4 # quotest is supposed to finish within 3 minutes, actually
-
-    - name: Perform CodeQL analysis
-      if: matrix.static-analysis == 'codeql'
-      uses: github/codeql-action/analyze@v3
 
     - name: Prepare coverage files for Sonar analysis
       if: matrix.static-analysis == 'sonar'
