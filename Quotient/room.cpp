@@ -294,7 +294,7 @@ public:
                                     bool deferStatsUpdate = false);
     Changes setFullyReadMarker(const QString &eventId);
     Changes updateStats(const rev_iter_t& from, const rev_iter_t& to);
-    bool markMessagesAsRead(const rev_iter_t& upToMarker);
+    bool markMessagesAsRead(const rev_iter_t& upToMarker, bool sendPublicReceipts);
 
     void getAllMembers();
 
@@ -1034,7 +1034,7 @@ void Room::setReadReceipt(const QString& atEventId)
                            << "is at or behind the old one, skipping";
 }
 
-bool Room::Private::markMessagesAsRead(const rev_iter_t &upToMarker)
+bool Room::Private::markMessagesAsRead(const rev_iter_t &upToMarker, bool sendPublicReceipts)
 {
     if (upToMarker == q->historyEdge())
         qCWarning(MESSAGES) << "Cannot mark an unknown event in"
@@ -1045,6 +1045,7 @@ bool Room::Private::markMessagesAsRead(const rev_iter_t &upToMarker)
         // m.fully_read
         connection->callApi<SetReadMarkerJob>(BackgroundRequest, id,
                                               fullyReadUntilEventId,
+                                              sendPublicReceipts ? fullyReadUntilEventId : QString(),
                                               fullyReadUntilEventId);
         postprocessChanges(changes);
         return true;
@@ -1056,15 +1057,15 @@ bool Room::Private::markMessagesAsRead(const rev_iter_t &upToMarker)
     return false;
 }
 
-void Room::markMessagesAsRead(const QString& uptoEventId)
+void Room::markMessagesAsRead(const QString& uptoEventId, bool sendPublicReceipts)
 {
-    d->markMessagesAsRead(findInTimeline(uptoEventId));
+    d->markMessagesAsRead(findInTimeline(uptoEventId), sendPublicReceipts);
 }
 
-void Room::markAllMessagesAsRead()
+void Room::markAllMessagesAsRead(bool sendPublicReceipts)
 {
     if (!d->timeline.empty()) {
-        d->markMessagesAsRead(d->timeline.crbegin());
+        d->markMessagesAsRead(d->timeline.crbegin(), sendPublicReceipts);
     }
 }
 
@@ -3587,4 +3588,3 @@ QJsonArray Room::exportMegolmSessions()
     }
     return sessions;
 }
-
