@@ -3520,6 +3520,22 @@ void Room::activateEncryption()
     setState<EncryptionEvent>(EncryptionType::MegolmV1AesSha2);
 }
 
+void Room::markAsDirectChat()
+{
+    const auto ids = memberIds();
+    if (ids.size() != 2) {
+        qCWarning(MAIN) << "Calling Room::markAsDirectChat on room" << id()
+                << "with more than two members is unsupported.";
+        return;
+    }
+
+    // Find the non-you member in this room.
+    if (QUO_CHECK(ids.front() != ids.back()))
+        connection()->addToDirectChats(this, ids[ids.front() == connection()->userId() ? 1 : 0]);
+    else
+        qCritical(MAIN) << "Internal data corruption, the room includes two members with id" << ids.front();
+}
+
 void Room::addMegolmSessionFromBackup(const QByteArray& sessionId, const QByteArray& sessionKey, uint32_t index, const QByteArray& senderKey, const QByteArray& senderEdKey)
 {
     const auto sessionIt = d->groupSessions.find(sessionId);
