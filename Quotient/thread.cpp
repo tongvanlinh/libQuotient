@@ -27,7 +27,8 @@ ThreadInfos::UpdateResult ThreadInfos::updateFrom(const TimelineItem &eventItem)
     }
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
-    auto [threadIt, isNew] = tryEmplace(threadRootId, event.id());
+    // Could be tryEmplace() but current Xcode cannot initialise aggregates in it :(
+    auto [threadIt, isNew] = tryInsert(threadRootId, {event.id()});
 #else
     auto threadIt = base_type::find(threadRootId); // base_type:: to use non-const find()
     const auto isNew = threadIt == end();
