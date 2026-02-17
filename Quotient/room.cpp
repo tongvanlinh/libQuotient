@@ -3232,7 +3232,7 @@ void Room::Private::processRedactionsAndEdits(RoomEvents &events)
                 if (auto targetIt = find(events, replacedEventId, &RoomEvent::id);
                     targetIt != events.end())
                     *targetIt = (*targetIt)->makeReplaced(*evt);
-                else if (evt->isStateEvent()){
+                else {
                     qCDebug(EVENTS)
                         << "Replacing event" << evt->id() << "postponed: target event"
                         << evt->replacedEvent()
