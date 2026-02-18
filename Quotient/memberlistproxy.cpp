@@ -77,7 +77,7 @@ std::partial_ordering MemberListProxy::iterator::compareWith(iterator rhs) const
     if (_room != rhs._room)
         return std::partial_ordering::unordered;
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0) && defined(__cpp_lib_three_way_comparison)
     return _it <=> rhs._it;
 #else
     return _it < rhs._it    ? std::partial_ordering::less
