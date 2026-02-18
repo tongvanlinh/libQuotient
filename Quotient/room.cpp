@@ -2255,44 +2255,42 @@ QString Room::Private::doPostFile(event_ptr_tt<RoomMessageEvent> fileEvent, cons
     // Remote URL will only be known after upload; fill in the local path
     // to enable the preview while the event is pending.
     q->uploadFile(txnId, localUrl);
-    // Below, the upload job is used as a context object to clean up connections
-    const auto& transferJob = fileTransfers.value(txnId).job;
-    connect(q, &Room::fileTransferCompleted, transferJob,
-        [this, txnId](const QString& tId, const QUrl&,
-                      const FileSourceInfo& fileMetadata) {
+    if (const auto& transferJob = fileTransfers.value(txnId).job) {
+        // Below, the upload job is used as a context object to clean up connections
+        connect(q, &Room::fileTransferCompleted, transferJob,
+                [this, txnId](const QString& tId, const QUrl&, const FileSourceInfo& fileMetadata) {
+                    if (tId != txnId)
+                        return;
+
+                    const auto it = q->findPendingEvent(txnId);
+                    if (it != unsyncedEvents.end()) {
+                        it->setFileUploaded(fileMetadata);
+                        emit q->pendingEventChanged(int(it - unsyncedEvents.begin()));
+                        doSendEvent(it);
+                    } else {
+                        // Normally in this situation we should instruct
+                        // the media server to delete the file; alas, there's no
+                        // API specced for that.
+                        qCWarning(MAIN) << "File uploaded to" << getUrlFromSourceInfo(fileMetadata)
+                                        << "but the event referring to it was "
+                                           "cancelled";
+                    }
+                });
+        connect(q, &Room::fileTransferFailed, transferJob, [this, txnId](const QString& tId) {
             if (tId != txnId)
                 return;
 
             const auto it = q->findPendingEvent(txnId);
-            if (it != unsyncedEvents.end()) {
-                it->setFileUploaded(fileMetadata);
-                emit q->pendingEventChanged(int(it - unsyncedEvents.begin()));
-                doSendEvent(it);
-            } else {
-                // Normally in this situation we should instruct
-                // the media server to delete the file; alas, there's no
-                // API specced for that.
-                qCWarning(MAIN)
-                    << "File uploaded to" << getUrlFromSourceInfo(fileMetadata)
-                    << "but the event referring to it was "
-                       "cancelled";
-            }
+            if (it == unsyncedEvents.end())
+                return;
+
+            const auto idx = int(it - unsyncedEvents.begin());
+            emit q->pendingEventAboutToDiscard(idx);
+            // See #286 on why `it` may not be valid here.
+            unsyncedEvents.erase(unsyncedEvents.begin() + idx);
+            emit q->pendingEventDiscarded();
         });
-    connect(q, &Room::fileTransferFailed, transferJob,
-            [this, txnId](const QString& tId) {
-                if (tId != txnId)
-                    return;
-
-                const auto it = q->findPendingEvent(txnId);
-                if (it == unsyncedEvents.end())
-                    return;
-
-                const auto idx = int(it - unsyncedEvents.begin());
-                emit q->pendingEventAboutToDiscard(idx);
-                // See #286 on why `it` may not be valid here.
-                unsyncedEvents.erase(unsyncedEvents.begin() + idx);
-                emit q->pendingEventDiscarded();
-            });
+    }
 
     return txnId;
 }
@@ -2505,16 +2503,24 @@ void Room::uploadFile(const QString& id, const QUrl& localFilename,
     // This is required because toLocalFile doesn't work on android and toString doesn't work on the desktop
     auto fileName = localFilename.isLocalFile() ? localFilename.toLocalFile() : localFilename.toString();
     FileSourceInfo fileMetadata;
+    // NB: tempFile needs to live at least until Connection::uploadFile() opens it
     QTemporaryFile tempFile;
     if (usesEncryption()) {
-        tempFile.open();
-        QFile file(fileName);
-        file.open(QFile::ReadOnly);
-        QByteArray data;
-        std::tie(fileMetadata, data) = encryptFile(file.readAll());
-        tempFile.write(data);
-        tempFile.close();
-        fileName = QFileInfo(tempFile).absoluteFilePath();
+        if (tempFile.open()) {
+            if (QFile file(fileName); file.open(QFile::ReadOnly)) {
+                QByteArray data;
+                std::tie(fileMetadata, data) = encryptFile(file.readAll());
+                tempFile.write(data);
+                fileName = QFileInfo(tempFile).absoluteFilePath();
+            } else
+                d->failedTransfer(id, u"Could not open a temporary file for encryption"_s);
+
+            tempFile.close();
+        } else
+            d->failedTransfer(id, u"Could not open the file for uploading"_s);
+
+        if (d->fileTransfers.value(id).status == FileTransferInfo::Failed)
+            return;
     }
     auto job = connection()->uploadFile(fileName, overrideContentType);
     if (isJobPending(job)) {
@@ -2783,19 +2789,6 @@ void Room::Private::addRelation(const ReactionEvent& reactionEvt)
     thisEventReactions << &reactionEvt;
     if (q->findInTimeline(content.eventId) != historyEdge())
         emit q->updatedEvent(content.eventId);
-}
-
-namespace {
-/// Whether the event is a redaction or a replacement
-inline bool isEditing(const RoomEventPtr& ep)
-{
-    return QUO_CHECK(ep != nullptr)
-           && ep->switchOnType([](const RedactionEvent&) { return true; },
-                               [](const RoomMessageEvent& rme) {
-                                   return !rme.replacedEvent().isEmpty();
-                               },
-                               false);
-}
 }
 
 Room::Timeline::size_type Room::Private::mergePendingEvent(PendingEvents::iterator localEchoIt,
@@ -3240,7 +3233,7 @@ void Room::Private::processRedactionsAndEdits(RoomEvents &events)
                 if (auto targetIt = find(events, replacedEventId, &RoomEvent::id);
                     targetIt != events.end())
                     *targetIt = (*targetIt)->makeReplaced(*evt);
-                else if (evt->isStateEvent()){
+                else {
                     qCDebug(EVENTS)
                         << "Replacing event" << evt->id() << "postponed: target event"
                         << evt->replacedEvent()

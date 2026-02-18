@@ -25,7 +25,7 @@ void TestKeyImport::testImport()
     path = path.left(path.lastIndexOf(QDir::separator()));
     path += "/key-export.data"_L1;
     QFile file(path);
-    file.open(QIODevice::ReadOnly);
+    QVERIFY(file.open(QIODevice::ReadOnly));
     auto data = file.readAll();
     QVERIFY(!data.isEmpty());
     const auto result = keyImport.decrypt(QString::fromUtf8(data), u"123passphrase"_s);
