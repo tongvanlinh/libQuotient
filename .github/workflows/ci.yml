@@ -11,6 +11,10 @@ defaults:
 
 concurrency: quotient-ci
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   CI:
     runs-on: ${{ matrix.os }}
