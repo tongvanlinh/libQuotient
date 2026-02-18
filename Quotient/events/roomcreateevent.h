@@ -4,7 +4,7 @@
 #pragma once
 
 #include "stateevent.h"
-#include <Quotient/quotient_common.h>
+#include "../quotient_common.h"
 
 namespace Quotient {
 class QUOTIENT_API RoomCreateEvent : public StateEvent {
@@ -15,7 +15,7 @@ public:
 
     struct Predecessor {
         QString roomId;
-        QString eventId;
+        QString eventId; //!< \note The field may be omitted since Matrix v1.16 and room version v12
     };
 
     bool isFederated() const;
