@@ -239,16 +239,16 @@ QString RoomEvent::replacedBy() const
     return relationsToThis().value(EventRelation::ReplacementType)[EventIdKey].toString();
 }
 
-event_ptr_tt<RoomEvent> RoomEvent::makeReplaced(const RoomEvent &replacement) const
+event_ptr_tt<RoomEvent> RoomEvent::makeReplaced(const RoomEvent &replacementEvent) const
 {
     // See https://spec.matrix.org/latest/client-server-api/#applying-mnew_content
-    auto newContent = replacement.contentPart<QJsonObject>(NewContentKey);
+    auto newContent = replacementEvent.contentPart<QJsonObject>(NewContentKey);
     addParam<IfNotEmpty>(newContent, RelatesToKey, this->contentPart<QJsonObject>(RelatesToKey));
     auto originalJson = this->fullJson();
     originalJson.insert(ContentKey, newContent);
-    editSubobject(originalJson, UnsignedKey, [&replacement](QJsonObject &unsignedData) {
+    editSubobject(originalJson, UnsignedKey, [&replacementEvent](QJsonObject &unsignedData) {
         replaceSubvalue(unsignedData, RelationsKey, EventRelation::ReplacementType,
-                        replacement.id());
+                        replacementEvent.id());
     });
 
     return loadEvent<RoomEvent>(originalJson);
