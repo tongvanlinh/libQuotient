@@ -890,6 +890,17 @@ public Q_SLOTS:
      */
     void activateEncryption();
 
+    //! \brief Mark this room as a direct chat, guessing which user should be the DM recipient
+    //!
+    //! This function marks this room as a direct chat. There is no option to provide a user id here.
+    //! Emits the signal synchronously, without waiting to complete
+    //! synchronisation with the server.
+    //!
+    //! This function does nothing if you are the sole user, or there are more than two users in the room
+    //!
+    //! \sa directChatsListChanged
+    void markAsDirectChat();
+
 Q_SIGNALS:
     /// Initial set of state events has been loaded
     /**
