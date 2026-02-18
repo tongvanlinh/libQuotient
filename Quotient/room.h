@@ -485,8 +485,9 @@ public:
     //! event in the timeline; the method will do nothing if the event is behind
     //! the current m.fully_read marker or is not loaded, to prevent
     //! accidentally trying to move the marker back in the timeline.
+    //! \param sendPublicReceipts if true, a public read receipt (m.read) will also be sent to the server.
     //! \sa markAllMessagesAsRead, fullyReadMarker
-    Q_INVOKABLE void markMessagesAsRead(const QString& uptoEventId);
+    Q_INVOKABLE void markMessagesAsRead(const QString& uptoEventId, bool sendPublicReceipts = true);
 
     //! \brief Determine whether an event should be counted as unread
     //!
@@ -870,7 +871,8 @@ public Q_SLOTS:
     //! \sa lastReadReceipt, markMessagesAsRead, markAllMessagesAsRead
     void setReadReceipt(const QString& atEventId);
     //! Put the fully-read marker at the latest message in the room
-    void markAllMessagesAsRead();
+    //! \param sendPublicReceipts if true, a public read receipt (m.read) will also be sent to the server for the latest message.
+    void markAllMessagesAsRead(bool sendPublicReceipts = true);
 
     //! Switch the room's version (aka upgrade)
     [[deprecated("Use upgrade() instead")]]
