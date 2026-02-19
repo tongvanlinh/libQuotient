@@ -18,11 +18,11 @@ class RoomMemberEvent;
 //! This class provides an interface to a given user's profile.
 //!
 //! \note The User class is not intended for getting the data to visualise a user
-//!       in the context of a particular room. For that a Quotient::RoomMember object
-//!       should be obtained from a Quotient::Room as this will account for the
-//!       user setting an avatar or name that applies to that room only.
+//!       in the context of a particular room. For that, use Room::member() to get
+//!       a RoomMemberSnapshot object that will reflect the situation of a given
+//!       user in a given room, such as their room-specific avatar or name.
 //!
-//! \sa Quotient::RoomMember
+//! \sa Room::member()
 class QUOTIENT_API User : public QObject {
     Q_OBJECT
     QML_ELEMENT
@@ -48,12 +48,11 @@ public:
     //! \brief Get the default user name.
     //!
     //! This may be empty if the user has not set one.
-    //!
     //! \note If you are visualizing a user in a room context you should be using
-    //!       Quotient::RoomMember->name() as that will account for the user
-    //!       having a unique name in that room.
+    //!       RoomMemberSnapshot::name() as that will account for the user having a unique name in
+    //!       that room.
     //!
-    //! \sa Quotient::RoomMember::name()
+    //! \sa RoomMemberSnapshot::name()
     QString name() const;
 
     //! \brief Get the name to show on the user's profile
@@ -61,12 +60,10 @@ public:
     //! This is intended to always give you something that can be displayed in a
     //! UI. If the user doesn't have a default name or one is not available the
     //! user's matrix ID will be used.
-    //!
     //! \note If you are visualizing a user in a room context you should be using
-    //!       Quotient::RoomMember->displayName() as that will account for the user
-    //!       having a unique name in that room.
-    //!
-    //! \sa Quotient::RoomMember::displayname()
+    //!       RoomMemberSnapshot::displayName() as that will account for the user having a unique
+    //!       name in that room.
+    //! \sa RoomMemberSnapshot::displayName()
     QString displayname() const;
 
     //! \brief Get user's profilename and id in one string
@@ -74,12 +71,10 @@ public:
     //! This is intended to always give you something that can be displayed in a
     //! UI. If the user doesn't have a default name or one is not available the
     //! fucntion will return the user's matrix ID only.
-    //!
     //! \note If you are visualizing a user in a room context you should be using
-    //!       Quotient::RoomMember->fullName() as that will account for the user
-    //!       having a unique name in that room.
-    //!
-    //! \sa Quotient::RoomMember::fullName()
+    //!       RoomMemberSnapshot::fullName() as that will account for the user having a unique name
+    //!       in that room.
+    //! \sa RoomMemberSnapshot::fullName()
     QString fullName() const;
 
     //! \brief Whether the user is a guest
@@ -94,21 +89,17 @@ public:
     //! \brief The default mxc URL as a string for the user avatar
     //!
     //! This can be empty if none set.
-    //!
-    //! \note When visualising a user in the room context use
-    //!       Quotient::RoomMember::avatarMediaId() instead.
-    //!
-    //! \sa RoomMember
+    //! \note When visualising a user in the room context use RoomMemberSnapshot::avatarMediaId()
+    //!       instead.
+    //! \sa RoomMemberSnapshot::avatarMediaId()
     QString avatarMediaId() const;
 
     //! \brief The default mxc URL for the user avatar
     //!
     //! This can be empty if none set.
-    //!
-    //! \note When visualising a user in the room context use
-    //!       Quotient::RoomMember::avatarUrl() instead.
-    //!
-    //! \sa RoomMember
+    //! \note When visualising a user in the room context use RoomMemberSnapshot::avatarUrl()
+    //!       instead.
+    //! \sa RoomMemberSnapshot::avatarUrl()
     QUrl avatarUrl() const;
 
     QImage avatar(int width, int height, Avatar::get_callback_t callback);

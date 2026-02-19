@@ -19,7 +19,7 @@
 #include "qt_connection_util.h"
 #include "quotient_common.h"
 #include "ranges_extras.h"
-#include "roommember.h"
+#include "roommembersnapshot.h"
 #include "roomstateview.h"
 #include "syncdata.h"
 #include "thread.h"
@@ -678,14 +678,14 @@ QImage Room::avatar(int width, int height)
                                : d->avatar.get(width, height, [this] { emit avatarChanged(); });
 }
 
-RoomMember Room::localMember() const { return member(localUserId()); }
+RoomMemberSnapshot Room::localMember() const { return member(localUserId()); }
 
-RoomMember Room::member(const QString& userId) const
+RoomMemberSnapshot Room::member(const QString& userId) const
 {
     if (userId.isEmpty()) {
         return {};
     }
-    return RoomMember(this, currentState().get<RoomMemberEvent>(userId));
+    return RoomMemberSnapshot(this, currentState().get<RoomMemberEvent>(userId));
 }
 
 QStringList Room::creatorIds() const
@@ -700,37 +700,37 @@ QStringList Room::creatorIds() const
     return {};
 }
 
-QList<RoomMember> Room::joinedMembers() const
+QList<RoomMemberSnapshot> Room::joinedMembers() const
 {
-    QList<RoomMember> joinedMembers;
+    QList<RoomMemberSnapshot> joinedMembers;
     joinedMembers.reserve(joinedCount());
 
     const auto memberEvents = currentState().eventsOfType(RoomMemberEvent::TypeId);
     for (const auto event : memberEvents) {
         if (const auto memberEvent = eventCast<const RoomMemberEvent>(event);
             memberEvent->membership() == Membership::Join) {
-            joinedMembers.append(RoomMember(this, memberEvent));
+            joinedMembers.append(RoomMemberSnapshot(this, memberEvent));
         }
     }
     return joinedMembers;
 }
 
-QList<RoomMember> Room::members() const {
-    QList<RoomMember> members;
+QList<RoomMemberSnapshot> Room::members() const {
+    QList<RoomMemberSnapshot> members;
     members.reserve(totalMemberCount());
 
     const auto memberEvents = currentState().eventsOfType(RoomMemberEvent::TypeId);
     for (const auto event : memberEvents) {
         if (const auto memberEvent = eventCast<const RoomMemberEvent>(event)) {
-            members.append(RoomMember(this, memberEvent));
+            members.append(RoomMemberSnapshot(this, memberEvent));
         }
     }
     return members;
 }
 
-QList<RoomMember> Room::membersTyping() const
+QList<RoomMemberSnapshot> Room::membersTyping() const
 {
-    QList<RoomMember> members;
+    QList<RoomMemberSnapshot> members;
     members.reserve(d->membersTyping.count());
     for (const auto &memberId : d->membersTyping) {
         members.append(member(memberId));
@@ -738,7 +738,7 @@ QList<RoomMember> Room::membersTyping() const
     return members;
 }
 
-QList<RoomMember> Room::otherMembersTyping() const
+QList<RoomMemberSnapshot> Room::otherMembersTyping() const
 {
     auto memberTyping = membersTyping();
     memberTyping.removeAll(localMember());
@@ -1478,13 +1478,13 @@ bool Room::isServerNoticeRoom() const
 
 bool Room::isDirectChat() const { return connection()->isDirectChat(id()); }
 
-QList<RoomMember> Room::directChatMembers() const
+QList<RoomMemberSnapshot> Room::directChatMembers() const
 {
     auto memberIds = connection()->directChatMemberIds(this);
-    QList<RoomMember> members;
+    QList<RoomMemberSnapshot> members;
     for (const auto& memberId : memberIds) {
         if (currentState().contains<RoomMemberEvent>(memberId)) {
-            members.append(RoomMember(this, currentState().get<RoomMemberEvent>(memberId)));
+            members.append(RoomMemberSnapshot(this, currentState().get<RoomMemberEvent>(memberId)));
         }
     }
     return members;
@@ -1590,8 +1590,8 @@ QString Room::prettyPrint(const QString& plainText) const
     return Quotient::prettyPrint(plainText);
 }
 
-QList<RoomMember> Room::membersLeft() const {
-    QList<RoomMember> members;
+QList<RoomMemberSnapshot> Room::membersLeft() const {
+    QList<RoomMemberSnapshot> members;
     members.reserve(d->membersLeft.count());
     for (const auto &memberId : d->membersLeft) {
         members.append(member(memberId));
