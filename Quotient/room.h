@@ -178,6 +178,7 @@ class QUOTIENT_API Room : public QObject {
     Q_PROPERTY(int requestedHistorySize READ requestedHistorySize NOTIFY eventsHistoryJobChanged)
 
     Q_PROPERTY(QStringList accountDataEventTypes READ accountDataEventTypes NOTIFY accountDataChanged)
+    Q_PROPERTY(QStringList creatorIds READ creatorIds NOTIFY baseStateLoaded)
 
 public:
     using Timeline = std::deque<TimelineItem>;
