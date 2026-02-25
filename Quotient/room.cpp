@@ -1357,7 +1357,7 @@ QFuture<std::expected<Room *, BaseJob::Status>> Room::upgrade(QString newVersion
 
 bool Room::hasAccountData(const QString& type) const
 {
-    return d->accountData.find(type) != d->accountData.end();
+    return d->accountData.contains(type);
 }
 
 const EventPtr& Room::accountData(const QString& type) const
