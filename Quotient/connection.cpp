@@ -1998,7 +1998,7 @@ void Connection::startSelfVerification()
         connect(session, &QObject::destroyed, this, [this, session] {
             d->encryptionData->verificationSessions.remove(session->transactionId());
         });
-        connectUntil(this, &Connection::keyVerificationStateChanged, this, [session, this](const auto &changedSession, const auto state){
+        connectUntil(this, &Connection::keyVerificationStateChanged, session, [session, this](const auto &changedSession, const auto state){
             if (changedSession->transactionId() == session->transactionId() && state != KeyVerificationSession::CANCELED) {
                 emit newKeyVerificationSession(session);
                 return true;
