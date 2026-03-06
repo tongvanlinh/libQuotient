@@ -920,8 +920,14 @@ Room::Changes Room::Private::updateStats(const rev_iter_t& from,
     // REMOVEME: it's not the library's business; the room might be offscreen,
     // or the creation event not shown, whatever. Let the clients tackle that
     // properly.
-    if (fullyReadMarker == historyEdge() && q->allHistoryLoaded())
-        return setFullyReadMarker(timeline.front()->id());
+    if (fullyReadMarker == historyEdge() && q->allHistoryLoaded()) {
+        if (!timeline.empty()) {
+            return setFullyReadMarker(timeline.front()->id());
+        } else {
+            qCWarning(MESSAGES) << "The timeline is empty";
+            return {};
+        }
+    }
 
     // Catch a case when the id in the last fully read marker or the local read
     // receipt refers to an event that has just arrived. In this case either
