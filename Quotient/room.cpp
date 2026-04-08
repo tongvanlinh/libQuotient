@@ -1398,15 +1398,14 @@ std::pair<bool, QString> validatedTag(QString name)
 
 void Room::addTag(const QString& name, const Tag& tagData)
 {
-    const auto& checkRes = validatedTag(name);
-    if (d->tags.contains(name)
-        || (checkRes.first && d->tags.contains(checkRes.second)))
+    const auto &[neededFixing, compliantTag] = validatedTag(name);
+    if (d->tags.contains(name) || (neededFixing && d->tags.contains(compliantTag)))
         return;
 
     emit tagsAboutToChange();
-    d->tags.insert(checkRes.second, tagData);
+    d->tags.insert(compliantTag, tagData);
     emit tagsChanged();
-    connection()->callApi<SetRoomTagJob>(localMember().id(), id(), checkRes.second, tagData);
+    connection()->callApi<SetRoomTagJob>(localMember().id(), id(), compliantTag, tagData);
 }
 
 void Room::addTag(const QString& name, float order)
@@ -1573,8 +1572,7 @@ FileTransferInfo Room::fileTransferInfo(const QString& id) const
 
 QUrl Room::fileSource(const QString& id) const
 {
-    auto url = urlToDownload(id);
-    if (url.isValid())
+    if (auto url = urlToDownload(id); url.isValid())
         return url;
 
     // No urlToDownload means it's a pending or completed upload.
@@ -1677,8 +1675,8 @@ RoomEventPtr Room::decryptMessage(const EncryptedEvent& encryptedEvent)
         // qCWarning(E2EE) << "Encrypted message is empty";
         return {};
     }
-    auto decryptedEvent = encryptedEvent.createDecrypted(decrypted);
-    if (decryptedEvent->roomId() == id()) {
+    if (auto decryptedEvent = encryptedEvent.createDecrypted(decrypted);
+        decryptedEvent->roomId() == id()) {
         return decryptedEvent;
     }
     qWarning(E2EE) << "Decrypted event" << encryptedEvent.id()
