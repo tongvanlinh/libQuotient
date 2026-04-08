@@ -25,6 +25,7 @@ namespace Quotient {
  */
 class QUOTIENT_API Uri : private QUrl {
     Q_GADGET
+    QML_ELEMENT
 public:
     enum Type : char {
         Invalid = char(-1),
