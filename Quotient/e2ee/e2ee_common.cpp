@@ -12,23 +12,12 @@
 
 using namespace Quotient;
 
-QByteArray Quotient::byteArrayForOlm(size_t bufferSize)
-{
-    if (std::in_range<QByteArray::size_type>(bufferSize)) [[likely]]
-        return { static_cast<QByteArray::size_type>(bufferSize), '\0' };
-
-    qCritical(E2EE) << "Buffer size out of QByteArray range:" << bufferSize;
-    // Zero-length QByteArray is an almost guaranteed way to cause
-    // an internal error in QOlm* classes, unless checked
-    return {};
-}
-
 void Quotient::_impl::checkForSpanShortfall(QByteArray::size_type inputSize, int neededSize)
 {
     if (inputSize < neededSize) {
         qCCritical(E2EE) << "Not enough bytes to create a valid span: "
-                         << inputSize << '<' << neededSize
-                         << "- undefined behaviour imminent";
+        << inputSize << '<' << neededSize
+        << "- undefined behaviour imminent";
         Q_ASSERT(false);
         // Can't help it in Release builds; a span of the given size has
         // to be returned regardless, so UB

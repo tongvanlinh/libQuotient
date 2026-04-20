@@ -4,6 +4,7 @@
 #pragma once
 
 #include "events/stateevent.h"
+#include "ranges_extras.h"
 
 #include <QtCore/QHash>
 
@@ -117,11 +118,28 @@ public:
     Q_INVOKABLE QJsonObject contentJson(const QString& evtType,
                                         const QString& stateKey = {}) const;
 
-    //! \brief Get all state events in the room of a certain type.
+    //! \brief Get all state events in the room of a certain type
     //!
-    //! This method returns all known state events that have occured in
-    //! the room of the given type.
-    const QVector<const StateEvent*> eventsOfType(const QString& evtType) const;
+    //! This function allows to retrieve all events of one type regardless of their state key.
+    //! \note To do its job, the function has to look through the entire list of state events
+    //!       currently in the room; this may have implications in performance-sensitive code.
+    //! \return all known state events of \p evtType that have occurred in the room
+    QVector<const StateEvent*> eventsOfType(const QString& evtType) const;
+
+    //! \brief Get all state events in the room of a certain type
+    //!
+    //! This is a type-safe overload for the case when the event type is known at compile time.
+    //! \note This overload is only defined for event types that expect a state key.
+    //! \note Same as the other overload, this one has to look through the entire list of state
+    //!       events, although it is slightly faster thanks to the event type known at compile time.
+    //! \return all known state events of type \p EvT that have occurred in the room
+    template <Keyed_State_Event EvT>
+    QVector<const EvT*> eventsOfType() const
+    {
+        using namespace std::ranges::views;
+        return rangeTo<QVector>(filter(*this, &Event::is<EvT>) | transform([](const StateEvent* e) {
+            return static_cast<const EvT*>(e); }));
+    }
 
     //! \brief Run a function on a state event with the given type and key
     //!
@@ -159,6 +177,18 @@ public:
     {
         using EventT = std::decay_t<fn_arg_t<FnT>>;
         return lift(std::forward<FnT>(fn), get<EventT>());
+    }
+
+    //! \brief Run a function on each event of the given type
+    //!
+    //! This is effectively a combination of query and eventsOfType() except that it doesn't create
+    //! a new container. The return value of \p FnT is ignored.
+    template <Keyed_State_Fn FnT>
+    void queryAll(FnT&& fn) const
+    {
+        using EventT = std::decay_t<fn_arg_t<FnT>>;
+        for (const auto* e : std::ranges::filter_view(events(), &Event::is<EventT>))
+            fn(static_cast<const EventT&>(*e));
     }
 
     //! \brief Same as query() but with a fallback value

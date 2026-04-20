@@ -274,11 +274,6 @@ public:
     int timelineSize() const;
     bool usesEncryption() const;
     RoomEventPtr decryptMessage(const EncryptedEvent& encryptedEvent);
-    void handleRoomKeyEvent(const RoomKeyEvent& roomKeyEvent,
-                            const QString& senderId,
-                            const QByteArray& olmSessionId,
-                            const QByteArray& senderKey,
-                            const QByteArray& senderEdKey);
     int joinedCount() const;
     int invitedCount() const;
     int totalMemberCount() const;
@@ -829,6 +824,8 @@ public:
     //! \return a future eventually holding a new room once it arrives via sync
     QFuture<std::expected<Room *, BaseJob::Status>> upgrade(
         QString newVersion, const QStringList &additionalCreators = {});
+    void newSession(const QString& newSession);
+    void newMegolmSession(const QString& newSession);
 
 public Q_SLOTS:
     /** Check whether the room should be upgraded */

@@ -37,15 +37,11 @@ public:
     using QObject::QObject;
 
     Q_INVOKABLE Error importKeys(QString data, const QString& passphrase,
-                                 const Quotient::Connection* connection);
+                                 Quotient::Connection* connection);
     Q_INVOKABLE std::expected<QByteArray, Error> exportKeys(const QString& passphrase,
-                                                            const Quotient::Connection* connection);
+                                                            Quotient::Connection* connection);
 
     friend class ::TestKeyImport;
-
-private:
-    std::expected<QJsonArray, Error> decrypt(QString data, const QString& passphrase);
-    std::expected<QByteArray, Error> encrypt(QJsonArray sessions, const QString& passphrase);
 };
 
 }

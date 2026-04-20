@@ -50,8 +50,7 @@ public:
     bool isValid() const { return url.isValid(); }
 };
 
-QUOTIENT_API std::pair<EncryptedFileMetadata, QByteArray> encryptFile(
-    const QByteArray& plainText);
+QUOTIENT_API std::pair<EncryptedFileMetadata, QByteArray> encryptFile(QByteArray plainText);
 QUOTIENT_API QByteArray decryptFile(const QByteArray& ciphertext,
                                     const EncryptedFileMetadata& metadata);
 

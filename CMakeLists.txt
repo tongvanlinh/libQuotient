@@ -33,7 +33,7 @@ if (MSVC)
     add_compile_options(/EHsc /W4
         /wd4100 /wd4127 /wd4242 /wd4244 /wd4245 /wd4267 /wd4365 /wd4456 /wd4459
         /wd4464 /wd4505 /wd4514 /wd4571 /wd4619 /wd4623 /wd4625 /wd4626 /wd4706
-        /wd4710 /wd4774 /wd4820 /wd4946 /wd5026 /wd5027 /wd4702)
+        /wd4710 /wd4774 /wd4820 /wd4946 /wd5026 /wd5027 /wd4702 /bigobj)
 else()
     foreach (FLAG all pedantic extra error=return-type) # Switch these on
         CHECK_CXX_COMPILER_FLAG("-W${FLAG}" W${FLAG}_SUPPORTED)
@@ -43,7 +43,7 @@ else()
         endif ()
     endforeach ()
     foreach (FLAG unused-parameter gnu-zero-variadic-macro-arguments
-                  subobject-linkage) # Switch these off
+                  subobject-linkage dollar-in-identifier-extension) # Switch these off
         CHECK_CXX_COMPILER_FLAG("-Wno-${FLAG}" Wno-${FLAG}_SUPPORTED)
         if (Wno-${FLAG}_SUPPORTED AND
                 NOT CMAKE_CXX_FLAGS MATCHES "W(no-)?${FLAG}($| )")
@@ -98,22 +98,21 @@ if(${Qt}Core_VERSION VERSION_GREATER_EQUAL 6.10)
 endif()
 
 find_package(${Qt}Keychain REQUIRED)
+find_package(Corrosion REQUIRED)
 
-find_package(Olm 3.2.5 REQUIRED)
-set_package_properties(Olm PROPERTIES
-    DESCRIPTION "Implementation of the Olm and Megolm cryptographic ratchets"
-    URL "https://gitlab.matrix.org/matrix-org/olm"
-    TYPE REQUIRED
-)
+if(NOT WIN32)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(SQLITE sqlite3 REQUIRED IMPORTED_TARGET)
+endif()
 
-find_package(OpenSSL 1.1.0 REQUIRED)
-set_package_properties(OpenSSL PROPERTIES
-    DESCRIPTION "Open source SSL and TLS implementation and cryptographic library"
-    URL "https://www.openssl.org/"
-    TYPE REQUIRED
-)
+corrosion_import_crate(MANIFEST_PATH Quotient/crypto-sdk/Cargo.toml)
 
 add_library(${QUOTIENT_LIB_NAME})
+
+string(SHA1 cargo_path_hash ${CMAKE_CURRENT_SOURCE_DIR}/Quotient/crypto-sdk/Cargo.toml)
+string(SUBSTRING "${cargo_path_hash}" 0 5 cargo_path_hash)
+set(corrosion_build_dir "crypto-sdk_${cargo_path_hash}")
+target_include_directories(${QUOTIENT_LIB_NAME} PRIVATE ${CMAKE_BINARY_DIR}/cargo/${corrosion_build_dir}/${Rust_CARGO_TARGET}/cxxbridge/matrix-rust-sdk-crypto/src/)
 
 target_sources(${QUOTIENT_LIB_NAME} PUBLIC FILE_SET HEADERS BASE_DIRS .
     FILES
@@ -143,6 +142,7 @@ target_sources(${QUOTIENT_LIB_NAME} PUBLIC FILE_SET HEADERS BASE_DIRS .
         Quotient/eventitem.h
         Quotient/accountregistry.h
         Quotient/mxcreply.h
+        Quotient/rust_util.h
         Quotient/events/event.h
         Quotient/events/roomevent.h
         Quotient/events/stateevent.h
@@ -176,23 +176,13 @@ target_sources(${QUOTIENT_LIB_NAME} PUBLIC FILE_SET HEADERS BASE_DIRS .
         Quotient/jobs/syncjob.h
         Quotient/jobs/mediathumbnailjob.h
         Quotient/jobs/downloadfilejob.h
-        Quotient/database.h
-        Quotient/connectionencryptiondata_p.h
         Quotient/keyverificationsession.h
         Quotient/e2ee/e2ee_common.h
-        Quotient/e2ee/qolmaccount.h
-        Quotient/e2ee/qolmsession.h
-        Quotient/e2ee/qolminboundsession.h
-        Quotient/e2ee/qolmoutboundsession.h
-        Quotient/e2ee/qolmutility.h
-        Quotient/e2ee/qolmsession.h
-        Quotient/e2ee/qolmmessage.h
-        Quotient/e2ee/cryptoutils.h
-        Quotient/e2ee/sssshandler.h
         Quotient/events/keyverificationevent.h
         Quotient/keyimport.h
         Quotient/qt_connection_util.h
         Quotient/thread.h
+        Quotient/e2ee/sssshandler.h
     # The following headers are not included from public headers and so excluded from distribution
     PRIVATE FILE_SET private_headers TYPE HEADERS BASE_DIRS . FILES
         Quotient/logging_categories_p.h
@@ -218,6 +208,7 @@ target_sources(${QUOTIENT_LIB_NAME} PUBLIC FILE_SET HEADERS BASE_DIRS .
         Quotient/eventitem.cpp
         Quotient/accountregistry.cpp
         Quotient/mxcreply.cpp
+        Quotient/rust_util.cpp
         Quotient/events/event.cpp
         Quotient/events/roomevent.cpp
         Quotient/events/stateevent.cpp
@@ -239,22 +230,13 @@ target_sources(${QUOTIENT_LIB_NAME} PUBLIC FILE_SET HEADERS BASE_DIRS .
         Quotient/jobs/syncjob.cpp
         Quotient/jobs/mediathumbnailjob.cpp
         Quotient/jobs/downloadfilejob.cpp
-        Quotient/database.cpp
-        Quotient/connectionencryptiondata_p.cpp
         Quotient/keyverificationsession.cpp
         Quotient/e2ee/e2ee_common.cpp
-        Quotient/e2ee/qolmaccount.cpp
-        Quotient/e2ee/qolmsession.cpp
-        Quotient/e2ee/qolminboundsession.cpp
-        Quotient/e2ee/qolmoutboundsession.cpp
-        Quotient/e2ee/qolmutility.cpp
-        Quotient/e2ee/qolmsession.cpp
-        Quotient/e2ee/qolmmessage.cpp
-        Quotient/e2ee/cryptoutils.cpp
-        Quotient/e2ee/sssshandler.cpp
         Quotient/keyimport.cpp
         Quotient/thread.cpp
+        Quotient/e2ee/sssshandler.cpp
         libquotientemojis.qrc
+        Quotient/e2ee/cryptoutils.cpp
 )
 
 include(ECMQmlModule)
@@ -384,9 +366,20 @@ target_include_directories(${QUOTIENT_LIB_NAME} PUBLIC
     $<BUILD_INTERFACE:$<$<NOT:$<BOOL:${QUOTIENT_FORCE_NAMESPACED_INCLUDES}>>:${CMAKE_CURRENT_SOURCE_DIR}/Quotient>>
 )
 
+find_package(OpenSSL REQUIRED)
+
 target_link_libraries(${QUOTIENT_LIB_NAME}
-    PUBLIC ${Qt}::Core ${Qt}::Network ${Qt}::Gui qt${${Qt}Core_VERSION_MAJOR}keychain Olm::Olm ${Qt}::Sql
-    PRIVATE OpenSSL::Crypto ${Qt}::CorePrivate ${Qt}::QmlIntegration)
+    PUBLIC ${Qt}::Core ${Qt}::Network ${Qt}::Gui qt${${Qt}Core_VERSION_MAJOR}keychain ${Qt}::Sql
+    PRIVATE OpenSSL::Crypto ${Qt}::CorePrivate ${Qt}::QmlIntegration matrix_rust_sdk_crypto_cpp OpenSSL::Crypto)
+
+if(NOT WIN32)
+    target_link_libraries(${QUOTIENT_LIB_NAME} PRIVATE PkgConfig::SQLITE)
+else()
+    target_link_libraries(${QUOTIENT_LIB_NAME} PRIVATE Bcrypt.lib ntdll)
+endif()
+
+target_include_directories(${QUOTIENT_LIB_NAME} PRIVATE
+    ${CMAKE_BINARY_DIR}/cargo/build/${Rust_CARGO_TARGET}/cxxbridge/matrix-rust-sdk-crypto/src/)
 
 configure_file(${PROJECT_NAME}.pc.in ${CMAKE_CURRENT_BINARY_DIR}/${QUOTIENT_LIB_NAME}.pc @ONLY NEWLINE_STYLE UNIX)
 
@@ -402,6 +395,8 @@ endif()
 
 install(TARGETS ${QUOTIENT_LIB_NAME} EXPORT ${QUOTIENT_LIB_NAME}Targets
     RUNTIME LIBRARY ARCHIVE FILE_SET HEADERS)
+
+corrosion_install(TARGETS matrix_rust_sdk_crypto_cpp LIBRARY)
 
 include(CMakePackageConfigHelpers)
 # NB: SameMajorVersion doesn't really work yet, as we're within 0.x trail.
@@ -433,9 +428,12 @@ install(EXPORT ${QUOTIENT_LIB_NAME}Targets
 install(FILES
     "${CMAKE_CURRENT_BINARY_DIR}/${QUOTIENT_LIB_NAME}/${QUOTIENT_LIB_NAME}Config.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/${QUOTIENT_LIB_NAME}/${QUOTIENT_LIB_NAME}ConfigVersion.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/corrosion/${QUOTIENT_LIB_NAME}TargetsCorrosion.cmake"
     DESTINATION ${CMakeFilesLocation}
 )
 install(EXPORT_ANDROID_MK ${QUOTIENT_LIB_NAME}Targets DESTINATION ${CMAKE_INSTALL_DATADIR}/ndk-modules)
+
+corrosion_install(TARGETS matrix_rust_sdk_crypto_cpp EXPORT ${QUOTIENT_LIB_NAME}Targets LIBRARY)
 
 if (WIN32)
     install(FILES mime/packages/freedesktop.org.xml DESTINATION mime/packages)
@@ -457,8 +455,6 @@ message(STATUS "Install prefix: ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "  Header files install prefix: ${CMAKE_INSTALL_PREFIX}/${${PROJECT_NAME}_INSTALL_INCLUDEDIR}")
 message(STATUS "Using Qt ${${Qt}_VERSION} at ${Qt_Prefix}")
 message(STATUS "Using QtKeychain ${${Qt}Keychain_VERSION} at ${${Qt}Keychain_DIR}")
-message(STATUS "Using libOlm ${Olm_VERSION} at ${Olm_DIR}")
-message(STATUS "Using OpenSSL libcrypto ${OPENSSL_VERSION} at ${OPENSSL_CRYPTO_LIBRARY}")
 message(STATUS)
 feature_summary(WHAT ENABLED_FEATURES DISABLED_FEATURES
                 FATAL_ON_MISSING_REQUIRED_PACKAGES)
