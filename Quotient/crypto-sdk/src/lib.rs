@@ -4,6 +4,7 @@ use matrix_sdk_common::ruma::{DeviceId, UserId};
 use matrix_sdk_crypto::OlmMachine;
 use matrix_sdk_sqlite::SqliteCryptoStore;
 use std::{mem::ManuallyDrop, path::Path};
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 mod cryptomachine;
 mod encryption_info;
@@ -39,7 +40,10 @@ fn init(
     account_pickle: String,
 ) -> Box<CryptoMachine> {
     // This will fail when initializing a second account, but that's ok
-    let _ = tracing_subscriber::fmt().try_init();
+    let _ = tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(EnvFilter::from_default_env())
+        .try_init();
     let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
     let _ = rt.enter();
 
