@@ -370,6 +370,11 @@ void Connection::Private::setupCryptoMachine(const QByteArray& picklingKey)
     mxIdForDb.replace(u':', u'_');
     const QString databaseFolder{ QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) % u'/' % mxIdForDb };
     const QString legacyDatabaseFile{ databaseFolder + "/quotient_%1.db3"_L1.arg(q->deviceId()) };
+    const auto hasVodozemacDatabase = QDir().exists(databaseFolder + u'/' + q->deviceId());
+    if (hasVodozemacDatabase && QFile::exists(legacyDatabaseFile)) {
+        qCDebug(E2EE) << "Removing legacy database as new database already exists";
+        QFile(legacyDatabaseFile).remove();
+    }
 
     QString accountPickle;
     const auto hasDb = QFileInfo(legacyDatabaseFile).exists();
