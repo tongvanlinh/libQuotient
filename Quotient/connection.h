@@ -770,7 +770,8 @@ public Q_SLOTS:
     //! \internal
     void receiveVerificationEvent(const QByteArray& fullJson);
 
-    void importFromBackup();
+    Q_INVOKABLE bool isBackupDecryptionKeyAvailable() const;
+    Q_INVOKABLE void importFromBackup();
     Q_INVOKABLE void loadFromBackup(const QString& passphrase);
     Q_INVOKABLE void requestSecretsFromDevices();
 

@@ -1635,6 +1635,7 @@ impl CryptoMachine {
 
     pub(crate) fn import_from_backup(&mut self, response: String, version: String) -> Vec<Key> {
         let result: Result<Vec<Key>, Box<dyn Error>> = self.runtime.block_on(async {
+            tracing::debug!("Before importing: {} keys", crypto_machine!(self).store().get_inbound_group_sessions().await?.len());
             #[derive(Deserialize)]
             struct Response {
                 rooms: BTreeMap<matrix_sdk_common::ruma::OwnedRoomId, RoomKeyBackup>,
@@ -1681,6 +1682,7 @@ impl CryptoMachine {
                 .store()
                 .import_room_keys(decrypted_room_keys, Some(&version), |_, _| {})
                 .await?;
+            tracing::debug!("After importing: {} keys", crypto_machine!(self).store().get_inbound_group_sessions().await?.len());
             Ok(data)
         });
         result.unwrap_or_else(|err| {

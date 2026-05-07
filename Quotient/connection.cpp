@@ -2577,3 +2577,11 @@ void Connection::Private::monitorSas(KeyVerificationSession *session)
         ->monitor_sas(stringToRust(session->remoteUser()), stringToRust(session->verificationId()),
                       (uint64_t)monitorCallback);
 }
+
+bool Connection::isBackupDecryptionKeyAvailable() const
+{
+    if (!d->cryptoMachine) {
+        return false;
+    }
+    return (*d->cryptoMachine)->has_initialized_backup();
+}
