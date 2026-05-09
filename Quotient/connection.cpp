@@ -2173,6 +2173,10 @@ QString Connection::encryptRoomEvent(Room* room, const QByteArray& content, cons
 
 QString Connection::decryptRoomEvent(Room* room, const QByteArray& event)
 {
+    if (!d->cryptoMachine) {
+        return {};
+    }
+
     auto result = (*d->cryptoMachine)->decrypt_room_event(stringToRust(room->id()), bytesToRust(event));
     if (result->has_error()) {
         return {};
