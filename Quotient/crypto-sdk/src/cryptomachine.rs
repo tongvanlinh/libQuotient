@@ -2063,7 +2063,7 @@ impl CryptoMachine {
                 .get_device(&user_id, &device_id, None)
                 .await?
                 .ok_or("Unknown device")?
-                .is_verified())
+                .is_cross_signing_trusted())
         });
         result.unwrap_or_else(|error| {
             error!("Failed to process is_verified_device: {:?}", error);
