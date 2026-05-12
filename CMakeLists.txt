@@ -242,12 +242,19 @@ target_sources(${QUOTIENT_LIB_NAME} PUBLIC FILE_SET HEADERS BASE_DIRS .
 include(ECMQmlModule)
 include(KDEInstallDirs)
 
-qt_extract_metatypes(${QUOTIENT_LIB_NAME})
+qt_extract_metatypes(${QUOTIENT_LIB_NAME} OUTPUT_FILES METATYPES_FILE)
 ecm_add_qml_module(${QUOTIENT_LIB_NAME}plugin URI io.github.quotient_im.libquotient GENERATE_PLUGIN_SOURCE DEPENDENCIES QtCore)
 target_include_directories(${QUOTIENT_LIB_NAME}plugin PRIVATE ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/Quotient/e2ee)
 qt_generate_foreign_qml_types(${QUOTIENT_LIB_NAME} ${QUOTIENT_LIB_NAME}plugin)
 target_link_libraries(${QUOTIENT_LIB_NAME}plugin PRIVATE ${Qt}::Core ${Qt}::Qml ${QUOTIENT_LIB_NAME})
 ecm_finalize_qml_module(${QUOTIENT_LIB_NAME}plugin DESTINATION ${KDE_INSTALL_QMLDIR} EXPORT ${QUOTIENT_LIB_NAME}Targets)
+
+# see https://qt-project.atlassian.net/browse/QTBUG-123052
+# might be replaced with proper Qt API once that exists
+get_filename_component(METATYPES_FILE_NAME ${METATYPES_FILE} NAME)
+target_sources(${QUOTIENT_LIB_NAME} INTERFACE $<INSTALL_INTERFACE:${KDE_INSTALL_QTMETATYPESDIR}/${METATYPES_FILE_NAME}>)
+
+install(FILES ${METATYPES_FILE} DESTINATION ${KDE_INSTALL_QTMETATYPESDIR})
 
 # Configure API files generation
 
