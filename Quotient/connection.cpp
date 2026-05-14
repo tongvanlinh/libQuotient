@@ -671,6 +671,10 @@ void Connection::onSyncSuccess(SyncJob *syncJob)
                 emit ownSessionVerified();
             }
 
+            for (const auto &session : syncChanges->received_done_events()) {
+                emit receivedVerificationDone(stringFromRust(session));
+            }
+
             for (const auto &key : syncChanges->keys()) {
                 if (const auto &r = room(stringFromRust(key.room_id()))) {
                     r->newMegolmSession(stringFromRust(key.session_id()));

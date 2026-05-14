@@ -100,6 +100,7 @@ pub(crate) struct SyncChanges {
     keys: Vec<Key>,
     secrets_received: bool,
     self_verified: bool,
+    received_done_events: Vec<String>,
 }
 
 pub(crate) enum SyncChangesResult {
@@ -142,6 +143,10 @@ impl SyncChanges {
     }
 
     pub(crate) fn self_verified(&self) -> bool { self.self_verified }
+
+    pub(crate) fn received_done_events(&self) -> Vec<String> {
+        self.received_done_events.clone()
+    }
 }
 
 pub(crate) enum OutgoingRequestResult {
@@ -762,6 +767,7 @@ impl CryptoMachine {
             let mut events = vec![];
             let mut secrets_received = false;
             let mut self_verified = false;
+            let mut received_done_events = vec![];
             for to_device_event in changes.0 {
                 // NOTE: Do not use the question mark operator in for loop.
                 match to_device_event {
@@ -788,6 +794,7 @@ impl CryptoMachine {
                                 .is_verified() {
                                 self_verified = true;
                             }
+                            received_done_events.push(done.content.transaction_id.to_string());
                         }
                         Ok(AnyToDeviceEvent::SecretSend(_)) => {
                             secrets_received = true;
@@ -812,6 +819,7 @@ impl CryptoMachine {
                     .collect(),
                 secrets_received,
                 self_verified,
+                received_done_events,
             }))
         });
         Box::new(match result {

@@ -422,6 +422,7 @@ mod ffi {
         fn keys(self: &SyncChanges) -> Vec<Key>;
         fn secrets_received(self: &SyncChanges) -> bool;
         fn self_verified(self: &SyncChanges) -> bool;
+        fn received_done_events(self: &SyncChanges) -> Vec<String>;
 
         fn session_id(self: &Key) -> String;
         fn room_id(self: &Key) -> String;

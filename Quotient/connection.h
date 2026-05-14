@@ -968,6 +968,7 @@ Q_SIGNALS:
     void allPrivateCSKeysAvailableChanged();
     void isBackupDecryptionKeyAvailableChanged();
     void ownSessionVerified();
+    void receivedVerificationDone(const QString &verificationId);
 
     friend class ::TestCrossSigning;
     friend class KeyVerificationSession;
