@@ -421,6 +421,7 @@ mod ffi {
         fn sessions(self: &SyncChanges) -> Vec<KeyVerificationRequest>;
         fn keys(self: &SyncChanges) -> Vec<Key>;
         fn secrets_received(self: &SyncChanges) -> bool;
+        fn self_verified(self: &SyncChanges) -> bool;
 
         fn session_id(self: &Key) -> String;
         fn room_id(self: &Key) -> String;
@@ -523,5 +524,7 @@ mod ffi {
             verification_id: String,
             callback: usize,
         );
+
+        fn all_private_cs_keys_available(self: &CryptoMachine) -> bool;
     }
 }

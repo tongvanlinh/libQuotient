@@ -99,6 +99,7 @@ pub(crate) struct SyncChanges {
     sessions: Vec<KeyVerificationRequest>,
     keys: Vec<Key>,
     secrets_received: bool,
+    self_verified: bool,
 }
 
 pub(crate) enum SyncChangesResult {
@@ -139,6 +140,8 @@ impl SyncChanges {
     pub(crate) fn secrets_received(&self) -> bool {
         self.secrets_received
     }
+
+    pub(crate) fn self_verified(&self) -> bool { self.self_verified }
 }
 
 pub(crate) enum OutgoingRequestResult {
@@ -758,6 +761,7 @@ impl CryptoMachine {
 
             let mut events = vec![];
             let mut secrets_received = false;
+            let mut self_verified = false;
             for to_device_event in changes.0 {
                 // NOTE: Do not use the question mark operator in for loop.
                 match to_device_event {
@@ -774,6 +778,15 @@ impl CryptoMachine {
                                     "No request for {} {}",
                                     request.sender, request.content.transaction_id
                                 );
+                            }
+                        }
+                        Ok(AnyToDeviceEvent::KeyVerificationDone(done)) => {
+                            let machine = crypto_machine!(self);
+                            if done.sender == machine.user_id() && machine.get_identity(&UserId::parse(&done.sender)?, None)
+                                .await?
+                                .ok_or("Identity not found")?
+                                .is_verified() {
+                                self_verified = true;
                             }
                         }
                         Ok(AnyToDeviceEvent::SecretSend(_)) => {
@@ -798,6 +811,7 @@ impl CryptoMachine {
                     })
                     .collect(),
                 secrets_received,
+                self_verified,
             }))
         });
         Box::new(match result {
@@ -2074,6 +2088,12 @@ impl CryptoMachine {
     pub(crate) fn has_initialized_backup(&self) -> bool {
         self.runtime
             .block_on(async { crypto_machine!(self).backup_machine().enabled().await })
+    }
+
+    pub(crate) fn all_private_cs_keys_available(&self) -> bool {
+        self.runtime.block_on(async {
+            crypto_machine!(self).cross_signing_status().await.is_complete()
+        })
     }
 }
 

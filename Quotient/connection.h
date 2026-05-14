@@ -139,6 +139,8 @@ class QUOTIENT_API Connection : public QObject {
     Q_PROPERTY(bool encryptionEnabled READ encryptionEnabled WRITE enableEncryption NOTIFY encryptionChanged)
     Q_PROPERTY(bool directChatEncryptionEnabled READ directChatEncryptionEnabled WRITE enableDirectChatEncryption NOTIFY directChatsEncryptionChanged)
     Q_PROPERTY(QStringList accountDataEventTypes READ accountDataEventTypes NOTIFY accountDataChanged)
+    Q_PROPERTY(bool allPrivateCSKeysAvailable READ allPrivateCSKeysAvailable NOTIFY allPrivateCSKeysAvailableChanged)
+    Q_PROPERTY(bool isBackupDecryptionKeyAvailable READ isBackupDecryptionKeyAvailable NOTIFY isBackupDecryptionKeyAvailableChanged)
 
 public:
     using UsersToDevicesToContent = QHash<QString, QHash<QString, QJsonObject>>;
@@ -778,6 +780,8 @@ public Q_SLOTS:
     Q_INVOKABLE KeyImport::Error importKeys(const QString& passphrase, const QString& data);
     Q_INVOKABLE QByteArray exportKeys(const QString& passphrase);
 
+    bool allPrivateCSKeysAvailable() const;
+
 Q_SIGNALS:
     //! \brief Initial server resolution has failed
     //!
@@ -960,6 +964,10 @@ Q_SIGNALS:
 
     //! \internal
     void shareRoomKeyDone();
+
+    void allPrivateCSKeysAvailableChanged();
+    void isBackupDecryptionKeyAvailableChanged();
+    void ownSessionVerified();
 
     friend class ::TestCrossSigning;
     friend class KeyVerificationSession;

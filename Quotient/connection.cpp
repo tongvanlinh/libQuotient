@@ -667,6 +667,10 @@ void Connection::onSyncSuccess(SyncJob *syncJob)
                 emit backupFinished(BackupResult::Success);
             }
 
+            if (syncChanges->self_verified()) {
+                emit ownSessionVerified();
+            }
+
             for (const auto &key : syncChanges->keys()) {
                 if (const auto &r = room(stringFromRust(key.room_id()))) {
                     r->newMegolmSession(stringFromRust(key.session_id()));
@@ -681,6 +685,8 @@ void Connection::onSyncSuccess(SyncJob *syncJob)
                 emit newKeyVerificationSession(keyVerificationSession);
             }
         }
+        emit allPrivateCSKeysAvailableChanged();
+        emit isBackupDecryptionKeyAvailableChanged();
     }
     processSyncData(syncJob->takeData());
 
@@ -2489,6 +2495,9 @@ void Connection::loadFromBackup(const QString& passphrase)
             emit backupFinished(Error);
             return;
         }
+
+        emit allPrivateCSKeysAvailableChanged();
+        emit isBackupDecryptionKeyAvailableChanged();
         callApi<UploadCrossSigningSignaturesJob>(
             fromRustJson<QHash<UserId, QHash<QString, QJsonObject>>>(request->value()));
         importFromBackup();
@@ -2588,4 +2597,12 @@ bool Connection::isBackupDecryptionKeyAvailable() const
         return false;
     }
     return (*d->cryptoMachine)->has_initialized_backup();
+}
+
+bool Connection::allPrivateCSKeysAvailable() const
+{
+    if (!d->cryptoMachine) {
+        return false;
+    }
+    return (*d->cryptoMachine)->all_private_cs_keys_available();
 }
