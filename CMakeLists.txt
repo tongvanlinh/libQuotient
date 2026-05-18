@@ -252,9 +252,12 @@ ecm_finalize_qml_module(${QUOTIENT_LIB_NAME}plugin DESTINATION ${KDE_INSTALL_QML
 # see https://qt-project.atlassian.net/browse/QTBUG-123052
 # might be replaced with proper Qt API once that exists
 get_filename_component(METATYPES_FILE_NAME ${METATYPES_FILE} NAME)
-target_sources(${QUOTIENT_LIB_NAME} INTERFACE $<INSTALL_INTERFACE:${KDE_INSTALL_QTMETATYPESDIR}/${METATYPES_FILE_NAME}>)
 
-install(FILES ${METATYPES_FILE} DESTINATION ${KDE_INSTALL_QTMETATYPESDIR})
+# TODO: Unconditionally do this once we depend on a new enough ECM
+if (DEFINED KDE_INSTALL_QTMETATYPESDIR)
+    target_sources(${QUOTIENT_LIB_NAME} INTERFACE $<INSTALL_INTERFACE:${KDE_INSTALL_QTMETATYPESDIR}/${METATYPES_FILE_NAME}>)
+    install(FILES ${METATYPES_FILE} DESTINATION ${KDE_INSTALL_QTMETATYPESDIR})
+endif()
 
 # Configure API files generation
 
