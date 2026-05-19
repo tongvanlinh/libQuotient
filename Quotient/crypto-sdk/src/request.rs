@@ -332,3 +332,27 @@ impl KeyVerificationRequest {
         self.0.flow_id().as_str().into()
     }
 }
+
+#[derive(Clone)]
+pub(crate) struct CrossSigningBootstrapRequests(pub(crate) matrix_sdk_crypto::CrossSigningBootstrapRequests);
+
+impl CrossSigningBootstrapRequests {
+    pub(crate) fn upload_signatures_content(&self) -> String {
+        serde_json::to_string(&self.0.upload_signatures_req.signed_keys).unwrap()
+    }
+    pub(crate) fn self_signing_key_json(&self) -> String {
+        serde_json::to_string(&self.0.upload_signing_keys_req.self_signing_key.as_ref().unwrap()).unwrap()
+    }
+    pub(crate) fn user_signing_key_json(&self) -> String {
+        serde_json::to_string(&self.0.upload_signing_keys_req.user_signing_key.as_ref().unwrap()).unwrap()
+    }
+    pub(crate) fn master_key_json(&self) -> String {
+        serde_json::to_string(&self.0.upload_signing_keys_req.master_key.as_ref().unwrap()).unwrap()
+    }
+    pub(crate) fn has_upload_keys_request(&self) -> bool {
+        self.0.upload_keys_req.is_some()
+    }
+    pub(crate) fn upload_keys_request(&self) -> Box<OutgoingRequest> {
+        Box::new(OutgoingRequest(self.0.upload_keys_req.clone().unwrap()))
+    }
+}

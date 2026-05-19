@@ -175,6 +175,32 @@ impl OutgoingRequestResult {
     }
 }
 
+pub(crate) enum CrossSigningBootstrapRequestsResult {
+    Ok(Box<crate::request::CrossSigningBootstrapRequests>),
+    Err(Box<dyn Error>)
+}
+
+impl CrossSigningBootstrapRequestsResult {
+    pub(crate) fn has_error(&self) -> bool {
+        matches!(self, Self::Err(_))
+    }
+
+    pub(crate) fn error_string(&self) -> String {
+        if let Self::Err(error) = self {
+            error.to_string()
+        } else {
+            Default::default()
+        }
+    }
+
+    pub(crate) fn value(&self) -> Box<crate::request::CrossSigningBootstrapRequests> {
+        match self {
+            Self::Ok(value) => value.clone(),
+            Self::Err(_) => panic!("CrossSigningBootstrapRequests does not have a value"),
+        }
+    }
+}
+
 pub(crate) enum MissingSessionsResult {
     Request(Box<KeysClaimRequest>),
     NoRequest,
@@ -543,6 +569,30 @@ macro_rules! crypto_machine {
 }
 
 impl CryptoMachine {
+    pub(crate) fn requires_cs_bootstrap(&mut self) -> bool {
+        self.runtime.block_on(async {
+            let machine = crypto_machine!(self);
+            !machine
+                .get_identity(machine.user_id(), None)
+                .await.unwrap()
+                .is_some()
+        })
+    }
+
+    pub(crate) fn bootstrap_cs(&mut self) -> Box<CrossSigningBootstrapRequestsResult> {
+        let result: Result<Box<crate::request::CrossSigningBootstrapRequests>, Box<dyn Error>> =
+        self.runtime.block_on(async {
+            let requests = crypto_machine!(self).bootstrap_cross_signing(false).await?;
+            Ok(Box::new(crate::request::CrossSigningBootstrapRequests(requests)))
+        });
+        Box::new(match result {
+            Ok(requests) => CrossSigningBootstrapRequestsResult::Ok(requests),
+            Err(error) => {
+                error!("Failed to process bootstrap_cs: {:?}", error);
+                CrossSigningBootstrapRequestsResult::Err(error)
+            }
+        })
+    }
     pub(crate) fn is_ok(&self) -> bool {
         self.error == InitError::Ok
     }
