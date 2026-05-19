@@ -31,6 +31,12 @@ KeyVerificationSession::KeyVerificationSession(const QString& remoteUserId, cons
             deleteLater();
         }
     });
+
+    connect(m_connection, &Connection::receivedVerificationDone, this, [this](const auto &verificationId) {
+        if (verificationId == m_verificationId && m_connection->isVerifiedDevice(m_remoteUserId, m_remoteDeviceId)) {
+            emit m_connection->sessionVerified(m_remoteUserId, m_remoteDeviceId);
+        }
+    });
 }
 
 KeyVerificationSession::KeyVerificationSession(Room* room, Connection* connection, const QString& verificationId)
