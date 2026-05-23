@@ -38,9 +38,22 @@ tls_private_key_path: "/data/localhost.tls.key"
 HEREDOC
 ) | $CMD tee -a homeserver.yaml
 
+sed -i '/^loggers:/a \
+    synapse.storage.databases.main.event_push_actions:\
+        level: WARNING\
+    synapse.storage.databases.main.metrics:\
+        level: WARNING\
+    synapse.util.caches.lrucache:\
+        level: WARNING\
+    synapse.metrics._gc:\
+        level: WARNING\
+' localhost.log.config
+
 $CMD openssl req -x509 -newkey rsa:4096 -keyout localhost.tls.key -out localhost.tls.crt -days 365 -subj '/CN=localhost' -nodes
 
 $CMD chmod 0777 localhost.tls.crt
 $CMD chmod 0777 localhost.tls.key
 
-cp ../register-users.sh .
+# Default path is for running from synapse-data on the host (.. = autotests/).
+# setup-tests.sh sets REGISTER_USERS_PATH when sourcing inside a container.
+cp "${REGISTER_USERS_PATH:-../register-users.sh}" .
