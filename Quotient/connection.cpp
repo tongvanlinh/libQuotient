@@ -753,8 +753,7 @@ void Connection::onSyncSuccess(SyncJob *syncJob)
                         }}
                     });
 
-                    //TODO: Send to clients
-                    qWarning() << "Backup key:" << backupKey;
+                    emit backupKeyCreated(backupKey);
                     callApi<PostRoomKeysVersionJob>(backupInfo[u"algorithm"_s].toString(), backupInfo[u"auth_data"_s].toObject()).then([this](const auto &job) {
                         (*d->cryptoMachine)->set_backup_version(stringToRust(job->version()));
                     });
