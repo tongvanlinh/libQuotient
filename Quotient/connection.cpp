@@ -716,6 +716,49 @@ void Connection::onSyncSuccess(SyncJob *syncJob)
                     } else {
                         processOtherJobs();
                     }
+
+                    const auto masterKeyForAccountData = jsonFromRust(requests->master());
+                    const auto selfSigningKeyForAccountData = jsonFromRust(requests->self_signing());
+                    const auto userSigningKeyForAccountData = jsonFromRust(requests->user_signing());
+                    const auto backupKeyForAccountData = jsonFromRust(requests->backup());
+                    const auto backupKey = stringFromRust(requests->backup_key());
+
+                    const auto secretStorageEventContent = jsonFromRust(requests->secret_storage_event_content());
+                    const auto secretStorageKeyId = stringFromRust(requests->secret_storage_key_id());
+                    const auto backupInfo = jsonFromRust(requests->backup_info());
+                    const auto secretStorageEventType = stringFromRust(requests->secret_storage_event_type());
+
+                    setAccountData(u"m.secret_storage.default_key"_s, {
+                        {u"key"_s, secretStorageKeyId}
+                    });
+                    setAccountData(secretStorageEventType, secretStorageEventContent);
+                    setAccountData(u"m.cross_signing.master"_s, {
+                        {u"encrypted"_s, QJsonObject {
+                            {secretStorageKeyId, masterKeyForAccountData}
+                        }}
+                    });
+                    setAccountData(u"m.cross_signing.self_signing"_s, {
+                        {u"encrypted"_s, QJsonObject {
+                            {secretStorageKeyId, selfSigningKeyForAccountData}
+                        }}
+                    });
+                    setAccountData(u"m.cross_signing.user_signing"_s, {
+                        {u"encrypted"_s, QJsonObject {
+                            {secretStorageKeyId, userSigningKeyForAccountData}
+                        }}
+                    });
+                    setAccountData(u"m.megolm_backup.v1"_s, {
+                        {u"encrypted"_s, QJsonObject {
+                            {secretStorageKeyId, backupKeyForAccountData}
+                        }}
+                    });
+
+                    //TODO: Send to clients
+                    qWarning() << "Backup key:" << backupKey;
+                    callApi<PostRoomKeysVersionJob>(backupInfo[u"algorithm"_s].toString(), backupInfo[u"auth_data"_s].toObject()).then([this](const auto &job) {
+                        (*d->cryptoMachine)->set_backup_version(stringToRust(job->version()));
+                    });
+
                 }
             }
         }

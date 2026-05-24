@@ -334,25 +334,63 @@ impl KeyVerificationRequest {
 }
 
 #[derive(Clone)]
-pub(crate) struct CrossSigningBootstrapRequests(pub(crate) matrix_sdk_crypto::CrossSigningBootstrapRequests);
+pub(crate) struct CrossSigningBootstrapRequests {
+    pub bootstrap_requests: matrix_sdk_crypto::CrossSigningBootstrapRequests,
+    pub secret_storage_key_id: String,
+    pub(crate) backup_info: String,
+    pub(crate) master: String,
+    pub(crate) self_signing: String,
+    pub(crate) user_signing: String,
+    pub(crate) backup: String,
+    pub(crate) backup_key: String,
+    pub(crate) secret_storage_event_content: String,
+    pub(crate) secret_storage_event_type: String,
+}
 
 impl CrossSigningBootstrapRequests {
     pub(crate) fn upload_signatures_content(&self) -> String {
-        serde_json::to_string(&self.0.upload_signatures_req.signed_keys).unwrap()
+        serde_json::to_string(&self.bootstrap_requests.upload_signatures_req.signed_keys).unwrap()
     }
     pub(crate) fn self_signing_key_json(&self) -> String {
-        serde_json::to_string(&self.0.upload_signing_keys_req.self_signing_key.as_ref().unwrap()).unwrap()
+        serde_json::to_string(&self.bootstrap_requests.upload_signing_keys_req.self_signing_key.as_ref().unwrap()).unwrap()
     }
     pub(crate) fn user_signing_key_json(&self) -> String {
-        serde_json::to_string(&self.0.upload_signing_keys_req.user_signing_key.as_ref().unwrap()).unwrap()
+        serde_json::to_string(&self.bootstrap_requests.upload_signing_keys_req.user_signing_key.as_ref().unwrap()).unwrap()
     }
     pub(crate) fn master_key_json(&self) -> String {
-        serde_json::to_string(&self.0.upload_signing_keys_req.master_key.as_ref().unwrap()).unwrap()
+        serde_json::to_string(&self.bootstrap_requests.upload_signing_keys_req.master_key.as_ref().unwrap()).unwrap()
     }
     pub(crate) fn has_upload_keys_request(&self) -> bool {
-        self.0.upload_keys_req.is_some()
+        self.bootstrap_requests.upload_keys_req.is_some()
     }
     pub(crate) fn upload_keys_request(&self) -> Box<OutgoingRequest> {
-        Box::new(OutgoingRequest(self.0.upload_keys_req.clone().unwrap()))
+        Box::new(OutgoingRequest(self.bootstrap_requests.upload_keys_req.clone().unwrap()))
     }
+
+    pub(crate) fn secret_storage_key_id(&self) -> String {
+        self.secret_storage_key_id.clone()
+    }
+
+    pub(crate) fn master(&self) -> String {
+        self.master.clone()
+    }
+    pub(crate) fn self_signing(&self) -> String {
+        self.self_signing.clone()
+    }
+
+    pub(crate) fn user_signing(&self) -> String {
+        self.user_signing.clone()
+    }
+
+    pub(crate) fn backup(&self) -> String {
+        self.backup.clone()
+    }
+
+    pub(crate) fn backup_key(&self) -> String { self.backup_key.clone() }
+
+    pub(crate) fn secret_storage_event_content(&self) -> String { self.secret_storage_event_content.clone() }
+
+    pub(crate) fn secret_storage_event_type(&self) -> String { self.secret_storage_event_type.clone() }
+
+    pub(crate) fn backup_info(&self) -> String { self.backup_info.clone() }
 }

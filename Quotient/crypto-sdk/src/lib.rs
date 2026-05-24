@@ -101,12 +101,14 @@ fn init(
             error_string: "Success".to_string(),
             runtime: rt,
             machine: Some(ManuallyDrop::new(machine)),
+            pending_backup_decryption_key: None,
         },
         InnerInitResult::Err(error, error_string) => CryptoMachine {
             error,
             error_string,
             runtime: rt,
             machine: None,
+            pending_backup_decryption_key: None,
         },
     })
 }
@@ -542,5 +544,20 @@ mod ffi {
         fn master_key_json(self: &CrossSigningBootstrapRequests) -> String;
         fn has_upload_keys_request(self: &CrossSigningBootstrapRequests) -> bool;
         fn upload_keys_request(self: &CrossSigningBootstrapRequests) -> Box<OutgoingRequest>;
+
+        pub(crate) fn secret_storage_key_id(self: &CrossSigningBootstrapRequests) -> String;
+        pub(crate) fn master(self: &CrossSigningBootstrapRequests) -> String;
+        pub(crate) fn self_signing(self: &CrossSigningBootstrapRequests) -> String;
+        pub(crate) fn user_signing(self: &CrossSigningBootstrapRequests) -> String;
+        pub(crate) fn backup(self: &CrossSigningBootstrapRequests) -> String;
+
+        pub(crate) fn backup_key(self: &CrossSigningBootstrapRequests) -> String;
+        pub(crate) fn secret_storage_event_content(self: &CrossSigningBootstrapRequests) -> String;
+
+        pub(crate) fn secret_storage_event_type(self: &CrossSigningBootstrapRequests) -> String;
+
+        pub(crate) fn backup_info(self: &CrossSigningBootstrapRequests) -> String;
+
+        pub(crate) fn set_backup_version(self: &mut CryptoMachine, version: String);
     }
 }
