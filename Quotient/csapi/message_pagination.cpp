@@ -21,7 +21,7 @@ QUrl GetRoomEventsJob::makeRequestUrl(const HomeserverData& hsData, const QStrin
                                       std::optional<int> limit, const QString& filter)
 {
     return BaseJob::makeRequestUrl(hsData,
-                                   makePath("/_matrix/client/v3", "/rooms/", roomId, "/messages"),
+                                   makePath("/_matrix/client/r0", "/rooms/", roomId, "/messages"),
                                    queryToGetRoomEvents(from, to, dir, limit, filter));
 }
 
@@ -29,7 +29,7 @@ GetRoomEventsJob::GetRoomEventsJob(const QString& roomId, const QString& dir, co
                                    const QString& to, std::optional<int> limit,
                                    const QString& filter)
     : BaseJob(HttpVerb::Get, u"GetRoomEventsJob"_s,
-              makePath("/_matrix/client/v3", "/rooms/", roomId, "/messages"),
+              makePath("/_matrix/client/r0", "/rooms/", roomId, "/messages"),
               queryToGetRoomEvents(from, to, dir, limit, filter))
 {
     addExpectedKey(u"start"_s);

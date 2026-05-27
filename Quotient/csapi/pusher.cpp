@@ -6,18 +6,18 @@ using namespace Quotient;
 
 QUrl GetPushersJob::makeRequestUrl(const HomeserverData& hsData)
 {
-    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/v3", "/pushers"));
+    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/r0", "/pushers"));
 }
 
 GetPushersJob::GetPushersJob()
-    : BaseJob(HttpVerb::Get, u"GetPushersJob"_s, makePath("/_matrix/client/v3", "/pushers"))
+    : BaseJob(HttpVerb::Get, u"GetPushersJob"_s, makePath("/_matrix/client/r0", "/pushers"))
 {}
 
 PostPusherJob::PostPusherJob(const QString& pushkey, const QString& kind, const QString& appId,
                              const QString& appDisplayName, const QString& deviceDisplayName,
                              const QString& profileTag, const QString& lang,
                              const std::optional<PusherData>& data, std::optional<bool> append)
-    : BaseJob(HttpVerb::Post, u"PostPusherJob"_s, makePath("/_matrix/client/v3", "/pushers/set"))
+    : BaseJob(HttpVerb::Post, u"PostPusherJob"_s, makePath("/_matrix/client/r0", "/pushers/set"))
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "pushkey"_L1, pushkey);

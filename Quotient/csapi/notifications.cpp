@@ -16,14 +16,14 @@ auto queryToGetNotifications(const QString& from, std::optional<int> limit, cons
 QUrl GetNotificationsJob::makeRequestUrl(const HomeserverData& hsData, const QString& from,
                                          std::optional<int> limit, const QString& only)
 {
-    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/v3", "/notifications"),
+    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/r0", "/notifications"),
                                    queryToGetNotifications(from, limit, only));
 }
 
 GetNotificationsJob::GetNotificationsJob(const QString& from, std::optional<int> limit,
                                          const QString& only)
     : BaseJob(HttpVerb::Get, u"GetNotificationsJob"_s,
-              makePath("/_matrix/client/v3", "/notifications"),
+              makePath("/_matrix/client/r0", "/notifications"),
               queryToGetNotifications(from, limit, only))
 {
     addExpectedKey(u"notifications"_s);

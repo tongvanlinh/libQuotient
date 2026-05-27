@@ -6,11 +6,11 @@ using namespace Quotient;
 
 QUrl GetJoinedRoomsJob::makeRequestUrl(const HomeserverData& hsData)
 {
-    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/v3", "/joined_rooms"));
+    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/r0", "/joined_rooms"));
 }
 
 GetJoinedRoomsJob::GetJoinedRoomsJob()
-    : BaseJob(HttpVerb::Get, u"GetJoinedRoomsJob"_s, makePath("/_matrix/client/v3", "/joined_rooms"))
+    : BaseJob(HttpVerb::Get, u"GetJoinedRoomsJob"_s, makePath("/_matrix/client/r0", "/joined_rooms"))
 {
     addExpectedKey(u"joined_rooms"_s);
 }

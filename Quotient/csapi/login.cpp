@@ -6,17 +6,17 @@ using namespace Quotient;
 
 QUrl GetLoginFlowsJob::makeRequestUrl(const HomeserverData& hsData)
 {
-    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/v3", "/login"));
+    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/r0", "/login"));
 }
 
 GetLoginFlowsJob::GetLoginFlowsJob()
-    : BaseJob(HttpVerb::Get, u"GetLoginFlowsJob"_s, makePath("/_matrix/client/v3", "/login"), false)
+    : BaseJob(HttpVerb::Get, u"GetLoginFlowsJob"_s, makePath("/_matrix/client/r0", "/login"), false)
 {}
 
 LoginJob::LoginJob(const QString& type, const std::optional<UserIdentifier>& identifier,
                    const QString& password, const QString& token, const QString& deviceId,
                    const QString& initialDeviceDisplayName, std::optional<bool> refreshToken)
-    : BaseJob(HttpVerb::Post, u"LoginJob"_s, makePath("/_matrix/client/v3", "/login"), false)
+    : BaseJob(HttpVerb::Post, u"LoginJob"_s, makePath("/_matrix/client/r0", "/login"), false)
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "type"_L1, type);

@@ -6,7 +6,7 @@ using namespace Quotient;
 
 RequestOpenIdTokenJob::RequestOpenIdTokenJob(const QString& userId, const QJsonObject& dontUse)
     : BaseJob(HttpVerb::Post, u"RequestOpenIdTokenJob"_s,
-              makePath("/_matrix/client/v3", "/user/", userId, "/openid/request_token"))
+              makePath("/_matrix/client/r0", "/user/", userId, "/openid/request_token"))
 {
     setRequestData({ toJson(dontUse) });
 }

@@ -11,7 +11,7 @@ CreateRoomJob::CreateRoomJob(const QString& visibility, const QString& roomAlias
                              const QVector<StateEvent>& initialState, const QString& preset,
                              std::optional<bool> isDirect,
                              const QJsonObject& powerLevelContentOverride)
-    : BaseJob(HttpVerb::Post, u"CreateRoomJob"_s, makePath("/_matrix/client/v3", "/createRoom"))
+    : BaseJob(HttpVerb::Post, u"CreateRoomJob"_s, makePath("/_matrix/client/r0", "/createRoom"))
 {
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "visibility"_L1, visibility);

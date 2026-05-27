@@ -7,7 +7,7 @@ using namespace Quotient;
 UpdateAppserviceRoomDirectoryVisibilityJob::UpdateAppserviceRoomDirectoryVisibilityJob(
     const QString& networkId, const QString& roomId, const QString& visibility)
     : BaseJob(HttpVerb::Put, u"UpdateAppserviceRoomDirectoryVisibilityJob"_s,
-              makePath("/_matrix/client/v3", "/directory/list/appservice/", networkId, "/", roomId),
+              makePath("/_matrix/client/r0", "/directory/list/appservice/", networkId, "/", roomId),
               false)
 {
     QJsonObject _dataJson;

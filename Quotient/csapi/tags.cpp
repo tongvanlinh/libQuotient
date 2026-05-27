@@ -7,19 +7,19 @@ using namespace Quotient;
 QUrl GetRoomTagsJob::makeRequestUrl(const HomeserverData& hsData, const QString& userId,
                                     const QString& roomId)
 {
-    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/v3", "/user/", userId,
+    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/r0", "/user/", userId,
                                                     "/rooms/", roomId, "/tags"));
 }
 
 GetRoomTagsJob::GetRoomTagsJob(const QString& userId, const QString& roomId)
     : BaseJob(HttpVerb::Get, u"GetRoomTagsJob"_s,
-              makePath("/_matrix/client/v3", "/user/", userId, "/rooms/", roomId, "/tags"))
+              makePath("/_matrix/client/r0", "/user/", userId, "/rooms/", roomId, "/tags"))
 {}
 
 SetRoomTagJob::SetRoomTagJob(const QString& userId, const QString& roomId, const QString& tag,
                              const Tag& data)
     : BaseJob(HttpVerb::Put, u"SetRoomTagJob"_s,
-              makePath("/_matrix/client/v3", "/user/", userId, "/rooms/", roomId, "/tags/", tag))
+              makePath("/_matrix/client/r0", "/user/", userId, "/rooms/", roomId, "/tags/", tag))
 {
     setRequestData({ toJson(data) });
 }
@@ -27,11 +27,11 @@ SetRoomTagJob::SetRoomTagJob(const QString& userId, const QString& roomId, const
 QUrl DeleteRoomTagJob::makeRequestUrl(const HomeserverData& hsData, const QString& userId,
                                       const QString& roomId, const QString& tag)
 {
-    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/v3", "/user/", userId,
+    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/r0", "/user/", userId,
                                                     "/rooms/", roomId, "/tags/", tag));
 }
 
 DeleteRoomTagJob::DeleteRoomTagJob(const QString& userId, const QString& roomId, const QString& tag)
     : BaseJob(HttpVerb::Delete, u"DeleteRoomTagJob"_s,
-              makePath("/_matrix/client/v3", "/user/", userId, "/rooms/", roomId, "/tags/", tag))
+              makePath("/_matrix/client/r0", "/user/", userId, "/rooms/", roomId, "/tags/", tag))
 {}

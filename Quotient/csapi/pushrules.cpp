@@ -6,47 +6,47 @@ using namespace Quotient;
 
 QUrl GetPushRulesJob::makeRequestUrl(const HomeserverData& hsData)
 {
-    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/v3", "/pushrules"));
+    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/r0", "/pushrules"));
 }
 
 GetPushRulesJob::GetPushRulesJob()
-    : BaseJob(HttpVerb::Get, u"GetPushRulesJob"_s, makePath("/_matrix/client/v3", "/pushrules"))
+    : BaseJob(HttpVerb::Get, u"GetPushRulesJob"_s, makePath("/_matrix/client/r0", "/pushrules"))
 {
     addExpectedKey(u"global"_s);
 }
 
 QUrl GetPushRulesGlobalJob::makeRequestUrl(const HomeserverData& hsData)
 {
-    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/v3", "/pushrules/global"));
+    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/r0", "/pushrules/global"));
 }
 
 GetPushRulesGlobalJob::GetPushRulesGlobalJob()
     : BaseJob(HttpVerb::Get, u"GetPushRulesGlobalJob"_s,
-              makePath("/_matrix/client/v3", "/pushrules/global"))
+              makePath("/_matrix/client/r0", "/pushrules/global"))
 {}
 
 QUrl GetPushRuleJob::makeRequestUrl(const HomeserverData& hsData, const QString& kind,
                                     const QString& ruleId)
 {
-    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/v3", "/pushrules/global/",
+    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/r0", "/pushrules/global/",
                                                     kind, "/", ruleId));
 }
 
 GetPushRuleJob::GetPushRuleJob(const QString& kind, const QString& ruleId)
     : BaseJob(HttpVerb::Get, u"GetPushRuleJob"_s,
-              makePath("/_matrix/client/v3", "/pushrules/global/", kind, "/", ruleId))
+              makePath("/_matrix/client/r0", "/pushrules/global/", kind, "/", ruleId))
 {}
 
 QUrl DeletePushRuleJob::makeRequestUrl(const HomeserverData& hsData, const QString& kind,
                                        const QString& ruleId)
 {
-    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/v3", "/pushrules/global/",
+    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/r0", "/pushrules/global/",
                                                     kind, "/", ruleId));
 }
 
 DeletePushRuleJob::DeletePushRuleJob(const QString& kind, const QString& ruleId)
     : BaseJob(HttpVerb::Delete, u"DeletePushRuleJob"_s,
-              makePath("/_matrix/client/v3", "/pushrules/global/", kind, "/", ruleId))
+              makePath("/_matrix/client/r0", "/pushrules/global/", kind, "/", ruleId))
 {}
 
 auto queryToSetPushRule(const QString& before, const QString& after)
@@ -62,7 +62,7 @@ SetPushRuleJob::SetPushRuleJob(const QString& kind, const QString& ruleId,
                                const QString& after, const QVector<PushCondition>& conditions,
                                const QString& pattern)
     : BaseJob(HttpVerb::Put, u"SetPushRuleJob"_s,
-              makePath("/_matrix/client/v3", "/pushrules/global/", kind, "/", ruleId),
+              makePath("/_matrix/client/r0", "/pushrules/global/", kind, "/", ruleId),
               queryToSetPushRule(before, after))
 {
     QJsonObject _dataJson;
@@ -75,13 +75,13 @@ SetPushRuleJob::SetPushRuleJob(const QString& kind, const QString& ruleId,
 QUrl IsPushRuleEnabledJob::makeRequestUrl(const HomeserverData& hsData, const QString& kind,
                                           const QString& ruleId)
 {
-    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/v3", "/pushrules/global/",
+    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/r0", "/pushrules/global/",
                                                     kind, "/", ruleId, "/enabled"));
 }
 
 IsPushRuleEnabledJob::IsPushRuleEnabledJob(const QString& kind, const QString& ruleId)
     : BaseJob(HttpVerb::Get, u"IsPushRuleEnabledJob"_s,
-              makePath("/_matrix/client/v3", "/pushrules/global/", kind, "/", ruleId, "/enabled"))
+              makePath("/_matrix/client/r0", "/pushrules/global/", kind, "/", ruleId, "/enabled"))
 {
     addExpectedKey(u"enabled"_s);
 }
@@ -89,7 +89,7 @@ IsPushRuleEnabledJob::IsPushRuleEnabledJob(const QString& kind, const QString& r
 SetPushRuleEnabledJob::SetPushRuleEnabledJob(const QString& kind, const QString& ruleId,
                                              bool enabled)
     : BaseJob(HttpVerb::Put, u"SetPushRuleEnabledJob"_s,
-              makePath("/_matrix/client/v3", "/pushrules/global/", kind, "/", ruleId, "/enabled"))
+              makePath("/_matrix/client/r0", "/pushrules/global/", kind, "/", ruleId, "/enabled"))
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "enabled"_L1, enabled);
@@ -99,13 +99,13 @@ SetPushRuleEnabledJob::SetPushRuleEnabledJob(const QString& kind, const QString&
 QUrl GetPushRuleActionsJob::makeRequestUrl(const HomeserverData& hsData, const QString& kind,
                                            const QString& ruleId)
 {
-    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/v3", "/pushrules/global/",
+    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/r0", "/pushrules/global/",
                                                     kind, "/", ruleId, "/actions"));
 }
 
 GetPushRuleActionsJob::GetPushRuleActionsJob(const QString& kind, const QString& ruleId)
     : BaseJob(HttpVerb::Get, u"GetPushRuleActionsJob"_s,
-              makePath("/_matrix/client/v3", "/pushrules/global/", kind, "/", ruleId, "/actions"))
+              makePath("/_matrix/client/r0", "/pushrules/global/", kind, "/", ruleId, "/actions"))
 {
     addExpectedKey(u"actions"_s);
 }
@@ -113,7 +113,7 @@ GetPushRuleActionsJob::GetPushRuleActionsJob(const QString& kind, const QString&
 SetPushRuleActionsJob::SetPushRuleActionsJob(const QString& kind, const QString& ruleId,
                                              const QVector<QVariant>& actions)
     : BaseJob(HttpVerb::Put, u"SetPushRuleActionsJob"_s,
-              makePath("/_matrix/client/v3", "/pushrules/global/", kind, "/", ruleId, "/actions"))
+              makePath("/_matrix/client/r0", "/pushrules/global/", kind, "/", ruleId, "/actions"))
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "actions"_L1, actions);

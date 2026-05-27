@@ -6,7 +6,7 @@ using namespace Quotient;
 
 UpgradeRoomJob::UpgradeRoomJob(const QString& roomId, const QString& newVersion)
     : BaseJob(HttpVerb::Post, u"UpgradeRoomJob"_s,
-              makePath("/_matrix/client/v3", "/rooms/", roomId, "/upgrade"))
+              makePath("/_matrix/client/r0", "/rooms/", roomId, "/upgrade"))
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "new_version"_L1, newVersion);

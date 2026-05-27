@@ -7,7 +7,7 @@ using namespace Quotient;
 SetTypingJob::SetTypingJob(const QString& userId, const QString& roomId, bool typing,
                            std::optional<int> timeout)
     : BaseJob(HttpVerb::Put, u"SetTypingJob"_s,
-              makePath("/_matrix/client/v3", "/rooms/", roomId, "/typing/", userId))
+              makePath("/_matrix/client/r0", "/rooms/", roomId, "/typing/", userId))
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "typing"_L1, typing);

@@ -13,13 +13,13 @@ auto queryToRedirectToSSO(const QString& redirectUrl)
 
 QUrl RedirectToSSOJob::makeRequestUrl(const HomeserverData& hsData, const QString& redirectUrl)
 {
-    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/v3", "/login/sso/redirect"),
+    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/r0", "/login/sso/redirect"),
                                    queryToRedirectToSSO(redirectUrl));
 }
 
 RedirectToSSOJob::RedirectToSSOJob(const QString& redirectUrl)
     : BaseJob(HttpVerb::Get, u"RedirectToSSOJob"_s,
-              makePath("/_matrix/client/v3", "/login/sso/redirect"),
+              makePath("/_matrix/client/r0", "/login/sso/redirect"),
               queryToRedirectToSSO(redirectUrl), {}, false)
 {}
 
@@ -34,12 +34,12 @@ QUrl RedirectToIdPJob::makeRequestUrl(const HomeserverData& hsData, const QStrin
                                       const QString& redirectUrl)
 {
     return BaseJob::makeRequestUrl(hsData,
-                                   makePath("/_matrix/client/v3", "/login/sso/redirect/", idpId),
+                                   makePath("/_matrix/client/r0", "/login/sso/redirect/", idpId),
                                    queryToRedirectToIdP(redirectUrl));
 }
 
 RedirectToIdPJob::RedirectToIdPJob(const QString& idpId, const QString& redirectUrl)
     : BaseJob(HttpVerb::Get, u"RedirectToIdPJob"_s,
-              makePath("/_matrix/client/v3", "/login/sso/redirect/", idpId),
+              makePath("/_matrix/client/r0", "/login/sso/redirect/", idpId),
               queryToRedirectToIdP(redirectUrl), {}, false)
 {}
