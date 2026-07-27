@@ -104,7 +104,7 @@ public:
     //!   The backup version to get, as returned in the `version` parameter
     //!   of the response in
     //!   [`POST
-    //!   /_matrix/client/r0/room_keys/version`](/client-server-api/#post_matrixclientv3room_keysversion)
+    //!   /_matrix/client/v3/room_keys/version`](/client-server-api/#post_matrixclientv3room_keysversion)
     //!   or this endpoint.
     explicit GetRoomKeysVersionJob(const QString& version);
 
@@ -173,9 +173,9 @@ public:
     //!   The backup version to update, as returned in the `version`
     //!   parameter in the response of
     //!   [`POST
-    //!   /_matrix/client/r0/room_keys/version`](/client-server-api/#post_matrixclientv3room_keysversion)
+    //!   /_matrix/client/v3/room_keys/version`](/client-server-api/#post_matrixclientv3room_keysversion)
     //!   or [`GET
-    //!   /_matrix/client/r0/room_keys/version/{version}`](/client-server-api/#get_matrixclientv3room_keysversionversion).
+    //!   /_matrix/client/v3/room_keys/version/{version}`](/client-server-api/#get_matrixclientv3room_keysversionversion).
     //!
     //! \param algorithm
     //!   The algorithm used for storing backups.  Must be the same as
@@ -199,9 +199,9 @@ public:
     //!   The backup version to delete, as returned in the `version`
     //!   parameter in the response of
     //!   [`POST
-    //!   /_matrix/client/r0/room_keys/version`](/client-server-api/#post_matrixclientv3room_keysversion)
+    //!   /_matrix/client/v3/room_keys/version`](/client-server-api/#post_matrixclientv3room_keysversion)
     //!   or [`GET
-    //!   /_matrix/client/r0/room_keys/version/{version}`](/client-server-api/#get_matrixclientv3room_keysversionversion).
+    //!   /_matrix/client/v3/room_keys/version/{version}`](/client-server-api/#get_matrixclientv3room_keysversionversion).
     explicit DeleteRoomKeysVersionJob(const QString& version);
 
     //! \brief Construct a URL without creating a full-fledged job object

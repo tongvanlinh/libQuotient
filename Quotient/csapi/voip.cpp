@@ -6,10 +6,10 @@ using namespace Quotient;
 
 QUrl GetTurnServerJob::makeRequestUrl(const HomeserverData& hsData)
 {
-    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/r0", "/voip/turnServer"));
+    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/v3", "/voip/turnServer"));
 }
 
 GetTurnServerJob::GetTurnServerJob()
     : BaseJob(HttpVerb::Get, u"GetTurnServerJob"_s,
-              makePath("/_matrix/client/r0", "/voip/turnServer"))
+              makePath("/_matrix/client/v3", "/voip/turnServer"))
 {}

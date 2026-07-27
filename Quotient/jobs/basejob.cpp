@@ -17,6 +17,7 @@
 #include <QtNetwork/QNetworkReply>
 #include <QtNetwork/QNetworkRequest>
 
+#include <array>
 #include <ranges>
 
 using namespace Quotient;
@@ -260,13 +261,53 @@ const QNetworkReply* BaseJob::reply() const { return d->reply.data(); }
 
 QNetworkReply* BaseJob::reply() { return d->reply.data(); }
 
+// --- Nunchuk fork compatibility shim ---------------------------------------
+// Our target homeserver only implements the legacy Matrix Client-Server API
+// ("r0"); it does not understand the "v3"/"v1" path segments emitted by
+// upstream libQuotient's generated Quotient/csapi/*.cpp code (each such file
+// is regenerated from the official Matrix spec via the `update-api` CMake
+// target - see CODE_GENERATION.md - so hand-editing 52+ generated files
+// individually, as an earlier patch on this branch did, is not durable: a
+// future regeneration silently reverts every one of those edits back to v3).
+//
+// Rewriting the version segment once, here, covers every job - generated or
+// hand-written, present or added by future upstream merges - without ever
+// touching generated code. It normalizes both "/_matrix/client/*" (CS API)
+// and "/_matrix/media/*" (legacy + authenticated media API) paths.
+//
+// CAVEAT: this only fixes the URL *shape*. Endpoints that never existed
+// under r0 at all on real servers (e.g. refresh tokens, threads, spaces,
+// authenticated media, knocking) will still fail if the homeserver never
+// implemented the underlying feature - that is a server capability gap, not
+// a path-versioning gap, and no client-side rewrite can paper over it.
+//
+// If this fork ever targets a server with real v3/v1 support, remove this
+// block (or make it conditional on HomeserverData::supportedSpecVersions,
+// the way jobs/downloadfilejob.cpp and jobs/mediathumbnailjob.cpp already do
+// for the v1.11 authenticated-media cutover).
+namespace {
+QByteArray normalizeToR0(QByteArray path)
+{
+    static const std::array prefixes = { "/_matrix/client/v3"_ba, "/_matrix/client/v1"_ba,
+                                         "/_matrix/media/v3"_ba, "/_matrix/media/v1"_ba };
+    for (const auto& prefix : prefixes) {
+        if (path.startsWith(prefix)) {
+            path.replace(0, prefix.size(), prefix.chopped(2) + "r0");
+            break;
+        }
+    }
+    return path;
+}
+}
+
 QUrl BaseJob::makeRequestUrl(const HomeserverData& hsData, const QByteArray& encodedPath,
                              const QUrlQuery& query)
 {
+    const auto normalizedPath = normalizeToR0(encodedPath);
     // Make sure the added path is relative even if it's not (the official
     // API definitions have the leading slash though it's not really correct).
     const auto pathUrl =
-        QUrl::fromEncoded(encodedPath.mid(encodedPath.startsWith('/')),
+        QUrl::fromEncoded(normalizedPath.mid(normalizedPath.startsWith('/')),
                           QUrl::StrictMode);
     Q_ASSERT_X(pathUrl.isValid(), __FUNCTION__,
                qPrintable(pathUrl.errorString()));

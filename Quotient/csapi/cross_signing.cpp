@@ -10,7 +10,7 @@ UploadCrossSigningKeysJob::UploadCrossSigningKeysJob(
     const std::optional<CrossSigningKey>& userSigningKey,
     const std::optional<AuthenticationData>& auth)
     : BaseJob(HttpVerb::Post, u"UploadCrossSigningKeysJob"_s,
-              makePath("/_matrix/client/r0", "/keys/device_signing/upload"))
+              makePath("/_matrix/client/v3", "/keys/device_signing/upload"))
 {
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "master_key"_L1, masterKey);
@@ -23,7 +23,7 @@ UploadCrossSigningKeysJob::UploadCrossSigningKeysJob(
 UploadCrossSigningSignaturesJob::UploadCrossSigningSignaturesJob(
     const QHash<UserId, QHash<QString, QJsonObject>>& signatures)
     : BaseJob(HttpVerb::Post, u"UploadCrossSigningSignaturesJob"_s,
-              makePath("/_matrix/client/r0", "/keys/signatures/upload"))
+              makePath("/_matrix/client/v3", "/keys/signatures/upload"))
 {
     setRequestData({ toJson(signatures) });
 }

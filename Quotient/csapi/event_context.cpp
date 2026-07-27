@@ -17,7 +17,7 @@ QUrl GetEventContextJob::makeRequestUrl(const HomeserverData& hsData, const QStr
                                         const QString& filter)
 {
     return BaseJob::makeRequestUrl(hsData,
-                                   makePath("/_matrix/client/r0", "/rooms/", roomId, "/context/",
+                                   makePath("/_matrix/client/v3", "/rooms/", roomId, "/context/",
                                             eventId),
                                    queryToGetEventContext(limit, filter));
 }
@@ -25,6 +25,6 @@ QUrl GetEventContextJob::makeRequestUrl(const HomeserverData& hsData, const QStr
 GetEventContextJob::GetEventContextJob(const QString& roomId, const QString& eventId,
                                        std::optional<int> limit, const QString& filter)
     : BaseJob(HttpVerb::Get, u"GetEventContextJob"_s,
-              makePath("/_matrix/client/r0", "/rooms/", roomId, "/context/", eventId),
+              makePath("/_matrix/client/v3", "/rooms/", roomId, "/context/", eventId),
               queryToGetEventContext(limit, filter))
 {}

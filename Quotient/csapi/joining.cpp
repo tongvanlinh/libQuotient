@@ -8,7 +8,7 @@ JoinRoomByIdJob::JoinRoomByIdJob(const QString& roomId,
                                  const std::optional<ThirdPartySigned>& thirdPartySigned,
                                  const QString& reason)
     : BaseJob(HttpVerb::Post, u"JoinRoomByIdJob"_s,
-              makePath("/_matrix/client/r0", "/rooms/", roomId, "/join"))
+              makePath("/_matrix/client/v3", "/rooms/", roomId, "/join"))
 {
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "third_party_signed"_L1, thirdPartySigned);
@@ -30,7 +30,7 @@ JoinRoomJob::JoinRoomJob(const QString& roomIdOrAlias, const QStringList& server
                          const std::optional<ThirdPartySigned>& thirdPartySigned,
                          const QString& reason)
     : BaseJob(HttpVerb::Post, u"JoinRoomJob"_s,
-              makePath("/_matrix/client/r0", "/join/", roomIdOrAlias),
+              makePath("/_matrix/client/v3", "/join/", roomIdOrAlias),
               queryToJoinRoom(serverName, via))
 {
     QJsonObject _dataJson;

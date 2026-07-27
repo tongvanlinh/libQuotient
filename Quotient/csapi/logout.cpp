@@ -6,18 +6,18 @@ using namespace Quotient;
 
 QUrl LogoutJob::makeRequestUrl(const HomeserverData& hsData)
 {
-    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/r0", "/logout"));
+    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/v3", "/logout"));
 }
 
 LogoutJob::LogoutJob()
-    : BaseJob(HttpVerb::Post, u"LogoutJob"_s, makePath("/_matrix/client/r0", "/logout"))
+    : BaseJob(HttpVerb::Post, u"LogoutJob"_s, makePath("/_matrix/client/v3", "/logout"))
 {}
 
 QUrl LogoutAllJob::makeRequestUrl(const HomeserverData& hsData)
 {
-    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/r0", "/logout/all"));
+    return BaseJob::makeRequestUrl(hsData, makePath("/_matrix/client/v3", "/logout/all"));
 }
 
 LogoutAllJob::LogoutAllJob()
-    : BaseJob(HttpVerb::Post, u"LogoutAllJob"_s, makePath("/_matrix/client/r0", "/logout/all"))
+    : BaseJob(HttpVerb::Post, u"LogoutAllJob"_s, makePath("/_matrix/client/v3", "/logout/all"))
 {}

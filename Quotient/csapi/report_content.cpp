@@ -7,7 +7,7 @@ using namespace Quotient;
 ReportContentJob::ReportContentJob(const QString& roomId, const QString& eventId,
                                    std::optional<int> score, const QString& reason)
     : BaseJob(HttpVerb::Post, u"ReportContentJob"_s,
-              makePath("/_matrix/client/r0", "/rooms/", roomId, "/report/", eventId))
+              makePath("/_matrix/client/v3", "/rooms/", roomId, "/report/", eventId))
 {
     QJsonObject _dataJson;
     addParam<IfNotEmpty>(_dataJson, "score"_L1, score);

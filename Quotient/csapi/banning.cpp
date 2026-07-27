@@ -5,7 +5,7 @@
 using namespace Quotient;
 
 BanJob::BanJob(const QString& roomId, const QString& userId, const QString& reason)
-    : BaseJob(HttpVerb::Post, u"BanJob"_s, makePath("/_matrix/client/r0", "/rooms/", roomId, "/ban"))
+    : BaseJob(HttpVerb::Post, u"BanJob"_s, makePath("/_matrix/client/v3", "/rooms/", roomId, "/ban"))
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "user_id"_L1, userId);
@@ -15,7 +15,7 @@ BanJob::BanJob(const QString& roomId, const QString& userId, const QString& reas
 
 UnbanJob::UnbanJob(const QString& roomId, const QString& userId, const QString& reason)
     : BaseJob(HttpVerb::Post, u"UnbanJob"_s,
-              makePath("/_matrix/client/r0", "/rooms/", roomId, "/unban"))
+              makePath("/_matrix/client/v3", "/rooms/", roomId, "/unban"))
 {
     QJsonObject _dataJson;
     addParam(_dataJson, "user_id"_L1, userId);
