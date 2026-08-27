@@ -341,15 +341,16 @@ void Connection::Private::completeSetup(const QString& mxId, bool newLogin,
             encryptionData->database.clear();
             encryptionData->olmAccount.setupNewAccount();
         } else
-            ConnectionEncryptionData::setup(q, encryptionData, newLogin).then([this](bool successful) {
-                if (!successful || !encryptionData)
-                    useEncryption = false;
+            ConnectionEncryptionData::setup(q, encryptionData, newLogin)
+                .then(q, [this](bool successful) {
+                    if (!successful || !encryptionData)
+                        useEncryption = false;
 
-                emit q->encryptionChanged(useEncryption);
-                emit q->stateChanged();
-                emit q->ready();
-                emit q->connected();
-            });
+                    emit q->encryptionChanged(useEncryption);
+                    emit q->stateChanged();
+                    emit q->ready();
+                    emit q->connected();
+                });
     } else {
         qCInfo(E2EE) << "End-to-end encryption (E2EE) support is off for" << q->objectName();
         emit q->ready();

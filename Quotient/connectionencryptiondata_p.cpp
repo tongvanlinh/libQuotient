@@ -41,8 +41,10 @@ QFuture<void> setupPicklingKey(Connection* connection,
     const auto keychainId = connection->userId() + "-Pickle"_L1;
     qCInfo(MAIN) << "Keychain request: app" << qAppName() << "id" << keychainId;
 
+    // A keychain job may finish after its Connection has been destroyed.
     return runKeychainJob(new ReadPasswordJob(qAppName()), keychainId)
-        .then([keychainId, &encryptionData, connection](const Job* j) -> QFuture<Job*> {
+        .then(connection,
+              [keychainId, &encryptionData, connection](const Job* j) -> QFuture<Job*> {
             // The future will hold nullptr if the existing pickling key was found and no write is
             // pending; a pointer to the write job if if a new key was made and is being written;
             // be cancelled in case of an error.
@@ -92,7 +94,7 @@ QFuture<bool> ConnectionEncryptionData::setup(Connection* connection,
                                               bool clearDatabase)
 {
     return setupPicklingKey(connection, result)
-        .then([connection, &result, clearDatabase] {
+        .then(connection, [connection, &result, clearDatabase] {
             if (clearDatabase) {
                 qCInfo(E2EE) << "Clearing the database for account" << connection->objectName();
                 result->database.clear();
@@ -119,7 +121,7 @@ QFuture<bool> ConnectionEncryptionData::setup(Connection* connection,
                     });
             return true;
         })
-        .onCanceled([connection] {
+        .onCanceled(connection, [connection] {
             qCritical(E2EE) << "Could not setup E2EE for" << connection->objectName();
             return false;
         });
